@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model BankDev {
+  id               Int      @id               @default(autoincrement())
+  bank_id          String   @unique
+  title            String
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  question         QuestionDev[]
+
+  @@map("bankdev")
+
+}
+
+model QuestionDev {
+  id               Int      @id               @default(autoincrement())
+  bank_id          String
+  question_id      String   @unique
+  question_text    String   @db.Text
+
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  bank             BankDev  @relation(fields: [bank_id], references: [bank_id])
+  option           OptionDev[]
+
+  @@map("questiondev")
+}
+
+
+model OptionDev {
+  id               Int      @id               @default(autoincrement())    
+  question_id      String    
+  option_id        String
+  option_text      String   @db.Text
+  is_correct       Boolean  
+
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  question         QuestionDev  @relation(fields: [question_id], references: [question_id])
+
+  @@map("optiondev")
+}
