@@ -37,7 +37,7 @@ export class AdminGuard implements CanActivate {
         secret: process.env.JWT_SECRET_KEY,
       });
 
-      if (payload.role == 'admin') {
+      if (payload.role == 'admin' || payload.role == 'superadmin') {
         return true;
       }
 
