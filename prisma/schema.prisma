@@ -7,46 +7,230 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model BankDev {
-  id               Int      @id               @default(autoincrement())
-  bank_id          String   @unique
+enum AdminRole {
+  admin
+  superadmin
+}
+
+enum ProgramType {
+  free
+  paid
+}
+
+enum Gender {
+  M
+  F
+}
+
+enum QuestionType {
+  text
+  video
+  image
+}
+
+model Admin {
+  id               Int              @id               @default(autoincrement())
+  admin_id         String           @unique
+  fullname         String         
+  password         String
+  role             AdminRole
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  @@map("admin")
+}
+
+model User {
+  id               Int              @id               @default(autoincrement())
+  user_id          String           @unique
+  fullname         String         
+  email            String           @unique
+  phone_number     String           @unique
+  university       String            
+  gender           Gender
+  password         String
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  session          Session?
+  results          Result[]
+  participants     Participant[]
+  starts           Start[]
+
+  @@map("user")
+}
+
+model Session {
+  id               Int              @id               @default(autoincrement())
+  session_id       String           @unique           @default(uuid())
+  user_id          String           @unique
+  expired          DateTime
+  os               String?
+  browser          String?
+  
+  created_at       DateTime         @default(now())
+
+  user             User             @relation(fields: [user_id], references: [user_id])
+  
+  @@map("session")
+}
+
+model Program {
+  id               Int              @id               @default(autoincrement())
+  program_id       String           @unique
   title            String
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  type             ProgramType
+  price            Int?             @db.UnsignedInt
+  is_active        Boolean          @default(true)
 
-  question         QuestionDev[]
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
 
-  @@map("bankdev")
+  created_by       String         
+  updated_by       String
+
+  participants     Participant[]
+  details          ProgramDetail[]      
+
+  @@map("program")
+}
+
+model ProgramDetail {
+  program_id       String
+  test_id          String    
+
+  program          Program          @relation(fields: [program_id], references: [program_id])
+  test             Test             @relation(fields: [test_id], references: [test_id])
+
+  @@id([program_id, test_id])
+  @@map("program_detail")
+}
+
+model Test {
+  id               Int              @id               @default(autoincrement())
+  test_id          String           @unique
+  title            String
+  description      String           @db.Text
+  start            String
+  end              String
+  duration         Int              @db.UnsignedInt
+  is_active        Boolean          @default(true)
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String         
+  updated_by       String      
+
+  questions        Question[]
+  details          ProgramDetail[]
+  starts           Start[] 
+  results          Result[]     
+
+  @@map("test")
 
 }
 
-model QuestionDev {
-  id               Int      @id               @default(autoincrement())
-  bank_id          String
-  question_id      String   @unique
-  question_text    String   @db.Text
+model Question {
+  id               Int              @id               @default(autoincrement())
+  test_id          String
+  question_id      String           @unique
+  text             String?          @db.Text
+  url              String?          @db.VarChar(255)
+  explanation      String           @db.Text
+  type             QuestionType
 
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
 
-  bank             BankDev  @relation(fields: [bank_id], references: [bank_id])
-  option           OptionDev[]
+  created_by       String         
+  updated_by       String    
 
-  @@map("questiondev")
+  test             Test             @relation(fields: [test_id], references: [test_id])
+  options          Option[]
+  details          ResultDetail[]
+
+  @@map("question")
 }
 
 
-model OptionDev {
-  id               Int      @id               @default(autoincrement())    
+model Option {
+  id               Int              @id               @default(autoincrement())    
   question_id      String    
   option_id        String
-  option_text      String   @db.Text
+  text             String           @db.Text
   is_correct       Boolean  
 
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
 
-  question         QuestionDev  @relation(fields: [question_id], references: [question_id])
+  created_by       String         
+  updated_by       String    
 
-  @@map("optiondev")
+  question         Question         @relation(fields: [question_id], references: [question_id])
+
+  @@map("option")
+}
+
+model Result {
+  id               Int              @id               @default(autoincrement())    
+  user_id          String
+  test_id          String
+  result_id        String           @unique
+  total_correct    Int              @db.UnsignedInt
+  total_incorrect  Int              @db.UnsignedInt
+  score            Int              @db.UnsignedInt
+
+  created_at       DateTime         @default(now())
+
+  user             User             @relation(fields: [user_id], references: [user_id])
+  test             Test             @relation(fields: [test_id], references: [test_id])
+  details          ResultDetail[]
+
+  @@map("result")
+}
+
+model ResultDetail {   
+  result_id        String
+  question_id      String
+  number           Int              @db.UnsignedInt
+  correct_option   String
+  user_answer      String
+  is_correct       Boolean
+
+  result           Result           @relation(fields: [result_id], references: [result_id])
+  questions        Question         @relation(fields: [question_id], references: [question_id])
+
+  @@id([result_id, question_id])
+  @@map("result_detail")
+}
+
+model Participant {
+  program_id       String           
+  user_id          String
+  code             String?          @unique
+  joined_at        DateTime?
+  invited_at       DateTime?
+  invited_by       String?
+
+  user             User             @relation(fields: [user_id], references: [user_id])
+  program          Program          @relation(fields: [program_id], references: [program_id])
+
+  @@id([program_id, user_id])
+  @@map("participant")
+}
+
+
+model Start {
+  user_id          String
+  test_id          String
+  end_time         DateTime
+
+  user             User             @relation(fields: [user_id], references: [user_id])
+  test             Test             @relation(fields: [test_id], references: [test_id])
+
+  @@id([user_id, test_id])
+  @@map("start")
 }
