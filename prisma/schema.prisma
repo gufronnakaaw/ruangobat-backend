@@ -113,8 +113,8 @@ model Test {
   test_id          String           @unique
   title            String
   description      String           @db.Text
-  start            String
-  end              String
+  start            DateTime
+  end              DateTime
   duration         Int              @db.UnsignedInt
   is_active        Boolean          @default(true)
 
@@ -136,6 +136,7 @@ model Test {
 model Question {
   id               Int              @id               @default(autoincrement())
   test_id          String
+  number           Int              @db.UnsignedInt
   question_id      String           @unique
   text             String?          @db.Text
   url              String?          @db.VarChar(255)
