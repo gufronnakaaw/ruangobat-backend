@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
   UsePipes,
@@ -14,7 +15,11 @@ import { Request } from 'express';
 import { SuccessResponse } from 'src/utils/global/global.response';
 import { ZodValidationPipe } from 'src/utils/pipes/zod.pipe';
 import { UserGuard } from '../utils/guards/user.guard';
-import { FollowProgramsDto, followProgramsSchema } from './programs.dto';
+import {
+  FollowProgramsDto,
+  followProgramsSchema,
+  ProgramsQuery,
+} from './programs.dto';
 import { ProgramsService } from './programs.service';
 
 @UseGuards(UserGuard)
@@ -24,12 +29,37 @@ export class ProgramsController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  async getPrograms(@Req() req: Request): Promise<SuccessResponse> {
+  async getPrograms(
+    @Req() req: Request,
+    @Query() query: ProgramsQuery,
+  ): Promise<SuccessResponse> {
     try {
+      if (query.q) {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: await this.programsService.getProgramsBySearch(
+            req.user.user_id,
+            query,
+          ),
+        };
+      }
+
+      if (query.type) {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: await this.programsService.getProgramsByType(
+            req.user.user_id,
+            query,
+          ),
+        };
+      }
+
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.programsService.getPrograms(req.user.user_id),
+        data: await this.programsService.getPrograms(req.user.user_id, query),
       };
     } catch (error) {
       throw error;

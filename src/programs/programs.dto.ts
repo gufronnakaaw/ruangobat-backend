@@ -3,7 +3,7 @@ import { z } from 'zod';
 export type ProgramsQuery = {
   q?: string;
   page: string;
-  plan?: string;
+  type?: 'free' | 'paid';
 };
 
 export const followProgramsSchema = z.object({

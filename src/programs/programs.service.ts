@@ -5,44 +5,199 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/utils/services/prisma.service';
-import { FollowProgramsDto } from './programs.dto';
+import { FollowProgramsDto, ProgramsQuery } from './programs.dto';
 
 @Injectable()
 export class ProgramsService {
   constructor(private prisma: PrismaService) {}
 
-  async getPrograms(user_id: string) {
-    const programs = await this.prisma.program.findMany({
-      select: {
-        program_id: true,
-        title: true,
-        type: true,
-        price: true,
-        details: {
-          select: {
-            test_id: true,
+  async getPrograms(user_id: string, query: ProgramsQuery) {
+    const default_page = 1;
+    const take = 6;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_programs, programs] = await this.prisma.$transaction([
+      this.prisma.program.count(),
+      this.prisma.program.findMany({
+        select: {
+          program_id: true,
+          title: true,
+          type: true,
+          price: true,
+          details: {
+            select: {
+              test_id: true,
+            },
+          },
+          participants: {
+            select: {
+              user_id: true,
+            },
           },
         },
-        participants: {
-          select: {
-            user_id: true,
+        take,
+        skip,
+      }),
+    ]);
+
+    return {
+      programs: programs.map((program) => {
+        const { details, participants, ...all } = program;
+
+        return {
+          ...all,
+          total_tests: details.length,
+          total_users: participants.length,
+          participated: participants.some(
+            (participant) => participant.user_id === user_id,
+          ),
+        };
+      }),
+      page: query.page,
+      total_programs,
+      total_pages: Math.ceil(total_programs / take),
+    };
+  }
+
+  async getProgramsBySearch(user_id: string, query: ProgramsQuery) {
+    const default_page = 1;
+    const take = 6;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_programs, programs] = await this.prisma.$transaction([
+      this.prisma.program.count({
+        where: {
+          OR: [
+            {
+              program_id: {
+                contains: query.q,
+              },
+            },
+            {
+              title: {
+                contains: query.q,
+              },
+            },
+          ],
+        },
+      }),
+      this.prisma.program.findMany({
+        where: {
+          OR: [
+            {
+              program_id: {
+                contains: query.q,
+              },
+            },
+            {
+              title: {
+                contains: query.q,
+              },
+            },
+          ],
+        },
+        select: {
+          program_id: true,
+          title: true,
+          type: true,
+          price: true,
+          details: {
+            select: {
+              test_id: true,
+            },
+          },
+          participants: {
+            select: {
+              user_id: true,
+            },
           },
         },
-      },
-    });
+        take,
+        skip,
+      }),
+    ]);
 
-    return programs.map((program) => {
-      const { details, participants, ...all } = program;
+    return {
+      programs: programs.map((program) => {
+        const { details, participants, ...all } = program;
 
-      return {
-        ...all,
-        total_tests: details.length,
-        total_users: participants.length,
-        participated: participants.some(
-          (participant) => participant.user_id === user_id,
-        ),
-      };
-    });
+        return {
+          ...all,
+          total_tests: details.length,
+          total_users: participants.length,
+          participated: participants.some(
+            (participant) => participant.user_id === user_id,
+          ),
+        };
+      }),
+      page: query.page,
+      total_programs,
+      total_pages: Math.ceil(total_programs / take),
+    };
+  }
+
+  async getProgramsByType(user_id: string, query: ProgramsQuery) {
+    const default_page = 1;
+    const take = 6;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_programs, programs] = await this.prisma.$transaction([
+      this.prisma.program.count({
+        where: {
+          type: query.type,
+        },
+      }),
+      this.prisma.program.findMany({
+        where: {
+          type: query.type,
+        },
+        select: {
+          program_id: true,
+          title: true,
+          type: true,
+          price: true,
+          details: {
+            select: {
+              test_id: true,
+            },
+          },
+          participants: {
+            select: {
+              user_id: true,
+            },
+          },
+        },
+        take,
+        skip,
+      }),
+    ]);
+
+    return {
+      programs: programs.map((program) => {
+        const { details, participants, ...all } = program;
+
+        return {
+          ...all,
+          total_tests: details.length,
+          total_users: participants.length,
+          participated: participants.some(
+            (participant) => participant.user_id === user_id,
+          ),
+        };
+      }),
+      page: query.page,
+      total_programs,
+      total_pages: Math.ceil(total_programs / take),
+    };
   }
 
   async getProgram(user_id: string, program_id: string) {
