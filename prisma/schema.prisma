@@ -201,7 +201,7 @@ model ResultDetail {
   user_answer      String
   is_correct       Boolean
 
-  result           Result           @relation(fields: [result_id], references: [result_id])
+  result           Result           @relation(fields: [result_id], references: [result_id], onUpdate: NoAction, onDelete: Cascade)
   questions        Question         @relation(fields: [question_id], references: [question_id])
 
   @@id([result_id, question_id])
