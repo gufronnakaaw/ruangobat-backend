@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
+import { MyModule } from './my/my.module';
+import { ProgramsModule } from './programs/programs.module';
 import { TestsModule } from './tests/tests.module';
-import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -18,7 +20,9 @@ import { UsersModule } from './users/users.module';
     }),
     AuthModule,
     TestsModule,
-    UsersModule,
+    MyModule,
+    ProgramsModule,
+    AdminModule,
   ],
   controllers: [AppController],
 })
