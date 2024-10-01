@@ -20,8 +20,15 @@ export class ProgramsService {
     const skip = (page - 1) * take;
 
     const [total_programs, programs] = await this.prisma.$transaction([
-      this.prisma.program.count(),
+      this.prisma.program.count({
+        where: {
+          is_active: true,
+        },
+      }),
       this.prisma.program.findMany({
+        where: {
+          is_active: true,
+        },
         select: {
           program_id: true,
           title: true,
@@ -85,6 +92,7 @@ export class ProgramsService {
               },
             },
           ],
+          is_active: true,
         },
       }),
       this.prisma.program.findMany({
@@ -101,6 +109,7 @@ export class ProgramsService {
               },
             },
           ],
+          is_active: true,
         },
         select: {
           program_id: true,
@@ -154,11 +163,13 @@ export class ProgramsService {
       this.prisma.program.count({
         where: {
           type: query.type,
+          is_active: true,
         },
       }),
       this.prisma.program.findMany({
         where: {
           type: query.type,
+          is_active: true,
         },
         select: {
           program_id: true,
@@ -219,6 +230,7 @@ export class ProgramsService {
                 start: true,
                 end: true,
                 duration: true,
+                is_active: true,
                 results: {
                   where: {
                     user_id,
