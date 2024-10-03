@@ -1,16 +1,27 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
+  Post,
   Query,
   UseGuards,
+  UsePipes,
 } from '@nestjs/common';
-import { SuccessResponse } from 'src/utils/global/global.response';
+import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
-import { AdminQuery } from './admin.dto';
+import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
+import {
+  AdminQuery,
+  CreateProgramsDto,
+  createProgramsSchema,
+  UpdateStatusProgramsDto,
+  updateStatusProgramsSchema,
+} from './admin.dto';
 import { AdminService } from './admin.service';
 
 @UseGuards(AdminGuard)
@@ -97,6 +108,40 @@ export class AdminController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.adminService.getPrograms(query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/programs')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(createProgramsSchema))
+  async createPrograms(
+    @Body() body: CreateProgramsDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.adminService.createPrograms(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Patch('/programs/status')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(updateStatusProgramsSchema))
+  async updateStatusProgram(
+    @Body() body: UpdateStatusProgramsDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.updateStatusProgram(body),
       };
     } catch (error) {
       throw error;

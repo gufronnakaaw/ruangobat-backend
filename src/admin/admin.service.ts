@@ -1,8 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { random } from 'lodash';
 import { decryptString } from '../utils/crypto.util';
 import { maskEmail, maskPhoneNumber } from '../utils/masking.util';
 import { PrismaService } from '../utils/services/prisma.service';
-import { AdminQuery } from './admin.dto';
+import {
+  AdminQuery,
+  CreateProgramsDto,
+  UpdateStatusProgramsDto,
+} from './admin.dto';
 
 @Injectable()
 export class AdminService {
@@ -248,6 +253,60 @@ export class AdminService {
       total_programs,
       total_pages: Math.ceil(total_programs / take),
     };
+  }
+
+  createPrograms(body: CreateProgramsDto) {
+    return this.prisma.program.create({
+      data: {
+        program_id: `ROP${random(100000, 999999)}`,
+        title: body.title,
+        type: body.type,
+        price: body.price,
+        is_active: true,
+        created_by: body.created_by,
+        updated_by: body.updated_by,
+        details: {
+          createMany: {
+            data: body.tests.map((test) => {
+              return {
+                test_id: test,
+              };
+            }),
+          },
+        },
+      },
+      select: {
+        program_id: true,
+        title: true,
+        type: true,
+        price: true,
+        created_at: true,
+        is_active: true,
+      },
+    });
+  }
+
+  async updateStatusProgram(body: UpdateStatusProgramsDto) {
+    if (
+      !(await this.prisma.program.count({
+        where: { program_id: body.program_id },
+      }))
+    ) {
+      throw new NotFoundException('Program tidak ditemukan');
+    }
+
+    return this.prisma.program.update({
+      where: {
+        program_id: body.program_id,
+      },
+      data: {
+        is_active: body.is_active,
+      },
+      select: {
+        program_id: true,
+        is_active: true,
+      },
+    });
   }
 
   async getProgramsBySearch(query: AdminQuery) {
