@@ -47,6 +47,9 @@ export class ProgramsService {
         },
         take,
         skip,
+        orderBy: {
+          created_at: 'desc',
+        },
       }),
     ]);
 
@@ -129,6 +132,9 @@ export class ProgramsService {
         },
         take,
         skip,
+        orderBy: {
+          created_at: 'desc',
+        },
       }),
     ]);
 
@@ -189,6 +195,9 @@ export class ProgramsService {
         },
         take,
         skip,
+        orderBy: {
+          created_at: 'desc',
+        },
       }),
     ]);
 
