@@ -74,6 +74,7 @@ export class AuthService {
     }
 
     return {
+      admin_id: admin.admin_id,
       fullname: admin.fullname,
       access_token: await this.jwtService.signAsync({
         admin_id: admin.admin_id,
@@ -151,7 +152,7 @@ export class AuthService {
 
     const date = new Date();
     const expired = new Date();
-    expired.setHours(date.getHours() + 4);
+    expired.setHours(date.getHours() + 12);
 
     const ua_parser = UAParser(user_agent);
 
@@ -174,7 +175,7 @@ export class AuthService {
           role: 'user',
         },
         {
-          expiresIn: '4h',
+          expiresIn: '12h',
         },
       ),
     };
