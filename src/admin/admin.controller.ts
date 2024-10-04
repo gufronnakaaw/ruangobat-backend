@@ -19,6 +19,8 @@ import {
   AdminQuery,
   CreateProgramsDto,
   createProgramsSchema,
+  UpdateProgramsDto,
+  updateProgramsSchema,
   UpdateStatusProgramsDto,
   updateStatusProgramsSchema,
 } from './admin.dto';
@@ -125,6 +127,23 @@ export class AdminController {
         success: true,
         status_code: HttpStatus.CREATED,
         data: await this.adminService.createPrograms(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Patch('/programs')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(updateProgramsSchema))
+  async updatePrograms(
+    @Body() body: UpdateProgramsDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.updatePrograms(body),
       };
     } catch (error) {
       throw error;

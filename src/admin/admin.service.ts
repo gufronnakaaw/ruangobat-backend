@@ -6,6 +6,7 @@ import { PrismaService } from '../utils/services/prisma.service';
 import {
   AdminQuery,
   CreateProgramsDto,
+  UpdateProgramsDto,
   UpdateStatusProgramsDto,
 } from './admin.dto';
 
@@ -307,6 +308,67 @@ export class AdminService {
         is_active: true,
       },
     });
+  }
+
+  async updatePrograms(body: UpdateProgramsDto) {
+    const program = await this.prisma.program.findUnique({
+      where: { program_id: body.program_id },
+      select: {
+        details: {
+          select: {
+            test_id: true,
+          },
+        },
+      },
+    });
+
+    if (!program) {
+      throw new NotFoundException('Program tidak ditemukan');
+    }
+
+    if (body.tests.length) {
+      await this.prisma.$transaction([
+        this.prisma.programDetail.deleteMany({
+          where: { program_id: body.program_id },
+        }),
+        this.prisma.program.update({
+          where: {
+            program_id: body.program_id,
+          },
+          data: {
+            title: body.title,
+            type: body.type,
+            price: body.price,
+            updated_by: body.updated_by,
+            details: {
+              createMany: {
+                data: body.tests.map((test) => {
+                  return {
+                    test_id: test,
+                  };
+                }),
+              },
+            },
+          },
+        }),
+      ]);
+
+      return body;
+    }
+
+    await this.prisma.program.update({
+      where: {
+        program_id: body.program_id,
+      },
+      data: {
+        title: body.title,
+        type: body.type,
+        price: body.price,
+        updated_by: body.updated_by,
+      },
+    });
+
+    return body;
   }
 
   async getProgramsBySearch(query: AdminQuery) {
