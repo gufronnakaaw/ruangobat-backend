@@ -1,11 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { random } from 'lodash';
+import ShortUniqueId from 'short-unique-id';
 import { decryptString } from '../utils/crypto.util';
 import { maskEmail, maskPhoneNumber } from '../utils/masking.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import {
   AdminQuery,
   CreateProgramsDto,
+  CreateTestsDto,
+  InviteUsersDto,
   UpdateProgramsDto,
   UpdateStatusProgramsDto,
 } from './admin.dto';
@@ -264,8 +267,8 @@ export class AdminService {
         type: body.type,
         price: body.price,
         is_active: true,
-        created_by: body.created_by,
-        updated_by: body.updated_by,
+        created_by: body.by,
+        updated_by: body.by,
         details: {
           createMany: {
             data: body.tests.map((test) => {
@@ -339,7 +342,7 @@ export class AdminService {
             title: body.title,
             type: body.type,
             price: body.price,
-            updated_by: body.updated_by,
+            updated_by: body.by,
             details: {
               createMany: {
                 data: body.tests.map((test) => {
@@ -364,7 +367,7 @@ export class AdminService {
         title: body.title,
         type: body.type,
         price: body.price,
-        updated_by: body.updated_by,
+        updated_by: body.by,
       },
     });
 
@@ -526,5 +529,94 @@ export class AdminService {
         };
       }),
     };
+  }
+
+  async createTests(body: CreateTestsDto) {
+    const test_id = `ROT${random(100000, 999999)}`;
+    const uid = new ShortUniqueId({ length: 6 });
+
+    const promises = [];
+
+    for (const [index, question] of body.questions.entries()) {
+      const question_id = `ROQ${uid.rnd().toUpperCase()}`;
+
+      promises.push(
+        this.prisma.question.create({
+          data: {
+            question_id,
+            test_id,
+            type: question.type,
+            url: question.url,
+            explanation: question.explanation,
+            number: question.number ? question.number : index + 1,
+            text: question.text,
+            created_by: body.by,
+            updated_by: body.by,
+            options: {
+              createMany: {
+                data: question.options.map((option) => {
+                  const option_id = `ROO${uid.rnd().toUpperCase()}`;
+
+                  return {
+                    option_id,
+                    text: option.text,
+                    is_correct: option.is_correct,
+                    created_by: body.by,
+                    updated_by: body.by,
+                  };
+                }),
+              },
+            },
+          },
+        }),
+      );
+    }
+
+    await this.prisma.test.create({
+      data: {
+        test_id,
+        title: body.title,
+        description: body.description,
+        start: body.start,
+        end: body.end,
+        duration: body.duration,
+        created_by: body.by,
+        updated_by: body.by,
+      },
+    });
+
+    await Promise.all(promises);
+
+    return {
+      test_id,
+    };
+  }
+
+  async inviteUsers(body: InviteUsersDto) {
+    if (
+      !(await this.prisma.program.count({
+        where: { program_id: body.program_id },
+      }))
+    ) {
+      throw new NotFoundException('Program tidak ditemukan');
+    }
+
+    const date = new Date();
+
+    await this.prisma.participant.createMany({
+      data: body.users.map((user) => {
+        return {
+          program_id: body.program_id,
+          user_id: user,
+          code: `ROC${random(100000, 999999)}`,
+          invited_at: date,
+          invited_by: body.by,
+        };
+      }),
+    });
+
+    delete body.by;
+
+    return body;
   }
 }

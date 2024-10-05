@@ -19,6 +19,10 @@ import {
   AdminQuery,
   CreateProgramsDto,
   createProgramsSchema,
+  CreateTestsDto,
+  createTestsSchema,
+  InviteUsersDto,
+  inviteUsersSchema,
   UpdateProgramsDto,
   updateProgramsSchema,
   UpdateStatusProgramsDto,
@@ -196,6 +200,36 @@ export class AdminController {
           params.program_id,
           params.user_id,
         ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/programs/invite')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(inviteUsersSchema))
+  async inviteUsers(@Body() body: InviteUsersDto): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.adminService.inviteUsers(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/tests')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(createTestsSchema))
+  async createTests(@Body() body: CreateTestsDto): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.adminService.createTests(body),
       };
     } catch (error) {
       throw error;
