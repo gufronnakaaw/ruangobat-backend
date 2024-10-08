@@ -43,4 +43,18 @@ export class MyController {
       throw error;
     }
   }
+
+  @Get('/tests')
+  @HttpCode(HttpStatus.OK)
+  async getTests(@Req() req: Request): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.myService.getTests(req.user.user_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }

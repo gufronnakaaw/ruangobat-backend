@@ -48,4 +48,35 @@ export class MyService {
       };
     });
   }
+
+  async getTests(user_id: string) {
+    const tests = await this.prisma.result.findMany({
+      where: {
+        user_id,
+      },
+      select: {
+        test: {
+          select: {
+            title: true,
+            test_id: true,
+          },
+        },
+        result_id: true,
+        score: true,
+        created_at: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    return tests.map((test) => {
+      return {
+        ...test.test,
+        result_id: test.result_id,
+        score: test.score,
+        created_at: test.created_at,
+      };
+    });
+  }
 }
