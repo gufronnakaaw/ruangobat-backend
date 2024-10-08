@@ -60,7 +60,7 @@ export class AdminService {
 
     return {
       users,
-      page: query.page,
+      page: parseInt(query.page),
       total_users,
       total_pages: Math.ceil(total_users / take),
     };
@@ -144,7 +144,7 @@ export class AdminService {
 
     return {
       users,
-      page: query.page,
+      page: parseInt(query.page),
       total_users,
       total_pages: Math.ceil(total_users / take),
     };
@@ -253,7 +253,7 @@ export class AdminService {
           total_tests: details.length,
         };
       }),
-      page: query.page,
+      page: parseInt(query.page),
       total_programs,
       total_pages: Math.ceil(total_programs / take),
     };
@@ -444,7 +444,7 @@ export class AdminService {
           total_tests: details.length,
         };
       }),
-      page: query.page,
+      page: parseInt(query.page),
       total_programs,
       total_pages: Math.ceil(total_programs / take),
     };
@@ -618,5 +618,184 @@ export class AdminService {
     delete body.by;
 
     return body;
+  }
+
+  async getTests(query: AdminQuery) {
+    const default_page = 1;
+    const take = 6;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_tests, tests] = await this.prisma.$transaction([
+      this.prisma.test.count(),
+      this.prisma.test.findMany({
+        select: {
+          test_id: true,
+          title: true,
+          start: true,
+          end: true,
+          is_active: true,
+          duration: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        take,
+        skip,
+      }),
+    ]);
+
+    return {
+      tests: tests.map((test) => {
+        const now = new Date();
+
+        const start = new Date(test.start);
+        const end = new Date(test.end);
+
+        let status = '';
+
+        if (now < start) {
+          status += 'Belum dimulai';
+        } else if (now >= start && now <= end) {
+          status += 'Berlangsung';
+        } else {
+          status += 'Berakhir';
+        }
+
+        return {
+          ...test,
+          status,
+        };
+      }),
+
+      page: parseInt(query.page),
+      total_tests,
+      total_pages: Math.ceil(total_tests / take),
+    };
+  }
+
+  async getAllTests() {
+    const tests = await this.prisma.test.findMany({
+      select: {
+        test_id: true,
+        title: true,
+        start: true,
+        end: true,
+        is_active: true,
+        duration: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    return tests.map((test) => {
+      const now = new Date();
+
+      const start = new Date(test.start);
+      const end = new Date(test.end);
+
+      let status = '';
+
+      if (now < start) {
+        status += 'Belum dimulai';
+      } else if (now >= start && now <= end) {
+        status += 'Berlangsung';
+      } else {
+        status += 'Berakhir';
+      }
+
+      return {
+        ...test,
+        status,
+      };
+    });
+  }
+
+  async getTestsBySearch(query: AdminQuery) {
+    const default_page = 1;
+    const take = 6;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_tests, tests] = await this.prisma.$transaction([
+      this.prisma.test.count({
+        where: {
+          OR: [
+            {
+              test_id: {
+                contains: query.q,
+              },
+            },
+            {
+              title: {
+                contains: query.q,
+              },
+            },
+          ],
+        },
+      }),
+      this.prisma.test.findMany({
+        where: {
+          OR: [
+            {
+              test_id: {
+                contains: query.q,
+              },
+            },
+            {
+              title: {
+                contains: query.q,
+              },
+            },
+          ],
+        },
+        select: {
+          test_id: true,
+          title: true,
+          start: true,
+          end: true,
+          is_active: true,
+          duration: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        take,
+        skip,
+      }),
+    ]);
+
+    return {
+      tests: tests.map((test) => {
+        const now = new Date();
+
+        const start = new Date(test.start);
+        const end = new Date(test.end);
+
+        let status = '';
+
+        if (now < start) {
+          status += 'Belum dimulai';
+        } else if (now >= start && now <= end) {
+          status += 'Berlangsung';
+        } else {
+          status += 'Berakhir';
+        }
+
+        return {
+          ...test,
+          status,
+        };
+      }),
+
+      page: parseInt(query.page),
+      total_tests,
+      total_pages: Math.ceil(total_tests / take),
+    };
   }
 }

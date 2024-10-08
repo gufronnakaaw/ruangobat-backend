@@ -235,4 +235,34 @@ export class AdminController {
       throw error;
     }
   }
+
+  @Get('/tests')
+  @HttpCode(HttpStatus.OK)
+  async getTests(@Query() query: AdminQuery): Promise<SuccessResponse> {
+    try {
+      if (query.page == 'all') {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: await this.adminService.getAllTests(),
+        };
+      }
+
+      if (query.q) {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: await this.adminService.getTestsBySearch(query),
+        };
+      }
+
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getTests(query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }
