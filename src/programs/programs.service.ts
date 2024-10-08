@@ -66,7 +66,7 @@ export class ProgramsService {
           ),
         };
       }),
-      page: query.page,
+      page: parseInt(query.page),
       total_programs,
       total_pages: Math.ceil(total_programs / take),
     };
@@ -151,7 +151,7 @@ export class ProgramsService {
           ),
         };
       }),
-      page: query.page,
+      page: parseInt(query.page),
       total_programs,
       total_pages: Math.ceil(total_programs / take),
     };
@@ -214,7 +214,7 @@ export class ProgramsService {
           ),
         };
       }),
-      page: query.page,
+      page: parseInt(query.page),
       total_programs,
       total_pages: Math.ceil(total_programs / take),
     };
