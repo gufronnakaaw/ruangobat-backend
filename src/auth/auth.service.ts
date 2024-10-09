@@ -169,6 +169,7 @@ export class AuthService {
     return {
       user_id: user.user_id,
       fullname: user.fullname,
+      expired,
       access_token: await this.jwtService.signAsync(
         {
           user_id: user.user_id,
