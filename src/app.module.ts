@@ -1,8 +1,10 @@
 import { CacheModule } from '@nestjs/cache-manager';
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
@@ -10,6 +12,7 @@ import { CronModule } from './cron/cron.module';
 import { MyModule } from './my/my.module';
 import { ProgramsModule } from './programs/programs.module';
 import { TestsModule } from './tests/tests.module';
+import { GlobalMiddleware } from './utils/global/global.middleware';
 
 @Module({
   imports: [
@@ -25,6 +28,10 @@ import { TestsModule } from './tests/tests.module';
     CacheModule.register({
       isGlobal: true,
     }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'),
+      serveRoot: '/public',
+    }),
     AuthModule,
     TestsModule,
     MyModule,
@@ -34,4 +41,8 @@ import { TestsModule } from './tests/tests.module';
   ],
   controllers: [AppController],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(GlobalMiddleware).exclude('public/(.*)').forRoutes('*');
+  }
+}
