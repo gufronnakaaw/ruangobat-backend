@@ -30,6 +30,21 @@ export class MyService {
 
   async getPrograms(user_id: string) {
     const programs = await this.prisma.participant.findMany({
+      select: {
+        program: {
+          select: {
+            program_id: true,
+            title: true,
+            type: true,
+            price: true,
+            participants: {
+              select: {
+                user_id: true,
+              },
+            },
+          },
+        },
+      },
       where: {
         user_id,
         joined_at: {
@@ -42,8 +57,10 @@ export class MyService {
     });
 
     return programs.map((program) => {
+      const { participants, ...all } = program.program;
       return {
-        ...program,
+        ...all,
+        total_users: participants.length,
         participated: true,
       };
     });
