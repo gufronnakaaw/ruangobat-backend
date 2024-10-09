@@ -4,8 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import path from 'path';
 import { PrismaService } from 'src/utils/services/prisma.service';
-import { FollowProgramsDto, ProgramsQuery } from './programs.dto';
+import { FollowPaidProgramsDto, ProgramsQuery } from './programs.dto';
 
 @Injectable()
 export class ProgramsService {
@@ -255,6 +256,7 @@ export class ProgramsService {
         participants: {
           select: {
             user_id: true,
+            is_approved: true,
           },
         },
       },
@@ -273,6 +275,12 @@ export class ProgramsService {
       participated: participants.some(
         (participant) => participant.user_id === user_id,
       ),
+      is_approved: participants.some(
+        (participant) => participant.user_id === user_id,
+      )
+        ? participants.find((participant) => participant.user_id === user_id)
+            .is_approved
+        : null,
       tests: details.map((detail) => {
         const { results, ...all } = detail.test;
 
@@ -300,7 +308,7 @@ export class ProgramsService {
     };
   }
 
-  async followPrograms(body: FollowProgramsDto, user_id: string) {
+  async followPaidPrograms(body: FollowPaidProgramsDto, user_id: string) {
     if (
       !(await this.prisma.program.count({
         where: { program_id: body.program_id },
@@ -310,20 +318,6 @@ export class ProgramsService {
     }
 
     const date = new Date();
-
-    if (body.type == 'free') {
-      return this.prisma.participant.create({
-        data: {
-          program_id: body.program_id,
-          user_id,
-          joined_at: date,
-        },
-        select: {
-          program_id: true,
-          user_id: true,
-        },
-      });
-    }
 
     const participant = await this.prisma.participant.findMany({
       where: {
@@ -356,6 +350,45 @@ export class ProgramsService {
     return {
       program_id: body.program_id,
       user_id,
+    };
+  }
+
+  async followFreePrograms(body: {
+    user_id: string;
+    program_id: string;
+    fullurl: string;
+    files: Array<Express.Multer.File>;
+  }) {
+    if (
+      !(await this.prisma.program.count({
+        where: { program_id: body.program_id },
+      }))
+    ) {
+      throw new NotFoundException('Program tidak ditemukan');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.participant.create({
+        data: {
+          program_id: body.program_id,
+          user_id: body.user_id,
+          is_approved: false,
+        },
+      }),
+      this.prisma.socialMediaImage.createMany({
+        data: body.files.map((file) => {
+          return {
+            program_id: body.program_id,
+            user_id: body.user_id,
+            url: `${body.fullurl}/${file.path.split(path.sep).join('/')}`,
+          };
+        }),
+      }),
+    ]);
+
+    return {
+      program_id: body.program_id,
+      user_id: body.user_id,
     };
   }
 }
