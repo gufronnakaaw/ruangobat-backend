@@ -43,6 +43,7 @@ export class ProgramsService {
           participants: {
             select: {
               user_id: true,
+              is_approved: true,
             },
           },
         },
@@ -65,6 +66,13 @@ export class ProgramsService {
           participated: participants.some(
             (participant) => participant.user_id === user_id,
           ),
+          is_approved: participants.some(
+            (participant) => participant.user_id === user_id,
+          )
+            ? participants.find(
+                (participant) => participant.user_id === user_id,
+              ).is_approved
+            : null,
         };
       }),
       page: parseInt(query.page),
@@ -128,6 +136,7 @@ export class ProgramsService {
           participants: {
             select: {
               user_id: true,
+              is_approved: true,
             },
           },
         },
@@ -150,6 +159,13 @@ export class ProgramsService {
           participated: participants.some(
             (participant) => participant.user_id === user_id,
           ),
+          is_approved: participants.some(
+            (participant) => participant.user_id === user_id,
+          )
+            ? participants.find(
+                (participant) => participant.user_id === user_id,
+              ).is_approved
+            : null,
         };
       }),
       page: parseInt(query.page),
@@ -191,6 +207,7 @@ export class ProgramsService {
           participants: {
             select: {
               user_id: true,
+              is_approved: true,
             },
           },
         },
@@ -213,6 +230,13 @@ export class ProgramsService {
           participated: participants.some(
             (participant) => participant.user_id === user_id,
           ),
+          is_approved: participants.some(
+            (participant) => participant.user_id === user_id,
+          )
+            ? participants.find(
+                (participant) => participant.user_id === user_id,
+              ).is_approved
+            : null,
         };
       }),
       page: parseInt(query.page),
