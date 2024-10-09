@@ -58,6 +58,7 @@ model User {
   results          Result[]
   participants     Participant[]
   starts           Start[]
+  socmedimg        SocialMediaImage[]
 
   @@map("user")
 }
@@ -92,7 +93,8 @@ model Program {
   updated_by       String
 
   participants     Participant[]
-  details          ProgramDetail[]      
+  details          ProgramDetail[]
+  socmedimg        SocialMediaImage[]
 
   @@map("program")
 }
@@ -215,6 +217,7 @@ model Participant {
   joined_at        DateTime?
   invited_at       DateTime?
   invited_by       String?
+  is_approved      Boolean?
 
   user             User             @relation(fields: [user_id], references: [user_id])
   program          Program          @relation(fields: [program_id], references: [program_id])
@@ -234,4 +237,18 @@ model Start {
 
   @@id([user_id, test_id])
   @@map("start")
+}
+
+model SocialMediaImage {
+  id               Int              @id               @default(autoincrement())    
+  user_id          String
+  program_id       String
+  url              String
+
+  created_at       DateTime         @default(now())
+
+  user             User             @relation(fields: [user_id], references: [user_id])
+  program          Program          @relation(fields: [program_id], references: [program_id])
+
+  @@map("social_media_image")
 }
