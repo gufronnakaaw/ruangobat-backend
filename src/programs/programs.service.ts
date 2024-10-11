@@ -69,13 +69,9 @@ export class ProgramsService {
           ...all,
           total_tests: details.length,
           total_users: participants.length,
-          is_approved: participants.some(
+          is_approved: participants.find(
             (participant) => participant.user_id === user_id,
-          )
-            ? participants.find(
-                (participant) => participant.user_id === user_id,
-              ).is_approved
-            : null,
+          ).is_approved,
         };
       }),
       page: parseInt(query.page),
@@ -165,13 +161,9 @@ export class ProgramsService {
           ...all,
           total_tests: details.length,
           total_users: participants.length,
-          is_approved: participants.some(
+          is_approved: participants.find(
             (participant) => participant.user_id === user_id,
-          )
-            ? participants.find(
-                (participant) => participant.user_id === user_id,
-              ).is_approved
-            : null,
+          ).is_approved,
         };
       }),
       page: parseInt(query.page),
@@ -239,13 +231,9 @@ export class ProgramsService {
           ...all,
           total_tests: details.length,
           total_users: participants.length,
-          is_approved: participants.some(
+          is_approved: participants.find(
             (participant) => participant.user_id === user_id,
-          )
-            ? participants.find(
-                (participant) => participant.user_id === user_id,
-              ).is_approved
-            : null,
+          ).is_approved,
         };
       }),
       page: parseInt(query.page),
@@ -311,12 +299,9 @@ export class ProgramsService {
       ...all,
       total_tests: details.length,
       total_users: participants.length,
-      is_approved: participants.some(
+      is_approved: participants.find(
         (participant) => participant.user_id === user_id,
-      )
-        ? participants.find((participant) => participant.user_id === user_id)
-            .is_approved
-        : null,
+      ).is_approved,
       tests: details.map((detail) => {
         const { results, ...all } = detail.test;
 
