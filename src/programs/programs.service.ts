@@ -69,9 +69,13 @@ export class ProgramsService {
           ...all,
           total_tests: details.length,
           total_users: participants.length,
-          is_approved: participants.find(
+          is_approved: participants.some(
             (participant) => participant.user_id === user_id,
-          ).is_approved,
+          )
+            ? participants.find(
+                (participant) => participant.user_id === user_id,
+              ).is_approved
+            : null,
         };
       }),
       page: parseInt(query.page),
@@ -161,9 +165,13 @@ export class ProgramsService {
           ...all,
           total_tests: details.length,
           total_users: participants.length,
-          is_approved: participants.find(
+          is_approved: participants.some(
             (participant) => participant.user_id === user_id,
-          ).is_approved,
+          )
+            ? participants.find(
+                (participant) => participant.user_id === user_id,
+              ).is_approved
+            : null,
         };
       }),
       page: parseInt(query.page),
@@ -231,9 +239,13 @@ export class ProgramsService {
           ...all,
           total_tests: details.length,
           total_users: participants.length,
-          is_approved: participants.find(
+          is_approved: participants.some(
             (participant) => participant.user_id === user_id,
-          ).is_approved,
+          )
+            ? participants.find(
+                (participant) => participant.user_id === user_id,
+              ).is_approved
+            : null,
         };
       }),
       page: parseInt(query.page),
@@ -299,9 +311,12 @@ export class ProgramsService {
       ...all,
       total_tests: details.length,
       total_users: participants.length,
-      is_approved: participants.find(
+      is_approved: participants.some(
         (participant) => participant.user_id === user_id,
-      ).is_approved,
+      )
+        ? participants.find((participant) => participant.user_id === user_id)
+            .is_approved
+        : null,
       tests: details.map((detail) => {
         const { results, ...all } = detail.test;
 
