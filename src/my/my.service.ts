@@ -38,6 +38,12 @@ export class MyService {
             type: true,
             price: true,
             participants: {
+              where: {
+                joined_at: {
+                  not: null,
+                },
+                is_approved: true,
+              },
               select: {
                 user_id: true,
               },
