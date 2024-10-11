@@ -41,6 +41,12 @@ export class ProgramsService {
             },
           },
           participants: {
+            where: {
+              joined_at: {
+                not: null,
+              },
+              is_approved: true,
+            },
             select: {
               user_id: true,
               is_approved: true,
@@ -63,9 +69,6 @@ export class ProgramsService {
           ...all,
           total_tests: details.length,
           total_users: participants.length,
-          participated: participants.some(
-            (participant) => participant.user_id === user_id,
-          ),
           is_approved: participants.some(
             (participant) => participant.user_id === user_id,
           )
@@ -134,6 +137,12 @@ export class ProgramsService {
             },
           },
           participants: {
+            where: {
+              joined_at: {
+                not: null,
+              },
+              is_approved: true,
+            },
             select: {
               user_id: true,
               is_approved: true,
@@ -156,9 +165,6 @@ export class ProgramsService {
           ...all,
           total_tests: details.length,
           total_users: participants.length,
-          participated: participants.some(
-            (participant) => participant.user_id === user_id,
-          ),
           is_approved: participants.some(
             (participant) => participant.user_id === user_id,
           )
@@ -205,6 +211,12 @@ export class ProgramsService {
             },
           },
           participants: {
+            where: {
+              joined_at: {
+                not: null,
+              },
+              is_approved: true,
+            },
             select: {
               user_id: true,
               is_approved: true,
@@ -227,9 +239,6 @@ export class ProgramsService {
           ...all,
           total_tests: details.length,
           total_users: participants.length,
-          participated: participants.some(
-            (participant) => participant.user_id === user_id,
-          ),
           is_approved: participants.some(
             (participant) => participant.user_id === user_id,
           )
@@ -278,6 +287,12 @@ export class ProgramsService {
           },
         },
         participants: {
+          where: {
+            joined_at: {
+              not: null,
+            },
+            is_approved: true,
+          },
           select: {
             user_id: true,
             is_approved: true,
@@ -296,9 +311,6 @@ export class ProgramsService {
       ...all,
       total_tests: details.length,
       total_users: participants.length,
-      participated: participants.some(
-        (participant) => participant.user_id === user_id,
-      ),
       is_approved: participants.some(
         (participant) => participant.user_id === user_id,
       )
@@ -361,10 +373,12 @@ export class ProgramsService {
       throw new BadRequestException('Kode akses salah');
     }
 
-    await this.prisma.participant.updateMany({
+    await this.prisma.participant.update({
       where: {
-        user_id,
-        program_id: body.program_id,
+        program_id_user_id: {
+          user_id,
+          program_id: body.program_id,
+        },
       },
       data: {
         joined_at: date,

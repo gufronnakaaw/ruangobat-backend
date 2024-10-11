@@ -50,6 +50,7 @@ export class MyService {
         joined_at: {
           not: null,
         },
+        is_approved: true,
       },
       orderBy: {
         joined_at: 'desc',
@@ -61,7 +62,6 @@ export class MyService {
       return {
         ...all,
         total_users: participants.length,
-        participated: true,
       };
     });
   }
