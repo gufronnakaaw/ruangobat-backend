@@ -92,3 +92,17 @@ export const inviteUsersSchema = z.object({
 });
 
 export type InviteUsersDto = z.infer<typeof inviteUsersSchema>;
+
+export const updateStatusTestsSchema = z.object({
+  test_id: z.string(),
+  is_active: z.boolean(),
+});
+
+export type UpdateStatusTestsDto = z.infer<typeof updateStatusTestsSchema>;
+
+export const approvedUserSchema = z.object({
+  user_id: z.string(),
+  program_id: z.string(),
+});
+
+export type ApprovedUserDto = z.infer<typeof approvedUserSchema>;

@@ -6,11 +6,13 @@ import { maskEmail, maskPhoneNumber } from '../utils/masking.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import {
   AdminQuery,
+  ApprovedUserDto,
   CreateProgramsDto,
   CreateTestsDto,
   InviteUsersDto,
   UpdateProgramsDto,
   UpdateStatusProgramsDto,
+  UpdateStatusTestsDto,
 } from './admin.dto';
 
 @Injectable()
@@ -611,6 +613,7 @@ export class AdminService {
           code: `ROC${random(100000, 999999)}`,
           invited_at: date,
           invited_by: body.by,
+          is_approved: true,
         };
       }),
     });
@@ -797,5 +800,81 @@ export class AdminService {
       total_tests,
       total_pages: Math.ceil(total_tests / take),
     };
+  }
+
+  async updateStatusTests(body: UpdateStatusTestsDto) {
+    if (
+      !(await this.prisma.test.count({
+        where: { test_id: body.test_id },
+      }))
+    ) {
+      throw new NotFoundException('Test tidak ditemukan');
+    }
+
+    return this.prisma.test.update({
+      where: {
+        test_id: body.test_id,
+      },
+      data: {
+        is_active: body.is_active,
+      },
+      select: {
+        test_id: true,
+        is_active: true,
+      },
+    });
+  }
+
+  async getResultsTest(test_id: string) {
+    const results = await this.prisma.result.findMany({
+      where: {
+        test_id,
+      },
+      select: {
+        user: {
+          select: {
+            user_id: true,
+            fullname: true,
+            university: true,
+          },
+        },
+        score: true,
+      },
+    });
+
+    return results.map((result) => {
+      const { score, user } = result;
+      return {
+        ...user,
+        score,
+      };
+    });
+  }
+
+  getUsersImages(params: { program_id: string; user_id: string }) {
+    return this.prisma.socialMediaImage.findMany({
+      where: {
+        program_id: params.program_id,
+        user_id: params.user_id,
+      },
+      select: {
+        url: true,
+      },
+    });
+  }
+
+  approvedUser(body: ApprovedUserDto) {
+    return this.prisma.participant.update({
+      where: {
+        program_id_user_id: {
+          program_id: body.program_id,
+          user_id: body.user_id,
+        },
+      },
+      data: {
+        is_approved: true,
+        joined_at: new Date(),
+      },
+    });
   }
 }

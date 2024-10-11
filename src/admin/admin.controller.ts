@@ -17,6 +17,8 @@ import { AdminGuard } from '../utils/guards/admin.guard';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
 import {
   AdminQuery,
+  ApprovedUserDto,
+  approvedUserSchema,
   CreateProgramsDto,
   createProgramsSchema,
   CreateTestsDto,
@@ -27,6 +29,8 @@ import {
   updateProgramsSchema,
   UpdateStatusProgramsDto,
   updateStatusProgramsSchema,
+  UpdateStatusTestsDto,
+  updateStatusTestsSchema,
 } from './admin.dto';
 import { AdminService } from './admin.service';
 
@@ -221,6 +225,37 @@ export class AdminController {
     }
   }
 
+  @Get('/programs/:program_id/images/:user_id')
+  @HttpCode(HttpStatus.OK)
+  async getUsersImages(
+    @Param() params: { program_id: string; user_id: string },
+  ) {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getUsersImages(params),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Patch('/programs/approved')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(approvedUserSchema))
+  async approvedUser(@Body() body: ApprovedUserDto) {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.approvedUser(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Post('/tests')
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(createTestsSchema))
@@ -260,6 +295,37 @@ export class AdminController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.adminService.getTests(query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Patch('/tests/status')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(updateStatusTestsSchema))
+  async updateStatusTests(
+    @Body() body: UpdateStatusTestsDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.updateStatusTests(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/tests/results/:test_id')
+  @HttpCode(HttpStatus.OK)
+  async getResultsTest(@Param('test_id') test_id: string) {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getResultsTest(test_id),
       };
     } catch (error) {
       throw error;
