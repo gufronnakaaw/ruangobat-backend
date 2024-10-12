@@ -74,4 +74,17 @@ export class AdminsService {
       },
     });
   }
+
+  async getAdmin(admin_id: string) {
+    return this.prisma.admin.findUnique({
+      where: {
+        admin_id,
+      },
+      select: {
+        admin_id: true,
+        fullname: true,
+        role: true,
+      },
+    });
+  }
 }

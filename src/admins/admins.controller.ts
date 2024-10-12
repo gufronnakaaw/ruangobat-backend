@@ -35,6 +35,22 @@ export class AdminsController {
     }
   }
 
+  @Get(':admin_id')
+  @HttpCode(HttpStatus.OK)
+  async getAdmin(
+    @Param('admin_id') admin_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminsService.getAdmin(admin_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Delete(':admin_id')
   @HttpCode(HttpStatus.OK)
   async deleteAdmins(
