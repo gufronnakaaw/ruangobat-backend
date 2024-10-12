@@ -831,6 +831,12 @@ export class AdminService {
         test_id,
       },
       select: {
+        test: {
+          select: {
+            test_id: true,
+            title: true,
+          },
+        },
         user: {
           select: {
             user_id: true,
@@ -843,8 +849,9 @@ export class AdminService {
     });
 
     return results.map((result) => {
-      const { score, user } = result;
+      const { score, user, test } = result;
       return {
+        ...test,
         ...user,
         score,
       };
