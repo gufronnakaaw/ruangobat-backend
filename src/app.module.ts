@@ -13,6 +13,7 @@ import { MyModule } from './my/my.module';
 import { ProgramsModule } from './programs/programs.module';
 import { TestsModule } from './tests/tests.module';
 import { GlobalMiddleware } from './utils/global/global.middleware';
+import { AdminsModule } from './admins/admins.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { GlobalMiddleware } from './utils/global/global.middleware';
     ProgramsModule,
     AdminModule,
     CronModule,
+    AdminsModule,
   ],
   controllers: [AppController],
 })
