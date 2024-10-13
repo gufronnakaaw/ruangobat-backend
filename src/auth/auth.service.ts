@@ -73,9 +73,14 @@ export class AuthService {
       throw new BadRequestException('Admin ID atau password salah');
     }
 
+    const date = new Date();
+    const expired = new Date();
+    expired.setHours(date.getHours() + 6);
+
     return {
       admin_id: admin.admin_id,
       fullname: admin.fullname,
+      expired,
       access_token: await this.jwtService.signAsync({
         admin_id: admin.admin_id,
         role: admin.role,
@@ -126,7 +131,13 @@ export class AuthService {
 
   async userLogin(body: UserLoginDto, user_agent: string) {
     const users = await this.prisma.user.findMany({
-      select: { email: true, password: true, user_id: true, fullname: true },
+      select: {
+        email: true,
+        password: true,
+        user_id: true,
+        fullname: true,
+        gender: true,
+      },
     });
 
     const decrypts = users.map((user) => {
@@ -170,6 +181,7 @@ export class AuthService {
       user_id: user.user_id,
       fullname: user.fullname,
       expired,
+      gender: user.gender,
       access_token: await this.jwtService.signAsync(
         {
           user_id: user.user_id,

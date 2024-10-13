@@ -114,15 +114,16 @@ export class AuthController {
     }
   }
 
-  @UseGuards(UserGuard)
-  @Delete('/session')
+  @Delete('/session/:user_id')
   @HttpCode(HttpStatus.OK)
-  async userLogout(@Req() req: Request): Promise<SuccessResponse> {
+  async userLogout(
+    @Param('user_id') user_id: string,
+  ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.authService.userLogout(req.user.user_id),
+        data: await this.authService.userLogout(user_id),
       };
     } catch (error) {
       throw error;
