@@ -487,6 +487,7 @@ export class AdminService {
             },
             code: true,
             joined_at: true,
+            is_approved: true,
           },
           orderBy: {
             joined_at: 'desc',
@@ -613,7 +614,7 @@ export class AdminService {
           code: `ROC${random(100000, 999999)}`,
           invited_at: date,
           invited_by: body.by,
-          is_approved: true,
+          is_approved: null,
         };
       }),
     });

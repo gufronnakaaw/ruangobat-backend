@@ -444,6 +444,7 @@ export class ProgramsService {
       },
       data: {
         joined_at: date,
+        is_approved: true,
       },
     });
 
