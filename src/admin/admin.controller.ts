@@ -57,6 +57,14 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async getUsers(@Query() query: AdminQuery): Promise<SuccessResponse> {
     try {
+      if (query.page == 'all') {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: await this.adminService.getAllUsers(),
+        };
+      }
+
       if (query.q) {
         return {
           success: true,
@@ -64,6 +72,7 @@ export class AdminController {
           data: await this.adminService.searchUsers(query),
         };
       }
+
       return {
         success: true,
         status_code: HttpStatus.OK,

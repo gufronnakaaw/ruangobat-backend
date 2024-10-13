@@ -68,6 +68,19 @@ export class AdminService {
     };
   }
 
+  async getAllUsers() {
+    return this.prisma.user.findMany({
+      select: {
+        user_id: true,
+        fullname: true,
+        university: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+  }
+
   async getUser(user_id: string) {
     const user = await this.prisma.user.findUnique({
       where: { user_id },
@@ -472,6 +485,7 @@ export class AdminService {
                 start: true,
                 end: true,
                 duration: true,
+                is_active: true,
               },
             },
           },
