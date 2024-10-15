@@ -694,6 +694,56 @@ export class AdminService {
     };
   }
 
+  async getTest(test_id: string) {
+    const test = await this.prisma.test.findUnique({
+      where: { test_id },
+      select: {
+        test_id: true,
+        title: true,
+        description: true,
+        start: true,
+        end: true,
+        duration: true,
+        questions: {
+          select: {
+            question_id: true,
+            number: true,
+            text: true,
+            explanation: true,
+            options: {
+              select: {
+                option_id: true,
+                is_correct: true,
+              },
+            },
+          },
+          orderBy: { number: 'asc' },
+        },
+      },
+    });
+
+    const now = new Date();
+
+    const start = new Date(test.start);
+    const end = new Date(test.end);
+
+    let status = '';
+
+    if (now < start) {
+      status += 'Belum dimulai';
+    } else if (now >= start && now <= end) {
+      status += 'Berlangsung';
+    } else {
+      status += 'Berakhir';
+    }
+
+    return {
+      status,
+      total_questions: test.questions.length,
+      ...test,
+    };
+  }
+
   async getAllTests() {
     const tests = await this.prisma.test.findMany({
       select: {

@@ -310,6 +310,20 @@ export class AdminController {
     }
   }
 
+  @Get('/tests/:test_id')
+  @HttpCode(HttpStatus.OK)
+  async getTest(@Param('test_id') test_id: string): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getTest(test_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Patch('/tests/status')
   @HttpCode(HttpStatus.OK)
   @UsePipes(new ZodValidationPipe(updateStatusTestsSchema))
