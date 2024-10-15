@@ -312,6 +312,11 @@ export class ProgramsService {
           price: true,
           is_active: true,
           details: {
+            where: {
+              test: {
+                is_active: true,
+              },
+            },
             select: {
               test: {
                 select: {
