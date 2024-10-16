@@ -13,6 +13,7 @@ import {
   UpdateProgramsDto,
   UpdateStatusProgramsDto,
   UpdateStatusTestsDto,
+  UpdateTestsDto,
 } from './admin.dto';
 
 @Injectable()
@@ -712,6 +713,7 @@ export class AdminService {
             explanation: true,
             options: {
               select: {
+                text: true,
                 option_id: true,
                 is_correct: true,
               },
@@ -888,6 +890,16 @@ export class AdminService {
         is_active: true,
       },
     });
+  }
+
+  async updateTests(body: UpdateTestsDto) {
+    const test = await this.prisma.test.findUnique({
+      where: { test_id: body.test_id },
+    });
+
+    if (!test) {
+      throw new NotFoundException('Test tidak ditemukan');
+    }
   }
 
   async getResultsTest(test_id: string) {
