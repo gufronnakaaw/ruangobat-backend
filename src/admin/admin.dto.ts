@@ -83,6 +83,49 @@ export const createTestsSchema = z.object({
 
 export type CreateTestsDto = z.infer<typeof createTestsSchema>;
 
+export const updateTestsSchema = z.object({
+  test_id: z.string(),
+  title: z
+    .string()
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' '))
+    .optional(),
+  description: z
+    .string()
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' '))
+    .optional(),
+  start: z.string().optional(),
+  end: z.string().optional(),
+  duration: z.number().positive().optional(),
+  questions: z
+    .array(
+      z.object({
+        question_id: z.string().optional(),
+        text: z.string().optional(),
+        explanation: z.string().optional(),
+        url: z.string().optional(),
+        type: z.enum(['text', 'video', 'image']).optional(),
+        options: z
+          .array(
+            z.object({
+              option_id: z.string().optional(),
+              text: z.string().optional(),
+              is_correct: z.boolean().optional(),
+            }),
+          )
+          .min(5, { message: 'Harus diisi minimal 5 opsi' })
+          .optional(),
+      }),
+    )
+    .min(1, { message: 'Harus diisi minimal 1 soal' })
+    .optional(),
+  by: z.string(),
+  update_type: z.enum(['update_test', 'update_question', 'add_question']),
+});
+
+export type UpdateTestsDto = z.infer<typeof updateTestsSchema>;
+
 export const inviteUsersSchema = z.object({
   program_id: z.string(),
   users: z

@@ -893,13 +893,149 @@ export class AdminService {
   }
 
   async updateTests(body: UpdateTestsDto) {
-    const test = await this.prisma.test.findUnique({
+    const test = await this.prisma.test.count({
       where: { test_id: body.test_id },
     });
 
     if (!test) {
       throw new NotFoundException('Test tidak ditemukan');
     }
+
+    if (body.update_type === 'update_test') {
+      return this.prisma.test.update({
+        where: {
+          test_id: body.test_id,
+        },
+        data: {
+          title: body.title,
+          description: body.description,
+          start: body.start,
+          end: body.end,
+          duration: body.duration,
+          updated_by: body.by,
+        },
+        select: {
+          test_id: true,
+        },
+      });
+    }
+
+    if (body.update_type == 'update_question') {
+      const promises = [];
+
+      promises.push(
+        this.prisma.question.update({
+          where: {
+            question_id: body.questions[0].question_id,
+          },
+          data: {
+            text: body.questions[0].text,
+            explanation: body.questions[0].explanation,
+            updated_by: body.by,
+          },
+        }),
+      );
+
+      for (const option of body.questions[0].options) {
+        promises.push(
+          this.prisma.option.updateMany({
+            where: {
+              question_id: body.questions[0].question_id,
+              option_id: option.option_id,
+            },
+            data: {
+              text: option.text,
+              is_correct: option.is_correct,
+              updated_by: body.by,
+            },
+          }),
+        );
+      }
+
+      await Promise.all(promises);
+
+      return body.questions[0];
+    }
+
+    if (body.update_type == 'add_question') {
+      const uid = new ShortUniqueId({ length: 6 });
+      const count = await this.prisma.question.count({
+        where: { test_id: body.test_id },
+      });
+
+      const question = body.questions[0];
+      const question_id = `ROQ${uid.rnd().toUpperCase()}`;
+
+      return this.prisma.question.create({
+        data: {
+          question_id,
+          test_id: body.test_id,
+          type: question.type,
+          url: question.url,
+          explanation: question.explanation,
+          number: count + 1,
+          text: question.text,
+          created_by: body.by,
+          updated_by: body.by,
+          options: {
+            createMany: {
+              data: question.options.map((option) => {
+                const option_id = `ROO${uid.rnd().toUpperCase()}`;
+
+                return {
+                  option_id,
+                  text: option.text,
+                  is_correct: option.is_correct,
+                  created_by: body.by,
+                  updated_by: body.by,
+                };
+              }),
+            },
+          },
+        },
+      });
+    }
+  }
+
+  async deleteQuestion(params: { test_id: string; question_id: string }) {
+    const test = await this.prisma.question.count({
+      where: { test_id: params.test_id, question_id: params.question_id },
+    });
+
+    if (!test) {
+      throw new NotFoundException('Test atau question tidak ditemukan');
+    }
+
+    await this.prisma.question.delete({
+      where: { test_id: params.test_id, question_id: params.question_id },
+    });
+
+    const questions = await this.prisma.question.findMany({
+      where: { test_id: params.test_id },
+      select: {
+        question_id: true,
+      },
+    });
+
+    const promises = [];
+
+    for (const [index, question] of questions.entries()) {
+      promises.push(
+        this.prisma.question.update({
+          where: {
+            test_id: params.test_id,
+            question_id: question.question_id,
+          },
+          data: {
+            number: index + 1,
+          },
+        }),
+      );
+    }
+
+    await Promise.all(promises);
+
+    return params;
   }
 
   async getResultsTest(test_id: string) {

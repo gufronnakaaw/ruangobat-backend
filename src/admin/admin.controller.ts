@@ -31,6 +31,8 @@ import {
   updateStatusProgramsSchema,
   UpdateStatusTestsDto,
   updateStatusTestsSchema,
+  UpdateTestsDto,
+  updateTestsSchema,
 } from './admin.dto';
 import { AdminService } from './admin.service';
 
@@ -318,6 +320,37 @@ export class AdminController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.adminService.getTest(test_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Patch('/tests')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(updateTestsSchema))
+  async updateTests(@Body() body: UpdateTestsDto): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.updateTests(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('/tests/:test_id/questions/:question_id')
+  @HttpCode(HttpStatus.OK)
+  async deleteQuestion(
+    @Param() param: { test_id: string; question_id: string },
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.deleteQuestion(param),
       };
     } catch (error) {
       throw error;
