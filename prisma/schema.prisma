@@ -172,7 +172,7 @@ model Option {
   created_by       String         
   updated_by       String    
 
-  question         Question         @relation(fields: [question_id], references: [question_id])
+  question         Question         @relation(fields: [question_id], references: [question_id], onDelete: Cascade)
 
   @@map("option")
 }
@@ -200,7 +200,7 @@ model ResultDetail {
   question_id      String
   number           Int              @db.UnsignedInt
   correct_option   String
-  user_answer      String
+  user_answer      String?
   is_correct       Boolean
 
   result           Result           @relation(fields: [result_id], references: [result_id], onUpdate: NoAction, onDelete: Cascade)
