@@ -4,23 +4,23 @@ import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './utils/global/global.exception';
 
 async function bootstrap() {
-  const options = {};
+  // const options = {};
 
-  if (process.env.MODE === 'prod') {
-    Object.assign(options, {
-      cors: {
-        origin: [
-          'https://ruangobat.id',
-          'https://cbt.ruangobat.id',
-          'https://admin.ruangobat.id',
-        ],
-      },
-    });
-  } else {
-    Object.assign(options, { cors: true });
-  }
+  // if (process.env.MODE === 'prod') {
+  //   Object.assign(options, {
+  //     cors: {
+  //       origin: [
+  //         'https://ruangobat.id',
+  //         'https://cbt.ruangobat.id',
+  //         'https://admin.ruangobat.id',
+  //       ],
+  //     },
+  //   });
+  // } else {
+  //   Object.assign(options, { cors: true });
+  // }
 
-  const app = await NestFactory.create(AppModule, options);
+  const app = await NestFactory.create(AppModule, { cors: true });
 
   app.setGlobalPrefix('api', {
     exclude: ['/'],
