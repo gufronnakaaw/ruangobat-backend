@@ -1097,4 +1097,101 @@ export class AdminService {
       },
     });
   }
+
+  async getFeedback(query: AdminQuery) {
+    const default_page = 1;
+    const take = 8;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_feedback, feedback] = await this.prisma.$transaction([
+      this.prisma.feedback.count(),
+      this.prisma.feedback.findMany({
+        select: {
+          user_id: true,
+          fullname: true,
+          rating: true,
+          text: true,
+          created_at: true,
+        },
+        take,
+        skip,
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+    ]);
+
+    return {
+      feedback,
+      page,
+      total_feedback,
+      total_pages: Math.ceil(total_feedback / take),
+    };
+  }
+
+  async getFeedbackBySearch(query: AdminQuery) {
+    const default_page = 1;
+    const take = 8;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_feedback, feedback] = await this.prisma.$transaction([
+      this.prisma.feedback.count({
+        where: {
+          OR: [
+            {
+              user_id: {
+                contains: query.q,
+              },
+            },
+            {
+              fullname: {
+                contains: query.q,
+              },
+            },
+          ],
+        },
+      }),
+      this.prisma.feedback.findMany({
+        where: {
+          OR: [
+            {
+              user_id: {
+                contains: query.q,
+              },
+            },
+            {
+              fullname: {
+                contains: query.q,
+              },
+            },
+          ],
+        },
+        select: {
+          user_id: true,
+          fullname: true,
+          rating: true,
+          text: true,
+          created_at: true,
+        },
+        take,
+        skip,
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+    ]);
+
+    return {
+      feedback,
+      page,
+      total_feedback,
+      total_pages: Math.ceil(total_feedback / take),
+    };
+  }
 }

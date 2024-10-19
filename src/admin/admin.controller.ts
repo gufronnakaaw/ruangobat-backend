@@ -387,4 +387,26 @@ export class AdminController {
       throw error;
     }
   }
+
+  @Get('/feedback')
+  @HttpCode(HttpStatus.OK)
+  async getFeedback(@Query() query: AdminQuery): Promise<SuccessResponse> {
+    try {
+      if (query.q) {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: await this.adminService.getFeedbackBySearch(query),
+        };
+      }
+
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getFeedback(query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }
