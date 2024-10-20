@@ -9,7 +9,7 @@ export const userRegisterSchema = z.object({
   email: z.string().email({ message: 'Email tidak valid' }),
   phone_number: z
     .string()
-    .regex(/^(?:\+62|62|0)8[1-9][0-9]{6,9}$/, {
+    .regex(/^(?:\+62|62|0)8[1-9][0-9]{7,11}$/, {
       message: 'Nomor telepon tidak valid',
     })
     .min(10, { message: 'Nomor telepon minimal 10 karakter' }),
