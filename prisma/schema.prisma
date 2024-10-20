@@ -85,6 +85,7 @@ model Program {
   type             ProgramType
   price            Int?             @db.UnsignedInt
   is_active        Boolean          @default(true)
+  qr_code          String?          
 
   created_at       DateTime         @default(now())
   updated_at       DateTime         @updatedAt
@@ -251,4 +252,15 @@ model SocialMediaImage {
   program          Program          @relation(fields: [program_id], references: [program_id])
 
   @@map("social_media_image")
+}
+
+model Feedback {
+  id               Int              @id               @default(autoincrement())    
+  user_id          String
+  fullname         String
+  rating           Int              @db.UnsignedTinyInt
+  text             String           @db.Text
+  created_at       DateTime         @default(now())
+
+  @@map("feedback")
 }
