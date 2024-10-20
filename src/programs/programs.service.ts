@@ -311,6 +311,7 @@ export class ProgramsService {
           type: true,
           price: true,
           is_active: true,
+          qr_code: true,
           details: {
             where: {
               test: {
