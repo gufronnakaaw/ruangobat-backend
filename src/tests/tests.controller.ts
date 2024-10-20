@@ -1,18 +1,26 @@
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
   Inject,
   Param,
+  Post,
   Req,
   UseGuards,
+  UsePipes,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { SuccessResponse } from 'src/utils/global/global.response';
+import { SuccessResponse } from '../utils/global/global.response';
 import { UserGuard } from '../utils/guards/user.guard';
-import { StartTestQuestion } from './tests.dto';
+import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
+import {
+  FinishTestsDto,
+  finishTestsSchema,
+  StartTestQuestion,
+} from './tests.dto';
 import { TestsService } from './tests.service';
 
 @Controller('tests')
@@ -70,6 +78,44 @@ export class TestsController {
           test_id,
           user_id: req.user.user_id,
           questions,
+        }),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/finish')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(finishTestsSchema))
+  async finishTest(
+    @Body() body: FinishTestsDto,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.testsService.finishTest(body, req.user.user_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get(':result_id/result')
+  @HttpCode(HttpStatus.OK)
+  async getResult(
+    @Param('result_id') result_id: string,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.testsService.getResult({
+          result_id,
+          user_id: req.user.user_id,
         }),
       };
     } catch (error) {

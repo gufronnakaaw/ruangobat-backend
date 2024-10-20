@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { random } from 'lodash';
 import { PrismaService } from '../utils/services/prisma.service';
 import { shuffle } from '../utils/shuffle';
-import { StartTestQuestion } from './tests.dto';
+import { FinishTestsDto, StartTestQuestion } from './tests.dto';
 
 @Injectable()
 export class TestsService {
@@ -158,5 +159,174 @@ export class TestsService {
         },
       },
     });
+  }
+
+  async finishTest(body: FinishTestsDto, user_id: string) {
+    const test = await this.prisma.test.findUnique({
+      where: { test_id: body.test_id },
+      select: {
+        questions: {
+          select: {
+            question_id: true,
+            options: {
+              select: {
+                option_id: true,
+                is_correct: true,
+              },
+              where: {
+                is_correct: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!test) {
+      throw new NotFoundException('Test tidak ditemukan');
+    }
+
+    const questions = test.questions;
+    const total_questions = test.questions.length;
+    const point = 100 / total_questions;
+    let total_correct = 0;
+    let total_incorrect = 0;
+
+    const user_questions: {
+      number: number;
+      question_id: string;
+      correct_option: string;
+      user_answer: string;
+      is_correct: boolean;
+    }[] = [];
+
+    for (const user_question of body.questions) {
+      const test_question = questions.find(
+        (question) => question.question_id == user_question.question_id,
+      );
+
+      const correct_options = test_question.options.map(
+        (item) => item.option_id,
+      );
+
+      if (user_question.user_answer) {
+        if (correct_options.includes(user_question.user_answer)) {
+          user_questions.push({
+            number: user_question.number,
+            question_id: user_question.question_id,
+            correct_option: correct_options[0],
+            user_answer: user_question.user_answer,
+            is_correct: true,
+          });
+
+          total_correct += 1;
+        } else {
+          user_questions.push({
+            number: user_question.number,
+            question_id: user_question.question_id,
+            correct_option: correct_options[0],
+            user_answer: user_question.user_answer,
+            is_correct: false,
+          });
+
+          total_incorrect += 1;
+        }
+      } else {
+        user_questions.push({
+          number: user_question.number,
+          question_id: user_question.question_id,
+          correct_option: correct_options[0],
+          user_answer: user_question.user_answer,
+          is_correct: false,
+        });
+
+        total_incorrect += 1;
+      }
+    }
+
+    return this.prisma.result.create({
+      data: {
+        result_id: `ROR${random(100000, 999999)}`,
+        test_id: body.test_id,
+        user_id,
+        total_correct,
+        total_incorrect,
+        score: Math.round(total_correct * point),
+        details: {
+          createMany: {
+            data: user_questions,
+          },
+        },
+      },
+    });
+  }
+
+  async getResult({
+    result_id,
+    user_id,
+  }: {
+    result_id: string;
+    user_id: string;
+  }) {
+    const result = await this.prisma.result.findUnique({
+      where: {
+        result_id,
+        user_id,
+      },
+      select: {
+        result_id: true,
+        score: true,
+        total_correct: true,
+        total_incorrect: true,
+        details: {
+          select: {
+            number: true,
+            correct_option: true,
+            user_answer: true,
+            is_correct: true,
+            questions: {
+              select: {
+                question_id: true,
+                text: true,
+                explanation: true,
+                type: true,
+                url: true,
+                options: {
+                  select: {
+                    option_id: true,
+                    text: true,
+                    is_correct: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            number: 'asc',
+          },
+        },
+      },
+    });
+
+    return {
+      result_id: result.result_id,
+      score: result.score,
+      total_correct: result.total_correct,
+      total_incorrect: result.total_incorrect,
+      questions: result.details.map((detail) => {
+        return {
+          number: detail.number,
+          question_id: detail.questions.question_id,
+          text: detail.questions.text,
+          explanation: detail.questions.explanation,
+          type: detail.questions.type,
+          url: detail.questions.url,
+          options: detail.questions.options,
+          correct_option: detail.correct_option,
+          user_answer: detail.user_answer,
+          is_correct: detail.is_correct,
+        };
+      }),
+    };
   }
 }
