@@ -1057,12 +1057,7 @@ export class AdminService {
         test_id,
       },
       select: {
-        test: {
-          select: {
-            test_id: true,
-            title: true,
-          },
-        },
+        result_id: true,
         user: {
           select: {
             user_id: true,
@@ -1075,13 +1070,85 @@ export class AdminService {
     });
 
     return results.map((result) => {
-      const { score, user, test } = result;
+      const { score, user, result_id } = result;
       return {
-        ...test,
+        result_id,
         ...user,
         score,
       };
     });
+  }
+
+  async getResult(result_id: string) {
+    const result = await this.prisma.result.findUnique({
+      where: {
+        result_id,
+      },
+      select: {
+        result_id: true,
+        score: true,
+        total_correct: true,
+        total_incorrect: true,
+        user: {
+          select: {
+            user_id: true,
+            fullname: true,
+            university: true,
+          },
+        },
+        details: {
+          select: {
+            number: true,
+            correct_option: true,
+            user_answer: true,
+            is_correct: true,
+            questions: {
+              select: {
+                question_id: true,
+                text: true,
+                explanation: true,
+                type: true,
+                url: true,
+                options: {
+                  select: {
+                    option_id: true,
+                    text: true,
+                    is_correct: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            number: 'asc',
+          },
+        },
+      },
+    });
+
+    return {
+      result_id: result.result_id,
+      score: result.score,
+      user_id: result.user.user_id,
+      fullname: result.user.fullname,
+      university: result.user.university,
+      total_correct: result.total_correct,
+      total_incorrect: result.total_incorrect,
+      questions: result.details.map((detail) => {
+        return {
+          number: detail.number,
+          question_id: detail.questions.question_id,
+          text: detail.questions.text,
+          explanation: detail.questions.explanation,
+          type: detail.questions.type,
+          url: detail.questions.url,
+          options: detail.questions.options,
+          correct_option: detail.correct_option,
+          user_answer: detail.user_answer,
+          is_correct: detail.is_correct,
+        };
+      }),
+    };
   }
 
   getUsersImages(params: { program_id: string; user_id: string }) {

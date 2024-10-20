@@ -468,4 +468,20 @@ export class AdminController {
       throw error;
     }
   }
+
+  @Get('/results/:result_id')
+  @HttpCode(HttpStatus.OK)
+  async getResult(
+    @Param('result_id') result_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getResult(result_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }
