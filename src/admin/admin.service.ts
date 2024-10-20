@@ -286,7 +286,7 @@ export class AdminService {
         program_id: `ROP${random(100000, 999999)}`,
         title: body.title,
         type: body.type,
-        price: body.price,
+        price: parseInt(body.price),
         is_active: true,
         created_by: body.by,
         updated_by: body.by,
@@ -378,7 +378,7 @@ export class AdminService {
           data: {
             title: body.title,
             type: body.type,
-            price: body.price,
+            price: parseInt(body.price),
             updated_by: body.by,
             qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
             details: {
@@ -400,7 +400,7 @@ export class AdminService {
           data: {
             title: body.title,
             type: body.type,
-            price: body.price,
+            price: parseInt(body.price),
             updated_by: body.by,
             details: {
               createMany: {
@@ -426,7 +426,7 @@ export class AdminService {
         data: {
           title: body.title,
           type: body.type,
-          price: body.price,
+          price: parseInt(body.price),
           updated_by: body.by,
           qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
         },
@@ -439,7 +439,7 @@ export class AdminService {
         data: {
           title: body.title,
           type: body.type,
-          price: body.price,
+          price: parseInt(body.price),
           updated_by: body.by,
         },
       });

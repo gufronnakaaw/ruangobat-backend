@@ -12,11 +12,7 @@ export const createProgramsSchema = z.object({
     .trim()
     .transform((val) => val.replace(/\s+/g, ' ')),
   type: z.enum(['free', 'paid']),
-  price: z
-    .number()
-    .positive({ message: 'Harga harus positif' })
-    .min(1, { message: 'Minimal harga Rp1' })
-    .optional(),
+  price: z.string().optional(),
   tests: z.array(z.string()).min(1, { message: 'Harus diisi minimal 1 test' }),
   by: z.string(),
 });
@@ -40,7 +36,7 @@ export const updateProgramsSchema = z.object({
     .transform((val) => val.replace(/\s+/g, ' '))
     .optional(),
   type: z.enum(['free', 'paid']).optional(),
-  price: z.number().positive({ message: 'Harga harus positif' }).optional(),
+  price: z.string().optional(),
   tests: z.array(z.string()).min(1, { message: 'Harus diisi minimal 1 test' }),
   by: z.string(),
 });
