@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { random } from 'lodash';
+import path from 'path';
 import ShortUniqueId from 'short-unique-id';
 import { decryptString } from '../utils/crypto.util';
 import { maskEmail, maskPhoneNumber } from '../utils/masking.util';
@@ -275,7 +276,11 @@ export class AdminService {
     };
   }
 
-  createPrograms(body: CreateProgramsDto) {
+  createPrograms(
+    body: CreateProgramsDto,
+    file: Express.Multer.File,
+    fullurl: string,
+  ) {
     return this.prisma.program.create({
       data: {
         program_id: `ROP${random(100000, 999999)}`,
@@ -285,6 +290,7 @@ export class AdminService {
         is_active: true,
         created_by: body.by,
         updated_by: body.by,
+        qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
         details: {
           createMany: {
             data: body.tests.map((test) => {
@@ -329,7 +335,11 @@ export class AdminService {
     });
   }
 
-  async updatePrograms(body: UpdateProgramsDto) {
+  async updatePrograms(
+    body: UpdateProgramsDto,
+    file: Express.Multer.File,
+    fullurl: string,
+  ) {
     const program = await this.prisma.program.findUnique({
       where: { program_id: body.program_id },
       select: {
@@ -359,6 +369,7 @@ export class AdminService {
             type: body.type,
             price: body.price,
             updated_by: body.by,
+            qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
             details: {
               createMany: {
                 data: body.tests.map((test) => {
@@ -384,6 +395,7 @@ export class AdminService {
         type: body.type,
         price: body.price,
         updated_by: body.by,
+        qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
       },
     });
 
@@ -477,6 +489,7 @@ export class AdminService {
         type: true,
         price: true,
         is_active: true,
+        qr_code: true,
         details: {
           select: {
             test: {

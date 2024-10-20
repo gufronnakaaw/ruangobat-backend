@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -9,9 +10,15 @@ import {
   Patch,
   Post,
   Query,
+  Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Request } from 'express';
+import { diskStorage } from 'multer';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
@@ -20,13 +27,11 @@ import {
   ApprovedUserDto,
   approvedUserSchema,
   CreateProgramsDto,
-  createProgramsSchema,
   CreateTestsDto,
   createTestsSchema,
   InviteUsersDto,
   inviteUsersSchema,
   UpdateProgramsDto,
-  updateProgramsSchema,
   UpdateStatusProgramsDto,
   updateStatusProgramsSchema,
   UpdateStatusTestsDto,
@@ -137,15 +142,42 @@ export class AdminController {
 
   @Post('/programs')
   @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(createProgramsSchema))
+  @UseInterceptors(
+    FileInterceptor('qr_code', {
+      storage: diskStorage({
+        destination: './public/qr',
+        filename(req, file, callback) {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+      fileFilter(req, file, callback) {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+          return callback(
+            new BadRequestException('Hanya gambar yang diperbolehkan'),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: 2 * 1024 * 1024,
+      },
+    }),
+  )
   async createPrograms(
     @Body() body: CreateProgramsDto,
+    @UploadedFile() qr_code: Express.Multer.File,
+    @Req() req: Request,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.adminService.createPrograms(body),
+        data: await this.adminService.createPrograms(
+          body,
+          qr_code,
+          req.fullurl,
+        ),
       };
     } catch (error) {
       throw error;
@@ -154,15 +186,42 @@ export class AdminController {
 
   @Patch('/programs')
   @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(updateProgramsSchema))
+  @UseInterceptors(
+    FileInterceptor('qr_code', {
+      storage: diskStorage({
+        destination: './public/qr',
+        filename(req, file, callback) {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+      fileFilter(req, file, callback) {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+          return callback(
+            new BadRequestException('Hanya gambar yang diperbolehkan'),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: 2 * 1024 * 1024,
+      },
+    }),
+  )
   async updatePrograms(
     @Body() body: UpdateProgramsDto,
+    @UploadedFile() qr_code: Express.Multer.File,
+    @Req() req: Request,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.updatePrograms(body),
+        data: await this.adminService.updatePrograms(
+          body,
+          qr_code,
+          req.fullurl,
+        ),
       };
     } catch (error) {
       throw error;
