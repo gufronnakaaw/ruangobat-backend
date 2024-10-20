@@ -276,12 +276,12 @@ export class AdminService {
     };
   }
 
-  createPrograms(
+  async createPrograms(
     body: CreateProgramsDto,
     file: Express.Multer.File,
     fullurl: string,
   ) {
-    return this.prisma.program.create({
+    const program = await this.prisma.program.create({
       data: {
         program_id: `ROP${random(100000, 999999)}`,
         title: body.title,
@@ -290,7 +290,6 @@ export class AdminService {
         is_active: true,
         created_by: body.by,
         updated_by: body.by,
-        qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
         details: {
           createMany: {
             data: body.tests.map((test) => {
@@ -310,6 +309,17 @@ export class AdminService {
         is_active: true,
       },
     });
+
+    await this.prisma.program.update({
+      where: {
+        program_id: program.program_id,
+      },
+      data: {
+        qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+      },
+    });
+
+    return program;
   }
 
   async updateStatusProgram(body: UpdateStatusProgramsDto) {
@@ -356,11 +366,12 @@ export class AdminService {
     }
 
     if (body.tests.length) {
-      await this.prisma.$transaction([
-        this.prisma.programDetail.deleteMany({
-          where: { program_id: body.program_id },
-        }),
-        this.prisma.program.update({
+      await this.prisma.programDetail.deleteMany({
+        where: { program_id: body.program_id },
+      });
+
+      if (file) {
+        await this.prisma.program.update({
           where: {
             program_id: body.program_id,
           },
@@ -380,24 +391,59 @@ export class AdminService {
               },
             },
           },
-        }),
-      ]);
+        });
+      } else {
+        await this.prisma.program.update({
+          where: {
+            program_id: body.program_id,
+          },
+          data: {
+            title: body.title,
+            type: body.type,
+            price: body.price,
+            updated_by: body.by,
+            details: {
+              createMany: {
+                data: body.tests.map((test) => {
+                  return {
+                    test_id: test,
+                  };
+                }),
+              },
+            },
+          },
+        });
+      }
 
       return body;
     }
 
-    await this.prisma.program.update({
-      where: {
-        program_id: body.program_id,
-      },
-      data: {
-        title: body.title,
-        type: body.type,
-        price: body.price,
-        updated_by: body.by,
-        qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
-      },
-    });
+    if (file) {
+      await this.prisma.program.update({
+        where: {
+          program_id: body.program_id,
+        },
+        data: {
+          title: body.title,
+          type: body.type,
+          price: body.price,
+          updated_by: body.by,
+          qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+        },
+      });
+    } else {
+      await this.prisma.program.update({
+        where: {
+          program_id: body.program_id,
+        },
+        data: {
+          title: body.title,
+          type: body.type,
+          price: body.price,
+          updated_by: body.by,
+        },
+      });
+    }
 
     return body;
   }
