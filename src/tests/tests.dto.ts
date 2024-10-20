@@ -18,7 +18,7 @@ export const finishTestsSchema = z.object({
       z.object({
         number: z.number().positive(),
         question_id: z.string(),
-        user_answer: z.string(),
+        user_answer: z.string().optional(),
       }),
     )
     .min(1),
