@@ -14,6 +14,7 @@ import { ProgramsModule } from './programs/programs.module';
 import { TestsModule } from './tests/tests.module';
 import { GlobalMiddleware } from './utils/global/global.middleware';
 import { AdminsModule } from './admins/admins.module';
+import { GeneralModule } from './general/general.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { AdminsModule } from './admins/admins.module';
     AdminModule,
     CronModule,
     AdminsModule,
+    GeneralModule,
   ],
   controllers: [AppController],
 })
