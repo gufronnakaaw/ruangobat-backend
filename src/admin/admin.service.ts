@@ -40,7 +40,7 @@ export class AdminService {
 
   async getUsers(query: AdminQuery) {
     const default_page = 1;
-    const take = 8;
+    const take = 15;
 
     const page = parseInt(query.page) ? parseInt(query.page) : default_page;
 
@@ -518,7 +518,7 @@ export class AdminService {
             is_approved: true,
           },
           orderBy: {
-            joined_at: 'desc',
+            joined_at: 'asc',
           },
         },
       },
