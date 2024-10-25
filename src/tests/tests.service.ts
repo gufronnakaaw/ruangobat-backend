@@ -244,6 +244,15 @@ export class TestsService {
       }
     }
 
+    await this.prisma.start.delete({
+      where: {
+        user_id_test_id: {
+          user_id,
+          test_id: body.test_id,
+        },
+      },
+    });
+
     return this.prisma.result.create({
       data: {
         result_id: `ROR${random(100000, 999999)}`,
