@@ -14,6 +14,7 @@ export const createProgramsSchema = z.object({
   type: z.enum(['free', 'paid']),
   price: z.string().optional(),
   tests: z.array(z.string()).min(1, { message: 'Harus diisi minimal 1 test' }),
+  url_qr_code: z.string(),
   by: z.string(),
 });
 
@@ -38,6 +39,7 @@ export const updateProgramsSchema = z.object({
   type: z.enum(['free', 'paid']).optional(),
   price: z.string().optional(),
   tests: z.array(z.string()).min(1, { message: 'Harus diisi minimal 1 test' }),
+  url_qr_code: z.string().optional(),
   by: z.string(),
 });
 

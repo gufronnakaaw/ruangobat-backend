@@ -290,6 +290,7 @@ export class AdminService {
         is_active: true,
         created_by: body.by,
         updated_by: body.by,
+        url_qr_code: body.url_qr_code,
         details: {
           createMany: {
             data: body.tests.map((test) => {
@@ -381,6 +382,7 @@ export class AdminService {
             price: parseInt(body.price),
             updated_by: body.by,
             qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+            url_qr_code: body.url_qr_code,
             details: {
               createMany: {
                 data: body.tests.map((test) => {
@@ -402,6 +404,7 @@ export class AdminService {
             type: body.type,
             price: parseInt(body.price),
             updated_by: body.by,
+            url_qr_code: body.url_qr_code,
             details: {
               createMany: {
                 data: body.tests.map((test) => {
@@ -429,6 +432,7 @@ export class AdminService {
           price: parseInt(body.price),
           updated_by: body.by,
           qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          url_qr_code: body.url_qr_code,
         },
       });
     } else {
@@ -441,6 +445,7 @@ export class AdminService {
           type: body.type,
           price: parseInt(body.price),
           updated_by: body.by,
+          url_qr_code: body.url_qr_code,
         },
       });
     }
@@ -525,57 +530,69 @@ export class AdminService {
   }
 
   async getProgram(program_id: string) {
-    const program = await this.prisma.program.findUnique({
-      where: {
-        program_id,
-      },
-      select: {
-        program_id: true,
-        title: true,
-        type: true,
-        price: true,
-        is_active: true,
-        qr_code: true,
-        details: {
-          select: {
-            test: {
-              select: {
-                test_id: true,
-                title: true,
-                start: true,
-                end: true,
-                duration: true,
-                is_active: true,
+    const [program, total_users] = await this.prisma.$transaction([
+      this.prisma.program.findUnique({
+        where: {
+          program_id,
+        },
+        select: {
+          program_id: true,
+          title: true,
+          type: true,
+          price: true,
+          is_active: true,
+          qr_code: true,
+          url_qr_code: true,
+          details: {
+            select: {
+              test: {
+                select: {
+                  test_id: true,
+                  title: true,
+                  start: true,
+                  end: true,
+                  duration: true,
+                  is_active: true,
+                },
               },
             },
           },
-        },
-        participants: {
-          select: {
-            user: {
-              select: {
-                user_id: true,
-                fullname: true,
-                university: true,
+          participants: {
+            select: {
+              user: {
+                select: {
+                  user_id: true,
+                  fullname: true,
+                  university: true,
+                },
               },
+              code: true,
+              joined_at: true,
+              is_approved: true,
             },
-            code: true,
-            joined_at: true,
-            is_approved: true,
-          },
-          orderBy: {
-            joined_at: 'asc',
+            orderBy: {
+              joined_at: 'asc',
+            },
           },
         },
-      },
-    });
+      }),
+      this.prisma.participant.count({
+        where: {
+          program_id,
+          joined_at: {
+            not: null,
+          },
+          is_approved: true,
+        },
+      }),
+    ]);
 
     const { details, participants, ...all } = program;
 
     return {
       ...all,
       total_tests: details.length,
-      total_users: participants.length,
+      total_users,
       tests: details.map((detail) => {
         const now = new Date();
 
