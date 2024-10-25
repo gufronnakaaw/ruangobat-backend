@@ -85,7 +85,8 @@ model Program {
   type             ProgramType
   price            Int?             @db.UnsignedInt
   is_active        Boolean          @default(true)
-  qr_code          String?          
+  qr_code          String?
+  url_qr_code      String?          
 
   created_at       DateTime         @default(now())
   updated_at       DateTime         @updatedAt
