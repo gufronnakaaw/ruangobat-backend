@@ -112,12 +112,20 @@ export class AdminController {
 
   @Get('/sessions')
   @HttpCode(HttpStatus.OK)
-  async getSessions(): Promise<SuccessResponse> {
+  async getSessions(@Query() query: AdminQuery): Promise<SuccessResponse> {
     try {
+      if (query.q) {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: await this.adminService.getSessionsBySearch(query),
+        };
+      }
+
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getSessions(),
+        data: await this.adminService.getSessions(query),
       };
     } catch (error) {
       throw error;

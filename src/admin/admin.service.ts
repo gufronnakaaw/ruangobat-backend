@@ -205,33 +205,131 @@ export class AdminService {
     };
   }
 
-  async getSessions() {
-    const sessions = await this.prisma.session.findMany({
-      select: {
-        user: {
-          select: {
-            user_id: true,
-            fullname: true,
-            university: true,
+  async getSessions(query: AdminQuery) {
+    const default_page = 1;
+    const take = 6;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_sessions, sessions] = await this.prisma.$transaction([
+      this.prisma.session.count(),
+      this.prisma.session.findMany({
+        select: {
+          user: {
+            select: {
+              user_id: true,
+              fullname: true,
+              university: true,
+            },
           },
+          browser: true,
+          os: true,
+          created_at: true,
+          expired: true,
         },
-        browser: true,
-        os: true,
-        created_at: true,
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
+        take,
+        skip,
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+    ]);
 
-    return sessions.map((session) => {
-      const { user, ...all } = session;
+    return {
+      sessions: sessions.map((session) => {
+        const { user, ...all } = session;
 
-      return {
-        ...user,
-        ...all,
-      };
-    });
+        return {
+          ...user,
+          ...all,
+        };
+      }),
+      page: parseInt(query.page),
+      total_sessions,
+      total_pages: Math.ceil(total_sessions / take),
+    };
+  }
+
+  async getSessionsBySearch(query: AdminQuery) {
+    const default_page = 1;
+    const take = 6;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_sessions, sessions] = await this.prisma.$transaction([
+      this.prisma.session.count({
+        where: {
+          OR: [
+            {
+              user_id: {
+                contains: query.q,
+              },
+            },
+            {
+              user: {
+                fullname: {
+                  contains: query.q,
+                },
+              },
+            },
+          ],
+        },
+      }),
+      this.prisma.session.findMany({
+        where: {
+          OR: [
+            {
+              user_id: {
+                contains: query.q,
+              },
+            },
+            {
+              user: {
+                fullname: {
+                  contains: query.q,
+                },
+              },
+            },
+          ],
+        },
+        select: {
+          user: {
+            select: {
+              user_id: true,
+              fullname: true,
+              university: true,
+            },
+          },
+          browser: true,
+          os: true,
+          created_at: true,
+          expired: true,
+        },
+        take,
+        skip,
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+    ]);
+
+    return {
+      sessions: sessions.map((session) => {
+        const { user, ...all } = session;
+
+        return {
+          ...user,
+          ...all,
+        };
+      }),
+      page: parseInt(query.page),
+      total_sessions,
+      total_pages: Math.ceil(total_sessions / take),
+    };
   }
 
   async unfollowUsers(program_id: string, user_id: string) {
