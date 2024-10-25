@@ -1223,6 +1223,10 @@ export class AdminService {
       select: {
         url: true,
       },
+      take: 3,
+      orderBy: {
+        created_at: 'desc',
+      },
     });
   }
 
