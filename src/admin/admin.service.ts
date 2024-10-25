@@ -38,7 +38,7 @@ export class AdminService {
     };
   }
 
-  async getUsers(query: AdminQuery) {
+  async getUsers(query: AdminQuery, role: string) {
     const default_page = 1;
     const take = 15;
 
@@ -53,6 +53,8 @@ export class AdminService {
           user_id: true,
           fullname: true,
           university: true,
+          phone_number: true,
+          email: true,
         },
         orderBy: {
           created_at: 'desc',
@@ -63,7 +65,21 @@ export class AdminService {
     ]);
 
     return {
-      users,
+      users: users.map((user) => {
+        return {
+          ...user,
+          email:
+            role === 'superadmin'
+              ? decryptString(user.email, process.env.ENCRYPT_KEY)
+              : maskEmail(decryptString(user.email, process.env.ENCRYPT_KEY)),
+          phone_number:
+            role === 'superadmin'
+              ? decryptString(user.phone_number, process.env.ENCRYPT_KEY)
+              : maskPhoneNumber(
+                  decryptString(user.phone_number, process.env.ENCRYPT_KEY),
+                ),
+        };
+      }),
       page: parseInt(query.page),
       total_users,
       total_pages: Math.ceil(total_users / take),
@@ -83,7 +99,7 @@ export class AdminService {
     });
   }
 
-  async getUser(user_id: string) {
+  async getUser(user_id: string, role: string) {
     const user = await this.prisma.user.findUnique({
       where: { user_id },
       select: {
@@ -99,14 +115,20 @@ export class AdminService {
 
     return {
       ...user,
-      email: maskEmail(decryptString(user.email, process.env.ENCRYPT_KEY)),
-      phone_number: maskPhoneNumber(
-        decryptString(user.phone_number, process.env.ENCRYPT_KEY),
-      ),
+      email:
+        role === 'superadmin'
+          ? decryptString(user.email, process.env.ENCRYPT_KEY)
+          : maskEmail(decryptString(user.email, process.env.ENCRYPT_KEY)),
+      phone_number:
+        role === 'superadmin'
+          ? decryptString(user.phone_number, process.env.ENCRYPT_KEY)
+          : maskPhoneNumber(
+              decryptString(user.phone_number, process.env.ENCRYPT_KEY),
+            ),
     };
   }
 
-  async searchUsers(query: AdminQuery) {
+  async searchUsers(query: AdminQuery, role: string) {
     const default_page = 1;
     const take = 8;
 
@@ -150,6 +172,8 @@ export class AdminService {
           user_id: true,
           fullname: true,
           university: true,
+          phone_number: true,
+          email: true,
         },
         orderBy: {
           created_at: 'desc',
@@ -160,7 +184,21 @@ export class AdminService {
     ]);
 
     return {
-      users,
+      users: users.map((user) => {
+        return {
+          ...user,
+          email:
+            role === 'superadmin'
+              ? decryptString(user.email, process.env.ENCRYPT_KEY)
+              : maskEmail(decryptString(user.email, process.env.ENCRYPT_KEY)),
+          phone_number:
+            role === 'superadmin'
+              ? decryptString(user.phone_number, process.env.ENCRYPT_KEY)
+              : maskPhoneNumber(
+                  decryptString(user.phone_number, process.env.ENCRYPT_KEY),
+                ),
+        };
+      }),
       page: parseInt(query.page),
       total_users,
       total_pages: Math.ceil(total_users / take),

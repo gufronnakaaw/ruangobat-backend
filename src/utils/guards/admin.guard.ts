@@ -38,6 +38,7 @@ export class AdminGuard implements CanActivate {
       });
 
       if (payload.role == 'admin' || payload.role == 'superadmin') {
+        request['admin'] = payload;
         return true;
       }
 

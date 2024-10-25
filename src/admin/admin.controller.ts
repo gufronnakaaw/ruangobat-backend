@@ -62,7 +62,10 @@ export class AdminController {
 
   @Get('/users')
   @HttpCode(HttpStatus.OK)
-  async getUsers(@Query() query: AdminQuery): Promise<SuccessResponse> {
+  async getUsers(
+    @Query() query: AdminQuery,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
     try {
       if (query.page == 'all') {
         return {
@@ -76,14 +79,14 @@ export class AdminController {
         return {
           success: true,
           status_code: HttpStatus.OK,
-          data: await this.adminService.searchUsers(query),
+          data: await this.adminService.searchUsers(query, req.admin.role),
         };
       }
 
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getUsers(query),
+        data: await this.adminService.getUsers(query, req.admin.role),
       };
     } catch (error) {
       throw error;
@@ -92,12 +95,15 @@ export class AdminController {
 
   @Get('/users/:user_id')
   @HttpCode(HttpStatus.OK)
-  async getUser(@Param('user_id') user_id: string): Promise<SuccessResponse> {
+  async getUser(
+    @Param('user_id') user_id: string,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getUser(user_id),
+        data: await this.adminService.getUser(user_id, req.admin.role),
       };
     } catch (error) {
       throw error;
