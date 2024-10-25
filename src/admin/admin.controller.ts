@@ -449,12 +449,23 @@ export class AdminController {
 
   @Get('/tests/results/:test_id')
   @HttpCode(HttpStatus.OK)
-  async getResultsTest(@Param('test_id') test_id: string) {
+  async getResultsTest(
+    @Param('test_id') test_id: string,
+    @Query() query: AdminQuery,
+  ) {
     try {
+      if (query.q) {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: await this.adminService.getResultsTestBySearch(test_id, query),
+        };
+      }
+
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getResultsTest(test_id),
+        data: await this.adminService.getResultsTest(test_id, query),
       };
     } catch (error) {
       throw error;

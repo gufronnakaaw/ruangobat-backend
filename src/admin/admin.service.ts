@@ -1250,32 +1250,152 @@ export class AdminService {
     return params;
   }
 
-  async getResultsTest(test_id: string) {
-    const results = await this.prisma.result.findMany({
-      where: {
-        test_id,
-      },
-      select: {
-        result_id: true,
-        user: {
-          select: {
-            user_id: true,
-            fullname: true,
-            university: true,
-          },
-        },
-        score: true,
-      },
-    });
+  async getResultsTest(test_id: string, query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
 
-    return results.map((result) => {
-      const { score, user, result_id } = result;
-      return {
-        result_id,
-        ...user,
-        score,
-      };
-    });
+    const page = query.page ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_results, results, test] = await this.prisma.$transaction([
+      this.prisma.result.count({ where: { test_id } }),
+      this.prisma.result.findMany({
+        where: {
+          test_id,
+        },
+        select: {
+          result_id: true,
+          user: {
+            select: {
+              user_id: true,
+              fullname: true,
+              university: true,
+            },
+          },
+          score: true,
+        },
+        skip,
+        take,
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+      this.prisma.test.findUnique({
+        where: { test_id },
+        select: {
+          test_id: true,
+          title: true,
+        },
+      }),
+    ]);
+
+    return {
+      ...test,
+      results: results.map((result) => {
+        const { score, user, result_id } = result;
+        return {
+          result_id,
+          ...user,
+          score,
+        };
+      }),
+      page,
+      total_results,
+      total_pages: Math.ceil(total_results / take),
+    };
+  }
+
+  async getResultsTestBySearch(test_id: string, query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = query.page ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_results, results, test] = await this.prisma.$transaction([
+      this.prisma.result.count({
+        where: {
+          test_id,
+          OR: [
+            {
+              user: {
+                user_id: {
+                  contains: query.q,
+                },
+              },
+            },
+            {
+              user: {
+                fullname: {
+                  contains: query.q,
+                },
+              },
+            },
+          ],
+        },
+      }),
+      this.prisma.result.findMany({
+        where: {
+          test_id,
+          OR: [
+            {
+              user: {
+                user_id: {
+                  contains: query.q,
+                },
+              },
+            },
+            {
+              user: {
+                fullname: {
+                  contains: query.q,
+                },
+              },
+            },
+          ],
+        },
+        select: {
+          result_id: true,
+          user: {
+            select: {
+              user_id: true,
+              fullname: true,
+              university: true,
+            },
+          },
+          score: true,
+        },
+        skip,
+        take,
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+      this.prisma.test.findUnique({
+        where: { test_id },
+        select: {
+          test_id: true,
+          title: true,
+        },
+      }),
+    ]);
+
+    return {
+      ...test,
+      results: results.map((result) => {
+        const { score, user, result_id } = result;
+        return {
+          result_id,
+          ...user,
+          score,
+        };
+      }),
+      page,
+      total_results,
+      total_pages: Math.ceil(total_results / take),
+    };
   }
 
   async getResult(result_id: string) {
