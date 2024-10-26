@@ -207,7 +207,7 @@ export class AdminService {
 
   async getSessions(query: AdminQuery) {
     const default_page = 1;
-    const take = 6;
+    const take = 15;
 
     const page = parseInt(query.page) ? parseInt(query.page) : default_page;
 
@@ -254,7 +254,7 @@ export class AdminService {
 
   async getSessionsBySearch(query: AdminQuery) {
     const default_page = 1;
-    const take = 6;
+    const take = 15;
 
     const page = parseInt(query.page) ? parseInt(query.page) : default_page;
 
