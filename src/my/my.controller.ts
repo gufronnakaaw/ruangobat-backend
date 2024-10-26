@@ -1,14 +1,19 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Req,
   UseGuards,
+  UsePipes,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { SuccessResponse } from 'src/utils/global/global.response';
+import { ZodValidationPipe } from 'src/utils/pipes/zod.pipe';
 import { UserGuard } from '../utils/guards/user.guard';
+import { UserUpdateDto, userUpdateSchema } from './my.dto';
 import { MyService } from './my.service';
 
 @Controller('my')
@@ -24,6 +29,24 @@ export class MyController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.myService.getProfile(req.user.user_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Patch('/profile')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(userUpdateSchema))
+  async updateProfile(
+    @Req() req: Request,
+    @Body() body: UserUpdateDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.myService.updateProfile(req.user.user_id, body),
       };
     } catch (error) {
       throw error;

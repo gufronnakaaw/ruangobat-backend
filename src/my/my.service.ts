@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { decryptString } from 'src/utils/crypto.util';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { decryptString, encryptString } from 'src/utils/crypto.util';
 import { maskEmail } from 'src/utils/masking.util';
 import { PrismaService } from '../utils/services/prisma.service';
+import { UserUpdateDto } from './my.dto';
 
 @Injectable()
 export class MyService {
@@ -11,21 +12,45 @@ export class MyService {
     const user = await this.prisma.user.findUnique({
       where: { user_id },
       select: {
-        fullname: true,
+        user_id: true,
         email: true,
+        fullname: true,
         phone_number: true,
         gender: true,
         university: true,
+        created_at: true,
       },
     });
 
     return {
       ...user,
       email: maskEmail(decryptString(user.email, process.env.ENCRYPT_KEY)),
-      phone_number: maskEmail(
-        decryptString(user.phone_number, process.env.ENCRYPT_KEY),
-      ),
+      phone_number: decryptString(user.phone_number, process.env.ENCRYPT_KEY),
     };
+  }
+
+  async updateProfile(user_id: string, body: UserUpdateDto) {
+    if (!(await this.prisma.user.count({ where: { user_id } }))) {
+      throw new NotFoundException('User tidak ditemukan');
+    }
+
+    return this.prisma.user.update({
+      where: {
+        user_id,
+      },
+      data: {
+        fullname: body.fullname,
+        phone_number: encryptString(body.phone_number, process.env.ENCRYPT_KEY),
+        gender: body.gender,
+        university: body.university,
+      },
+      select: {
+        user_id: true,
+        fullname: true,
+        gender: true,
+        university: true,
+      },
+    });
   }
 
   async getPrograms(user_id: string) {
