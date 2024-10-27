@@ -1470,6 +1470,17 @@ export class AdminService {
     };
   }
 
+  async deleteResult(result_id: string) {
+    if (!(await this.prisma.result.count({ where: { result_id } }))) {
+      throw new NotFoundException('Hasil ujian tidak ditemukan');
+    }
+
+    return this.prisma.result.delete({
+      where: { result_id },
+      select: { result_id: true },
+    });
+  }
+
   getUsersImages(params: { program_id: string; user_id: string }) {
     return this.prisma.socialMediaImage.findMany({
       where: {
