@@ -50,6 +50,7 @@ model User {
   university       String            
   gender           Gender
   password         String
+  is_verified      Boolean?         @default(false)
 
   created_at       DateTime         @default(now())
   updated_at       DateTime         @updatedAt
@@ -59,6 +60,7 @@ model User {
   participants     Participant[]
   starts           Start[]
   socmedimg        SocialMediaImage[]
+  otp              Otp[]
 
   @@map("user")
 }
@@ -264,4 +266,19 @@ model Feedback {
   created_at       DateTime         @default(now())
 
   @@map("feedback")
+}
+
+model Otp {
+  id               Int              @id               @default(autoincrement())    
+  otp_id           String           @unique         
+  otp_code         String           
+  user_id          String
+  used_at          DateTime?
+  expired_at       DateTime
+
+  created_at       DateTime         @default(now())
+
+  user             User             @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@map("otp")
 }
