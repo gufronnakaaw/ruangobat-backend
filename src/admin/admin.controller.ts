@@ -263,12 +263,24 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async getProgram(
     @Param('program_id') program_id: string,
+    @Query() query: AdminQuery,
   ): Promise<SuccessResponse> {
     try {
+      if (query.q) {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: await this.adminService.getProgramParticipantsBySearch(
+            program_id,
+            query,
+          ),
+        };
+      }
+
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getProgram(program_id),
+        data: await this.adminService.getProgram(program_id, query),
       };
     } catch (error) {
       throw error;

@@ -665,70 +665,248 @@ export class AdminService {
     };
   }
 
-  async getProgram(program_id: string) {
-    const [program, total_users] = await this.prisma.$transaction([
-      this.prisma.program.findUnique({
-        where: {
-          program_id,
-        },
-        select: {
-          program_id: true,
-          title: true,
-          type: true,
-          price: true,
-          is_active: true,
-          qr_code: true,
-          url_qr_code: true,
-          details: {
-            select: {
-              test: {
-                select: {
-                  test_id: true,
-                  title: true,
-                  start: true,
-                  end: true,
-                  duration: true,
-                  is_active: true,
+  async getProgram(program_id: string, query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [program, total_participants, total_users, total_approved_users] =
+      await this.prisma.$transaction([
+        this.prisma.program.findUnique({
+          where: {
+            program_id,
+          },
+          select: {
+            program_id: true,
+            title: true,
+            type: true,
+            price: true,
+            is_active: true,
+            qr_code: true,
+            url_qr_code: true,
+            details: {
+              select: {
+                test: {
+                  select: {
+                    test_id: true,
+                    title: true,
+                    start: true,
+                    end: true,
+                    duration: true,
+                    is_active: true,
+                  },
                 },
               },
             },
-          },
-          participants: {
-            select: {
-              user: {
-                select: {
-                  user_id: true,
-                  fullname: true,
-                  university: true,
+            participants: {
+              select: {
+                user: {
+                  select: {
+                    user_id: true,
+                    fullname: true,
+                    university: true,
+                  },
                 },
+                code: true,
+                joined_at: true,
+                is_approved: true,
               },
-              code: true,
-              joined_at: true,
-              is_approved: true,
-            },
-            orderBy: {
-              joined_at: 'asc',
+              take,
+              skip,
+              orderBy: {
+                joined_at: 'asc',
+              },
             },
           },
-        },
-      }),
-      this.prisma.participant.count({
-        where: {
-          program_id,
-          joined_at: {
-            not: null,
+        }),
+        this.prisma.participant.count({
+          where: {
+            program_id,
           },
-          is_approved: true,
-        },
-      }),
-    ]);
+        }),
+        this.prisma.participant.count({
+          where: {
+            program_id,
+          },
+        }),
+        this.prisma.participant.count({
+          where: {
+            program_id,
+            joined_at: {
+              not: null,
+            },
+            is_approved: true,
+          },
+        }),
+      ]);
 
     const { details, participants, ...all } = program;
 
     return {
       ...all,
+      page: parseInt(query.page),
       total_tests: details.length,
       total_users,
+      total_participants,
+      total_approved_users,
+      total_pages: Math.ceil(total_users / take),
+      tests: details.map((detail) => {
+        const now = new Date();
+
+        const start = new Date(detail.test.start);
+        const end = new Date(detail.test.end);
+
+        let status = '';
+
+        if (now < start) {
+          status += 'Belum dimulai';
+        } else if (now >= start && now <= end) {
+          status += 'Berlangsung';
+        } else {
+          status += 'Berakhir';
+        }
+
+        return {
+          ...detail.test,
+          status,
+        };
+      }),
+      participants: participants.map((participant) => {
+        const { user, ...all } = participant;
+
+        return {
+          ...user,
+          ...all,
+        };
+      }),
+    };
+  }
+
+  async getProgramParticipantsBySearch(program_id: string, query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [program, total_participants, total_users, total_approved_users] =
+      await this.prisma.$transaction([
+        this.prisma.program.findUnique({
+          where: {
+            program_id,
+          },
+          select: {
+            program_id: true,
+            title: true,
+            type: true,
+            price: true,
+            is_active: true,
+            qr_code: true,
+            url_qr_code: true,
+            details: {
+              select: {
+                test: {
+                  select: {
+                    test_id: true,
+                    title: true,
+                    start: true,
+                    end: true,
+                    duration: true,
+                    is_active: true,
+                  },
+                },
+              },
+            },
+            participants: {
+              where: {
+                OR: [
+                  {
+                    user: {
+                      user_id: {
+                        contains: query.q,
+                      },
+                    },
+                  },
+                  {
+                    user: {
+                      fullname: {
+                        contains: query.q,
+                      },
+                    },
+                  },
+                ],
+              },
+              select: {
+                user: {
+                  select: {
+                    user_id: true,
+                    fullname: true,
+                    university: true,
+                  },
+                },
+                code: true,
+                joined_at: true,
+                is_approved: true,
+              },
+              take,
+              skip,
+              orderBy: {
+                joined_at: 'asc',
+              },
+            },
+          },
+        }),
+        this.prisma.participant.count({
+          where: {
+            program_id,
+            OR: [
+              {
+                user: {
+                  user_id: {
+                    contains: query.q,
+                  },
+                },
+              },
+              {
+                user: {
+                  fullname: {
+                    contains: query.q,
+                  },
+                },
+              },
+            ],
+          },
+        }),
+        this.prisma.participant.count({
+          where: {
+            program_id,
+          },
+        }),
+        this.prisma.participant.count({
+          where: {
+            program_id,
+            joined_at: {
+              not: null,
+            },
+            is_approved: true,
+          },
+        }),
+      ]);
+
+    const { details, participants, ...all } = program;
+
+    return {
+      ...all,
+      page: parseInt(query.page),
+      total_tests: details.length,
+      total_users,
+      total_participants,
+      total_approved_users,
+      total_pages: Math.ceil(total_participants / take),
       tests: details.map((detail) => {
         const now = new Date();
 
