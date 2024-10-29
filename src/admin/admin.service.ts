@@ -55,6 +55,7 @@ export class AdminService {
           university: true,
           phone_number: true,
           email: true,
+          is_verified: true,
         },
         orderBy: {
           created_at: 'desc',
@@ -174,6 +175,7 @@ export class AdminService {
           university: true,
           phone_number: true,
           email: true,
+          is_verified: true,
         },
         orderBy: {
           created_at: 'desc',

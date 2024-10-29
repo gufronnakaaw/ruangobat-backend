@@ -19,6 +19,7 @@ export class MyService {
         gender: true,
         university: true,
         created_at: true,
+        is_verified: true,
       },
     });
 
