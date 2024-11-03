@@ -166,4 +166,25 @@ export class GeneralService {
       },
     });
   }
+
+  async deleteStart(params: { test_id: string; user_id: string }) {
+    if (
+      !(await this.prisma.start.count({
+        where: { test_id: params.test_id, user_id: params.user_id },
+      }))
+    ) {
+      throw new NotFoundException('Test atau user tidak ditemukan');
+    }
+
+    await this.prisma.start.delete({
+      where: {
+        user_id_test_id: {
+          test_id: params.test_id,
+          user_id: params.user_id,
+        },
+      },
+    });
+
+    return params;
+  }
 }
