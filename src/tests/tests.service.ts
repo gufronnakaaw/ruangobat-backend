@@ -253,6 +253,8 @@ export class TestsService {
     //   },
     // });
 
+    console.log(user_questions);
+
     return this.prisma.result.create({
       data: {
         result_id: `ROR${random(100000, 999999)}`,
@@ -263,7 +265,15 @@ export class TestsService {
         score: Math.round(total_correct * point),
         details: {
           createMany: {
-            data: user_questions,
+            data: user_questions.map((item) => {
+              return {
+                number: item.number,
+                question_id: item.question_id,
+                correct_option: item.correct_option,
+                user_answer: item.user_answer,
+                is_correct: item.is_correct,
+              };
+            }),
           },
         },
       },
