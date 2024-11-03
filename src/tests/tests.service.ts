@@ -269,7 +269,7 @@ export class TestsService {
               return {
                 number: item.number,
                 question_id: item.question_id,
-                correct_option: item.correct_option,
+                correct_option: item.correct_option ? item.correct_option : '',
                 user_answer: item.user_answer,
                 is_correct: item.is_correct,
               };
