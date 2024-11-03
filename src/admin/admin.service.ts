@@ -1458,7 +1458,7 @@ export class AdminService {
         skip,
         take,
         orderBy: {
-          created_at: 'desc',
+          score: 'desc',
         },
       }),
       this.prisma.test.findUnique({
@@ -1469,6 +1469,25 @@ export class AdminService {
         },
       }),
     ]);
+
+    const program_detail = await this.prisma.programDetail.findMany({
+      where: { test_id },
+      orderBy: {
+        program: {
+          created_at: 'desc',
+        },
+      },
+    });
+
+    const total_participants = await this.prisma.participant.count({
+      where: {
+        program_id: program_detail[0].program_id,
+        joined_at: {
+          not: null,
+        },
+        is_approved: true,
+      },
+    });
 
     return {
       ...test,
@@ -1482,6 +1501,7 @@ export class AdminService {
       }),
       page,
       total_results,
+      total_participants,
       total_pages: Math.ceil(total_results / take),
     };
   }
@@ -1550,7 +1570,7 @@ export class AdminService {
         skip,
         take,
         orderBy: {
-          created_at: 'desc',
+          score: 'desc',
         },
       }),
       this.prisma.test.findUnique({
@@ -1561,6 +1581,25 @@ export class AdminService {
         },
       }),
     ]);
+
+    const program_detail = await this.prisma.programDetail.findMany({
+      where: { test_id },
+      orderBy: {
+        program: {
+          created_at: 'desc',
+        },
+      },
+    });
+
+    const total_participants = await this.prisma.participant.count({
+      where: {
+        program_id: program_detail[0].program_id,
+        joined_at: {
+          not: null,
+        },
+        is_approved: true,
+      },
+    });
 
     return {
       ...test,
@@ -1574,6 +1613,7 @@ export class AdminService {
       }),
       page,
       total_results,
+      total_participants,
       total_pages: Math.ceil(total_results / take),
     };
   }
