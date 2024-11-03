@@ -3,8 +3,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   HttpCode,
   HttpStatus,
+  Param,
   Patch,
   Post,
   Req,
@@ -141,6 +143,23 @@ export class GeneralController {
         data: {
           url: `${req.fullurl}/${upload.path.split(path.sep).join('/')}`,
         },
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('/start/:test_id/:user_id')
+  @UseGuards(AdminGuard)
+  @HttpCode(HttpStatus.OK)
+  async deleteResult(
+    @Param() params: { test_id: string; user_id: string },
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.generalService.deleteStart(params),
       };
     } catch (error) {
       throw error;
