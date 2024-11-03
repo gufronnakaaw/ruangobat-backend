@@ -130,13 +130,17 @@ export class GeneralController {
       },
     }),
   )
-  async uploadQuestionsImage(
+  uploadQuestionsImage(
     @UploadedFile() upload: Express.Multer.File,
     @Req() req: Request,
-  ) {
+  ): SuccessResponse {
     try {
       return {
-        url: `${req.fullurl}/${upload.path.split(path.sep).join('/')}`,
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: {
+          url: `${req.fullurl}/${upload.path.split(path.sep).join('/')}`,
+        },
       };
     } catch (error) {
       throw error;
