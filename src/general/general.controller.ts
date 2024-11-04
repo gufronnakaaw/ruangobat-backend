@@ -135,14 +135,10 @@ export class GeneralController {
   uploadQuestionsImage(
     @UploadedFile() upload: Express.Multer.File,
     @Req() req: Request,
-  ): SuccessResponse {
+  ) {
     try {
       return {
-        success: true,
-        status_code: HttpStatus.CREATED,
-        data: {
-          url: `${req.fullurl}/${upload.path.split(path.sep).join('/')}`,
-        },
+        url: `${req.fullurl}/${upload.path.split(path.sep).join('/')}`,
       };
     } catch (error) {
       throw error;
