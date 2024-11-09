@@ -244,17 +244,6 @@ export class TestsService {
       }
     }
 
-    // await this.prisma.start.delete({
-    //   where: {
-    //     user_id_test_id: {
-    //       user_id,
-    //       test_id: body.test_id,
-    //     },
-    //   },
-    // });
-
-    console.log(user_questions);
-
     return this.prisma.result.create({
       data: {
         result_id: `ROR${random(100000, 999999)}`,
@@ -276,6 +265,9 @@ export class TestsService {
             }),
           },
         },
+      },
+      select: {
+        result_id: true,
       },
     });
   }
