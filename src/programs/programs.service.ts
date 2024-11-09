@@ -333,6 +333,7 @@ export class ProgramsService {
                       user_id,
                     },
                     select: {
+                      result_id: true,
                       score: true,
                     },
                   },
@@ -407,6 +408,7 @@ export class ProgramsService {
         return {
           ...all,
           has_result: Boolean(results.length),
+          result_id: Boolean(results.length) ? results[0].result_id : null,
           status,
         };
       }),
