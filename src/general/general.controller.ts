@@ -60,15 +60,34 @@ export class GeneralController {
     }
   }
 
-  @Post('/email/send')
+  @Post('/email/forgot')
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(sendEmailSchema))
-  async sendEmail(@Body() body: SendEmailDto): Promise<SuccessResponse> {
+  async sendEmailForgotPassword(
+    @Body() body: SendEmailDto,
+  ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.generalService.sendEmail(body.email),
+        data: await this.generalService.sendEmailForgotPassword(body.email),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/email/register')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(sendEmailSchema))
+  async sendEmailRegister(
+    @Body() body: SendEmailDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.generalService.sendEmailRegister(body.email),
       };
     } catch (error) {
       throw error;
