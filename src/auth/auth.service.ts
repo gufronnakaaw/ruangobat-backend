@@ -87,6 +87,10 @@ export class AuthService {
   }
 
   async userRegister(body: UserRegisterDto) {
+    await this.jwtService.verifyAsync(body.token, {
+      secret: process.env.JWT_SECRET_KEY,
+    });
+
     const users = await this.prisma.user.findMany({
       select: { email: true, phone_number: true },
     });
@@ -117,6 +121,7 @@ export class AuthService {
         gender: body.gender,
         password: await hashPassword(body.password),
         university: capitalize(body.university.toLowerCase()),
+        is_verified: true,
       },
       select: {
         user_id: true,
