@@ -1,13 +1,11 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { random } from 'lodash';
-import { UAParser } from 'ua-parser-js';
 import { hashPassword, verifyPassword } from '../utils/bcrypt.util';
 import { capitalize } from '../utils/capitalize.util';
 import { decryptString, encryptString } from '../utils/crypto.util';
@@ -157,25 +155,25 @@ export class AuthService {
       throw new BadRequestException('Email atau password salah');
     }
 
-    if (await this.prisma.session.count({ where: { user_id: user.user_id } })) {
-      throw new ConflictException('Sesi login anda sedang aktif');
-    }
+    // if (await this.prisma.session.count({ where: { user_id: user.user_id } })) {
+    //   throw new ConflictException('Sesi login anda sedang aktif');
+    // }
 
     const date = new Date();
     const expired = new Date();
     expired.setHours(date.getHours() + 12);
 
-    const ua_parser = UAParser(user_agent);
+    // const ua_parser = UAParser(user_agent);
 
-    await this.prisma.session.create({
-      data: {
-        user_id: user.user_id,
-        browser: ua_parser.browser.name,
-        os: `${ua_parser.os.name} ${ua_parser.os.version}`,
-        expired,
-        created_at: date,
-      },
-    });
+    // await this.prisma.session.create({
+    //   data: {
+    //     user_id: user.user_id,
+    //     browser: ua_parser.browser.name,
+    //     os: `${ua_parser.os.name} ${ua_parser.os.version}`,
+    //     expired,
+    //     created_at: date,
+    //   },
+    // });
 
     return {
       user_id: user.user_id,
@@ -188,7 +186,7 @@ export class AuthService {
           role: 'user',
         },
         {
-          expiresIn: '12h',
+          expiresIn: '13h',
         },
       ),
     };
