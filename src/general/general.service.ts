@@ -42,7 +42,7 @@ export class GeneralService {
     return body;
   }
 
-  async sendEmail(email: string) {
+  async sendEmailForgotPassword(email: string) {
     const users = await this.prisma.user.findMany({
       select: {
         email: true,
@@ -94,6 +94,39 @@ export class GeneralService {
     };
   }
 
+  async sendEmailRegister(email: string) {
+    const otp_code = random(100000, 999999);
+    const uid = new ShortUniqueId({ length: 10 });
+    const expired_at = new Date();
+    expired_at.setMinutes(expired_at.getMinutes() + 5);
+
+    const user_id = `REGISTER${random(100000, 999999)}`;
+
+    const template = `<p>Please use the one-time password below to authorize your account. It is valid for 5 minutes.</p><p><strong>${otp_code}</strong></p>---<p>Ruang Obat<br><a href="https://ruangobat.id" target="_blank">https://ruangobat.id</a></p>`;
+
+    await Promise.all([
+      this.prisma.otp.create({
+        data: {
+          otp_id: uid.rnd().toUpperCase(),
+          otp_code: `${otp_code}`,
+          user_id,
+          expired_at,
+        },
+      }),
+      this.mailerService.sendMail({
+        from: `IT Ruang Obat <${process.env.EMAIL_USERNAME}>`,
+        to: email,
+        subject: 'OTP',
+        html: template,
+      }),
+    ]);
+
+    return {
+      user_id,
+      message: 'Email terkirim',
+    };
+  }
+
   async verifyOtp(body: VerifyOtpDto) {
     const otp = await this.prisma.otp.findMany({
       where: { otp_code: body.otp_code, user_id: body.user_id },
@@ -103,6 +136,9 @@ export class GeneralService {
         otp_id: true,
         otp_code: true,
         used_at: true,
+      },
+      orderBy: {
+        created_at: 'desc',
       },
     });
 

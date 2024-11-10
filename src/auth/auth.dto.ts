@@ -20,6 +20,7 @@ export const userRegisterSchema = z.object({
     .transform((val) => val.replace(/\s+/g, ' ')),
   gender: z.enum(['M', 'F']),
   password: z.string().min(8, { message: 'Password minimal 8 karakter' }),
+  token: z.string(),
 });
 
 export type UserRegisterDto = z.infer<typeof userRegisterSchema>;

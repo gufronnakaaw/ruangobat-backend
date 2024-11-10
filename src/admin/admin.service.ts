@@ -1087,34 +1087,47 @@ export class AdminService {
     };
   }
 
-  async getTest(test_id: string) {
-    const test = await this.prisma.test.findUnique({
-      where: { test_id },
-      select: {
-        test_id: true,
-        title: true,
-        description: true,
-        start: true,
-        end: true,
-        duration: true,
-        questions: {
-          select: {
-            question_id: true,
-            number: true,
-            text: true,
-            explanation: true,
-            options: {
-              select: {
-                text: true,
-                option_id: true,
-                is_correct: true,
+  async getTest(test_id: string, query: AdminQuery) {
+    const default_page = 1;
+    const take = 20;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_questions, test] = await this.prisma.$transaction([
+      this.prisma.question.count({ where: { test_id } }),
+      this.prisma.test.findUnique({
+        where: { test_id },
+        select: {
+          test_id: true,
+          title: true,
+          description: true,
+          start: true,
+          end: true,
+          duration: true,
+          questions: {
+            select: {
+              question_id: true,
+              number: true,
+              text: true,
+              explanation: true,
+              type: true,
+              options: {
+                select: {
+                  text: true,
+                  option_id: true,
+                  is_correct: true,
+                },
               },
             },
+            orderBy: { number: 'asc' },
+            take,
+            skip,
           },
-          orderBy: { number: 'asc' },
         },
-      },
-    });
+      }),
+    ]);
 
     const now = new Date();
 
@@ -1133,8 +1146,10 @@ export class AdminService {
 
     return {
       status,
-      total_questions: test.questions.length,
       ...test,
+      page: parseInt(query.page),
+      total_questions,
+      total_pages: Math.ceil(total_questions / take),
     };
   }
 

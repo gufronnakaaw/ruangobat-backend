@@ -60,7 +60,6 @@ model User {
   participants     Participant[]
   starts           Start[]
   socmedimg        SocialMediaImage[]
-  otp              Otp[]
 
   @@map("user")
 }
@@ -272,13 +271,11 @@ model Otp {
   id               Int              @id               @default(autoincrement())    
   otp_id           String           @unique         
   otp_code         String           
-  user_id          String
+  user_id          String?
   used_at          DateTime?
   expired_at       DateTime
 
   created_at       DateTime         @default(now())
-
-  user             User             @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
 
   @@map("otp")
 }
