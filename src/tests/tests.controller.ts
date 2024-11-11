@@ -33,12 +33,15 @@ export class TestsController {
 
   @Get(':test_id')
   @HttpCode(HttpStatus.OK)
-  async getTest(@Param('test_id') test_id: string): Promise<SuccessResponse> {
+  async getTest(
+    @Param('test_id') test_id: string,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.testsService.getTest(test_id),
+        data: await this.testsService.getTest(test_id, req.user.user_id),
       };
     } catch (error) {
       throw error;
