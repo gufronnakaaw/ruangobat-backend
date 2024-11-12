@@ -9,7 +9,7 @@ export class TestsService {
   constructor(private prisma: PrismaService) {}
 
   async getTest(test_id: string, user_id: string) {
-    const [test, start_test] = await this.prisma.$transaction([
+    const [test, start_test, result] = await this.prisma.$transaction([
       this.prisma.test.findUnique({
         where: {
           test_id,
@@ -40,6 +40,18 @@ export class TestsService {
           end_time: true,
         },
       }),
+      this.prisma.result.findMany({
+        where: {
+          user_id,
+          test_id,
+        },
+        select: {
+          result_id: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
     ]);
 
     if (!test || !test.is_active) {
@@ -66,6 +78,7 @@ export class TestsService {
       ...all,
       total_questions: questions.length,
       has_start: start_test ? true : false,
+      has_result: Boolean(result.length) ? result[0].result_id : false,
       end_time: start_test ? start_test.end_time : null,
       status,
     };
