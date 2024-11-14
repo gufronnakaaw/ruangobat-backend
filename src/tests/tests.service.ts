@@ -8,26 +8,51 @@ import { FinishTestsDto, StartTestQuestion } from './tests.dto';
 export class TestsService {
   constructor(private prisma: PrismaService) {}
 
-  async getTest(test_id: string) {
-    const test = await this.prisma.test.findUnique({
-      where: {
-        test_id,
-      },
-      select: {
-        test_id: true,
-        title: true,
-        description: true,
-        start: true,
-        end: true,
-        duration: true,
-        is_active: true,
-        questions: {
-          select: {
-            question_id: true,
+  async getTest(test_id: string, user_id: string) {
+    const [test, start_test, result] = await this.prisma.$transaction([
+      this.prisma.test.findUnique({
+        where: {
+          test_id,
+        },
+        select: {
+          test_id: true,
+          title: true,
+          description: true,
+          start: true,
+          end: true,
+          duration: true,
+          is_active: true,
+          questions: {
+            select: {
+              question_id: true,
+            },
           },
         },
-      },
-    });
+      }),
+      this.prisma.start.findUnique({
+        where: {
+          user_id_test_id: {
+            user_id,
+            test_id,
+          },
+        },
+        select: {
+          end_time: true,
+        },
+      }),
+      this.prisma.result.findMany({
+        where: {
+          user_id,
+          test_id,
+        },
+        select: {
+          result_id: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+    ]);
 
     if (!test || !test.is_active) {
       throw new NotFoundException('Test tidak ada');
@@ -52,6 +77,9 @@ export class TestsService {
     return {
       ...all,
       total_questions: questions.length,
+      has_start: start_test ? true : false,
+      has_result: Boolean(result.length) ? result[0].result_id : false,
+      end_time: start_test ? start_test.end_time : null,
       status,
     };
   }
