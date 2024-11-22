@@ -947,6 +947,20 @@ export class AdminService {
     };
   }
 
+  async deleteProgram(program_id: string) {
+    if (!(await this.prisma.program.count({ where: { program_id } }))) {
+      throw new NotFoundException('Program tidak ditemukan');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.socialMediaImage.deleteMany({ where: { program_id } }),
+      this.prisma.participant.deleteMany({ where: { program_id } }),
+      this.prisma.program.delete({ where: { program_id } }),
+    ]);
+
+    return { program_id };
+  }
+
   async createTests(body: CreateTestsDto) {
     const test_id = `ROT${random(100000, 999999)}`;
     const uid = new ShortUniqueId({ length: 6 });
@@ -1867,6 +1881,12 @@ export class AdminService {
         data: {
           password: await hashPassword(process.env.DEFAULT_PASSWORD_USER),
         },
+        select: {
+          user_id: true,
+          fullname: true,
+          gender: true,
+          university: true,
+        },
       });
     }
 
@@ -1903,6 +1923,12 @@ export class AdminService {
             body.phone_number,
             process.env.ENCRYPT_KEY,
           ),
+        },
+        select: {
+          user_id: true,
+          fullname: true,
+          gender: true,
+          university: true,
         },
       });
     }

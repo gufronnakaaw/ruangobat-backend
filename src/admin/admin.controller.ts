@@ -354,6 +354,22 @@ export class AdminController {
     }
   }
 
+  @Delete('/programs/:program_id')
+  @HttpCode(HttpStatus.OK)
+  async deleteProgram(
+    @Param('program_id') program_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.deleteProgram(program_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Post('/tests')
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(createTestsSchema))
