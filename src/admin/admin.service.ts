@@ -1,8 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { random } from 'lodash';
 import path from 'path';
 import ShortUniqueId from 'short-unique-id';
-import { decryptString } from '../utils/crypto.util';
+import { hashPassword } from '../utils/bcrypt.util';
+import { decryptString, encryptString } from '../utils/crypto.util';
 import { maskEmail, maskPhoneNumber } from '../utils/masking.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import {
@@ -15,6 +20,7 @@ import {
   UpdateStatusProgramsDto,
   UpdateStatusTestsDto,
   UpdateTestsDto,
+  UpdateUserDto,
 } from './admin.dto';
 
 @Injectable()
@@ -941,6 +947,20 @@ export class AdminService {
     };
   }
 
+  async deleteProgram(program_id: string) {
+    if (!(await this.prisma.program.count({ where: { program_id } }))) {
+      throw new NotFoundException('Program tidak ditemukan');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.socialMediaImage.deleteMany({ where: { program_id } }),
+      this.prisma.participant.deleteMany({ where: { program_id } }),
+      this.prisma.program.delete({ where: { program_id } }),
+    ]);
+
+    return { program_id };
+  }
+
   async createTests(body: CreateTestsDto) {
     const test_id = `ROT${random(100000, 999999)}`;
     const uid = new ShortUniqueId({ length: 6 });
@@ -1842,5 +1862,75 @@ export class AdminService {
       total_feedback,
       total_pages: Math.ceil(total_feedback / take),
     };
+  }
+
+  async updateUser(body: UpdateUserDto) {
+    if (
+      !(await this.prisma.user.count({
+        where: { user_id: body.user_id },
+      }))
+    ) {
+      throw new NotFoundException('User tidak ditemukan');
+    }
+
+    if (body.type == 'reset') {
+      return this.prisma.user.update({
+        where: {
+          user_id: body.user_id,
+        },
+        data: {
+          password: await hashPassword(process.env.DEFAULT_PASSWORD_USER),
+        },
+        select: {
+          user_id: true,
+          fullname: true,
+          gender: true,
+          university: true,
+        },
+      });
+    }
+
+    if (body.type == 'edit') {
+      const users = await this.prisma.user.findMany({
+        select: { email: true, phone_number: true },
+      });
+
+      const decrypts = users.map((user) => {
+        return {
+          email: decryptString(user.email, process.env.ENCRYPT_KEY),
+          phone_number: decryptString(
+            user.phone_number,
+            process.env.ENCRYPT_KEY,
+          ),
+        };
+      });
+
+      if (decrypts.find((user) => user.email == body.email)) {
+        throw new BadRequestException('Email sudah digunakan');
+      }
+
+      if (decrypts.find((user) => user.phone_number == body.phone_number)) {
+        throw new BadRequestException('Nomor telepon sudah digunakan');
+      }
+
+      return this.prisma.user.update({
+        where: {
+          user_id: body.user_id,
+        },
+        data: {
+          email: encryptString(body.email, process.env.ENCRYPT_KEY),
+          phone_number: encryptString(
+            body.phone_number,
+            process.env.ENCRYPT_KEY,
+          ),
+        },
+        select: {
+          user_id: true,
+          fullname: true,
+          gender: true,
+          university: true,
+        },
+      });
+    }
   }
 }

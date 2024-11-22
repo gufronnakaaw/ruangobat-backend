@@ -106,7 +106,7 @@ model ProgramDetail {
   program_id       String
   test_id          String    
 
-  program          Program          @relation(fields: [program_id], references: [program_id])
+  program          Program          @relation(fields: [program_id], references: [program_id], onUpdate: NoAction, onDelete: Cascade)
   test             Test             @relation(fields: [test_id], references: [test_id])
 
   @@id([program_id, test_id])
