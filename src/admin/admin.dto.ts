@@ -147,3 +147,18 @@ export const approvedUserSchema = z.object({
 });
 
 export type ApprovedUserDto = z.infer<typeof approvedUserSchema>;
+
+export const updateUserSchema = z.object({
+  user_id: z.string(),
+  type: z.enum(['reset', 'edit']),
+  email: z.string().email({ message: 'Email tidak valid' }).optional(),
+  phone_number: z
+    .string()
+    .regex(/^(?:\+62|62|0)8[1-9][0-9]{7,11}$/, {
+      message: 'Nomor telepon tidak valid',
+    })
+    .min(10, { message: 'Nomor telepon minimal 10 karakter' })
+    .optional(),
+});
+
+export type UpdateUserDto = z.infer<typeof updateUserSchema>;
