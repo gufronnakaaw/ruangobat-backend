@@ -573,4 +573,48 @@ export class AdminController {
       throw error;
     }
   }
+
+  @Get('/exports/users')
+  @HttpCode(HttpStatus.OK)
+  async exportUsers(@Req() req: Request): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getExportUsersData(req.admin.role),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/exports/codes/:program_id')
+  @HttpCode(HttpStatus.OK)
+  async exportProgramCodes(
+    @Param('program_id') program_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getExportProgramCodesData(program_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/columns/:type')
+  @HttpCode(HttpStatus.OK)
+  async getColumns(@Param('type') type: string): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getColumns(type),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }

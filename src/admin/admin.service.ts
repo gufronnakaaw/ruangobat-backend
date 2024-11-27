@@ -1933,4 +1933,87 @@ export class AdminService {
       });
     }
   }
+
+  async getExportUsersData(role: string) {
+    const users = await this.prisma.user.findMany({
+      select: {
+        user_id: true,
+        email: true,
+        fullname: true,
+        gender: true,
+        university: true,
+        phone_number: true,
+        is_verified: true,
+        created_at: true,
+        updated_at: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    return users.map((user) => {
+      return {
+        ...user,
+        email:
+          role === 'superadmin'
+            ? decryptString(user.email, process.env.ENCRYPT_KEY)
+            : maskEmail(decryptString(user.email, process.env.ENCRYPT_KEY)),
+        phone_number:
+          role === 'superadmin'
+            ? decryptString(user.phone_number, process.env.ENCRYPT_KEY)
+            : maskPhoneNumber(
+                decryptString(user.phone_number, process.env.ENCRYPT_KEY),
+              ),
+      };
+    });
+  }
+
+  async getExportProgramCodesData(program_id: string) {
+    if (!(await this.prisma.program.count({ where: { program_id } }))) {
+      throw new NotFoundException('Program tidak ditemukan');
+    }
+
+    const participants = await this.prisma.participant.findMany({
+      where: {
+        program_id,
+        is_approved: null,
+        joined_at: null,
+      },
+      select: {
+        user: {
+          select: {
+            user_id: true,
+            fullname: true,
+            university: true,
+          },
+        },
+        code: true,
+      },
+    });
+
+    return participants.map((participant) => {
+      return {
+        ...participant.user,
+        code: participant.code,
+      };
+    });
+  }
+
+  async getColumns(type: string) {
+    if (type == 'users') {
+      const columns = [
+        { field: 'user_id', translate: 'User ID' },
+        { field: 'fullname', translate: 'Nama Lengkap' },
+        { field: 'email', translate: 'Email' },
+        { field: 'phone_number', translate: 'Nomor Telepon' },
+        { field: 'university', translate: 'Asal Kampus' },
+        { field: 'gender', translate: 'Jenis Kelamin' },
+        { field: 'is_verified', translate: 'Terverifikasi' },
+        { field: 'created_at', translate: 'Dibuat pada' },
+      ];
+
+      return columns;
+    }
+  }
 }
