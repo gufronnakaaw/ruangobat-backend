@@ -9,6 +9,7 @@ import ShortUniqueId from 'short-unique-id';
 import { hashPassword } from '../utils/bcrypt.util';
 import { decryptString, encryptString } from '../utils/crypto.util';
 import { maskEmail, maskPhoneNumber } from '../utils/masking.util';
+import { scoreCategory } from '../utils/scorecategory';
 import { PrismaService } from '../utils/services/prisma.service';
 import {
   AdminQuery,
@@ -1532,6 +1533,7 @@ export class AdminService {
           result_id,
           ...user,
           score,
+          score_category: scoreCategory(score),
         };
       }),
       page,
