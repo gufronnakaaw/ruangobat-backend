@@ -415,7 +415,7 @@ export class ProgramsService {
     };
   }
 
-  async followPaidPrograms(body: FollowPaidProgramsDto, user_id: string) {
+  async followPaidProgram(body: FollowPaidProgramsDto, user_id: string) {
     if (
       !(await this.prisma.program.count({
         where: { program_id: body.program_id },
@@ -463,7 +463,7 @@ export class ProgramsService {
     };
   }
 
-  async followFreePrograms(body: {
+  async followFreeProgram(body: {
     user_id: string;
     program_id: string;
     fullurl: string;

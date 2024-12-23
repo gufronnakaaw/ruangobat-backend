@@ -81,7 +81,7 @@ export class AdminController {
         return {
           success: true,
           status_code: HttpStatus.OK,
-          data: await this.adminService.searchUsers(query, req.admin.role),
+          data: await this.adminService.getUsersBySearch(query, req.admin.role),
         };
       }
 
@@ -189,11 +189,7 @@ export class AdminController {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.adminService.createPrograms(
-          body,
-          qr_code,
-          req.fullurl,
-        ),
+        data: await this.adminService.createProgram(body, qr_code, req.fullurl),
       };
     } catch (error) {
       throw error;
@@ -233,11 +229,7 @@ export class AdminController {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.updatePrograms(
-          body,
-          qr_code,
-          req.fullurl,
-        ),
+        data: await this.adminService.updateProgram(body, qr_code, req.fullurl),
       };
     } catch (error) {
       throw error;
@@ -378,7 +370,7 @@ export class AdminController {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.adminService.createTests(body),
+        data: await this.adminService.createTest(body),
       };
     } catch (error) {
       throw error;
@@ -440,7 +432,7 @@ export class AdminController {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.updateTests(body),
+        data: await this.adminService.updateTest(body),
       };
     } catch (error) {
       throw error;
@@ -473,7 +465,7 @@ export class AdminController {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.updateStatusTests(body),
+        data: await this.adminService.updateStatusTest(body),
       };
     } catch (error) {
       throw error;
@@ -513,14 +505,14 @@ export class AdminController {
         return {
           success: true,
           status_code: HttpStatus.OK,
-          data: await this.adminService.getFeedbackBySearch(query),
+          data: await this.adminService.getFeedbacksBySearch(query),
         };
       }
 
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getFeedback(query),
+        data: await this.adminService.getFeedbacks(query),
       };
     } catch (error) {
       throw error;

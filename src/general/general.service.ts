@@ -42,7 +42,7 @@ export class GeneralService {
     return body;
   }
 
-  async sendEmailForgotPassword(email: string) {
+  async sendForgotPasswordOTP(email: string) {
     const users = await this.prisma.user.findMany({
       select: {
         email: true,
@@ -94,7 +94,7 @@ export class GeneralService {
     };
   }
 
-  async sendEmailRegister(email: string) {
+  async sendRegistrationOTP(email: string) {
     const otp_code = random(100000, 999999);
     const uid = new ShortUniqueId({ length: 10 });
     const expired_at = new Date();

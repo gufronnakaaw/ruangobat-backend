@@ -102,7 +102,7 @@ export class ProgramsController {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.programsService.followPaidPrograms(
+        data: await this.programsService.followPaidProgram(
           body,
           req.user.user_id,
         ),
@@ -144,7 +144,7 @@ export class ProgramsController {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.programsService.followFreePrograms({
+        data: await this.programsService.followFreeProgram({
           program_id: body.program_id,
           user_id: req.user.user_id,
           files,

@@ -136,7 +136,7 @@ export class AdminService {
     };
   }
 
-  async searchUsers(query: AdminQuery, role: string) {
+  async getUsersBySearch(query: AdminQuery, role: string) {
     const default_page = 1;
     const take = 8;
 
@@ -421,7 +421,7 @@ export class AdminService {
     };
   }
 
-  async createPrograms(
+  async createProgram(
     body: CreateProgramsDto,
     file: Express.Multer.File,
     fullurl: string,
@@ -491,7 +491,7 @@ export class AdminService {
     });
   }
 
-  async updatePrograms(
+  async updateProgram(
     body: UpdateProgramsDto,
     file: Express.Multer.File,
     fullurl: string,
@@ -962,7 +962,7 @@ export class AdminService {
     return { program_id };
   }
 
-  async createTests(body: CreateTestsDto) {
+  async createTest(body: CreateTestsDto) {
     const test_id = `ROT${random(100000, 999999)}`;
     const uid = new ShortUniqueId({ length: 6 });
 
@@ -1297,7 +1297,7 @@ export class AdminService {
     };
   }
 
-  async updateStatusTests(body: UpdateStatusTestsDto) {
+  async updateStatusTest(body: UpdateStatusTestsDto) {
     if (
       !(await this.prisma.test.count({
         where: { test_id: body.test_id },
@@ -1320,7 +1320,7 @@ export class AdminService {
     });
   }
 
-  async updateTests(body: UpdateTestsDto) {
+  async updateTest(body: UpdateTestsDto) {
     const test = await this.prisma.test.count({
       where: { test_id: body.test_id },
     });
@@ -1769,7 +1769,7 @@ export class AdminService {
     });
   }
 
-  async getFeedback(query: AdminQuery) {
+  async getFeedbacks(query: AdminQuery) {
     const default_page = 1;
     const take = 8;
 
@@ -1803,7 +1803,7 @@ export class AdminService {
     };
   }
 
-  async getFeedbackBySearch(query: AdminQuery) {
+  async getFeedbacksBySearch(query: AdminQuery) {
     const default_page = 1;
     const take = 8;
 

@@ -70,7 +70,7 @@ export class GeneralController {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.generalService.sendEmailForgotPassword(body.email),
+        data: await this.generalService.sendForgotPasswordOTP(body.email),
       };
     } catch (error) {
       throw error;
@@ -87,7 +87,7 @@ export class GeneralController {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.generalService.sendEmailRegister(body.email),
+        data: await this.generalService.sendRegistrationOTP(body.email),
       };
     } catch (error) {
       throw error;
