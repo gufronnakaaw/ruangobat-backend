@@ -223,4 +223,36 @@ export class GeneralService {
 
     return params;
   }
+
+  getMentors() {
+    return this.prisma.mentor.findMany({
+      select: {
+        mentor_id: true,
+        fullname: true,
+        nickname: true,
+        mentor_title: true,
+        img_url: true,
+      },
+      orderBy: {
+        created_at: 'asc',
+      },
+    });
+  }
+
+  getMentor(mentor_id: string) {
+    return this.prisma.mentor.findUnique({
+      where: {
+        mentor_id,
+      },
+      select: {
+        mentor_id: true,
+        fullname: true,
+        nickname: true,
+        mentor_title: true,
+        description: true,
+        img_url: true,
+        created_at: true,
+      },
+    });
+  }
 }

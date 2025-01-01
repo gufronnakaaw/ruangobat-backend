@@ -4,6 +4,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -175,6 +176,36 @@ export class GeneralController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.generalService.deleteStart(params),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/mentors')
+  @HttpCode(HttpStatus.OK)
+  async getMentors(): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.generalService.getMentors(),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/mentors/:mentor_id')
+  @HttpCode(HttpStatus.OK)
+  async getMentor(
+    @Param('mentor_id') mentor_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.generalService.getMentor(mentor_id),
       };
     } catch (error) {
       throw error;
