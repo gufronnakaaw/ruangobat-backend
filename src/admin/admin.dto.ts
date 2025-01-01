@@ -162,3 +162,52 @@ export const updateUserSchema = z.object({
 });
 
 export type UpdateUserDto = z.infer<typeof updateUserSchema>;
+
+export const createMentorSchema = z.object({
+  fullname: z
+    .string()
+    .min(1, { message: 'Nama lengkap wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' ')),
+  nickname: z
+    .string()
+    .min(1, { message: 'Nama panggilan wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' ')),
+  mentor_title: z
+    .string()
+    .min(1, { message: 'Title mentor wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' ')),
+  description: z.string(),
+  by: z.string(),
+});
+
+export type CreateMentorDto = z.infer<typeof createMentorSchema>;
+
+export const updateMentorSchema = z.object({
+  mentor_id: z.string(),
+  with_image: z.string(),
+  fullname: z
+    .string()
+    .min(1, { message: 'Nama lengkap wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' '))
+    .optional(),
+  nickname: z
+    .string()
+    .min(1, { message: 'Nama panggilan wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' '))
+    .optional(),
+  mentor_title: z
+    .string()
+    .min(1, { message: 'Title mentor wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' '))
+    .optional(),
+  description: z.string().optional(),
+  by: z.string(),
+});
+
+export type UpdateMentorDto = z.infer<typeof updateMentorSchema>;

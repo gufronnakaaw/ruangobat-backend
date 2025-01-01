@@ -21,16 +21,21 @@ import { Request } from 'express';
 import { diskStorage } from 'multer';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
+import { ZodInterceptor } from '../utils/interceptors/zod.interceptor';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
 import {
   AdminQuery,
   ApprovedUserDto,
   approvedUserSchema,
+  CreateMentorDto,
+  createMentorSchema,
   CreateProgramsDto,
   CreateTestsDto,
   createTestsSchema,
   InviteUsersDto,
   inviteUsersSchema,
+  UpdateMentorDto,
+  updateMentorSchema,
   UpdateProgramsDto,
   UpdateStatusProgramsDto,
   updateStatusProgramsSchema,
@@ -604,6 +609,155 @@ export class AdminController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.adminService.getColumns(type),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/mentors')
+  @HttpCode(HttpStatus.OK)
+  async getMentors(@Query() query: AdminQuery): Promise<SuccessResponse> {
+    try {
+      if (query.q) {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: await this.adminService.getMentorsBySearch(query),
+        };
+      }
+
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getMentors(query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/mentors/:mentor_id')
+  @HttpCode(HttpStatus.OK)
+  async getMentor(
+    @Param('mentor_id') mentor_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getMentor(mentor_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/mentors')
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(
+    FileInterceptor('img_mentor', {
+      storage: diskStorage({
+        destination: './public/mentors',
+        filename(req, file, callback) {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+      fileFilter(req, file, callback) {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+          return callback(
+            new BadRequestException('Hanya gambar yang diperbolehkan'),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: 2 * 1024 * 1024,
+      },
+    }),
+    new ZodInterceptor(createMentorSchema),
+  )
+  async createMentor(
+    @Body() body: CreateMentorDto,
+    @UploadedFile() img_mentor: Express.Multer.File,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.adminService.createMentor(
+          body,
+          img_mentor,
+          req.fullurl,
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Patch('/mentors')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FileInterceptor('img_mentor', {
+      storage: diskStorage({
+        destination: './public/mentors',
+        filename(req, file, callback) {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+      fileFilter(req, file, callback) {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+          return callback(
+            new BadRequestException('Hanya gambar yang diperbolehkan'),
+            false,
+          );
+        }
+
+        if (req.body.with_image == 'true') {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
+      limits: {
+        fileSize: 2 * 1024 * 1024,
+      },
+    }),
+    new ZodInterceptor(updateMentorSchema),
+  )
+  async updateMentor(
+    @Body() body: UpdateMentorDto,
+    @UploadedFile() img_mentor: Express.Multer.File,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.updateMentor(
+          body,
+          img_mentor,
+          req.fullurl,
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('/mentors/:mentor_id')
+  @HttpCode(HttpStatus.OK)
+  async deleteMentor(
+    @Param('mentor_id') mentor_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.deleteMentor(mentor_id),
       };
     } catch (error) {
       throw error;
