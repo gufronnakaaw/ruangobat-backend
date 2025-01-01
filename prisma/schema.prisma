@@ -279,3 +279,21 @@ model Otp {
 
   @@map("otp")
 }
+
+model Mentor {
+  id               Int              @id               @default(autoincrement())    
+  mentor_id        String           @unique 
+  fullname         String
+  nickname         String
+  mentor_title     String
+  description      String           @db.Text
+  img_url          String
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String         
+  updated_by       String    
+
+  @@map("mentor")    
+}
