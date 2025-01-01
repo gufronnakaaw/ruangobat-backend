@@ -2239,7 +2239,6 @@ export class AdminService {
         description: body.description,
         mentor_title: body.mentor_title,
         updated_by: body.by,
-        img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
       },
       select: {
         mentor_id: true,
