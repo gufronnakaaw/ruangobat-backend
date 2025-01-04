@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { existsSync } from 'fs';
 import { unlink } from 'fs/promises';
 import { random } from 'lodash';
 import path from 'path';
@@ -2198,7 +2199,9 @@ export class AdminService {
 
     if (!mentor) {
       if (body.with_image == 'true') {
-        await unlink(file.path);
+        if (existsSync(file.path)) {
+          await unlink(file.path);
+        }
       }
       throw new NotFoundException('Mentor tidak ditemukan');
     }
@@ -2207,26 +2210,26 @@ export class AdminService {
       const pathname = new URL(mentor.img_url).pathname;
       const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
 
-      await Promise.all([
-        unlink(file_path),
-        this.prisma.mentor.update({
-          where: {
-            mentor_id: body.mentor_id,
-          },
-          data: {
-            fullname: body.fullname,
-            nickname: body.nickname,
-            description: body.description,
-            mentor_title: body.mentor_title,
-            updated_by: body.by,
-            img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
-          },
-        }),
-      ]);
+      if (existsSync(file_path)) {
+        await unlink(file_path);
+      }
 
-      return {
-        mentor_id: body.mentor_id,
-      };
+      return this.prisma.mentor.update({
+        where: {
+          mentor_id: body.mentor_id,
+        },
+        data: {
+          fullname: body.fullname,
+          nickname: body.nickname,
+          description: body.description,
+          mentor_title: body.mentor_title,
+          updated_by: body.by,
+          img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+        },
+        select: {
+          mentor_id: true,
+        },
+      });
     }
 
     return this.prisma.mentor.update({
@@ -2263,17 +2266,17 @@ export class AdminService {
     const pathname = new URL(mentor.img_url).pathname;
     const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
 
-    await Promise.all([
-      unlink(file_path),
-      this.prisma.mentor.delete({
-        where: {
-          mentor_id,
-        },
-      }),
-    ]);
+    if (existsSync(file_path)) {
+      await unlink(file_path);
+    }
 
-    return {
-      mentor_id,
-    };
+    return this.prisma.mentor.delete({
+      where: {
+        mentor_id,
+      },
+      select: {
+        mentor_id: true,
+      },
+    });
   }
 }
