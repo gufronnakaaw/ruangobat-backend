@@ -288,6 +288,7 @@ model Mentor {
   mentor_title     String
   description      String           @db.Text
   img_url          String
+  is_show          Boolean          @default(true)
 
   created_at       DateTime         @default(now())
   updated_at       DateTime         @updatedAt
