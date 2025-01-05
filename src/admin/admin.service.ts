@@ -2042,6 +2042,7 @@ export class AdminService {
           description: true,
           img_url: true,
           created_at: true,
+          is_show: true,
         },
         orderBy: {
           created_at: 'desc',
@@ -2072,6 +2073,7 @@ export class AdminService {
         description: true,
         img_url: true,
         created_at: true,
+        is_show: true,
       },
     });
   }
@@ -2144,6 +2146,7 @@ export class AdminService {
           description: true,
           img_url: true,
           created_at: true,
+          is_show: true,
         },
         orderBy: {
           created_at: 'desc',
@@ -2176,6 +2179,7 @@ export class AdminService {
         created_by: body.by,
         updated_by: body.by,
         img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+        is_show: body.is_show,
       },
       select: {
         mentor_id: true,
@@ -2225,6 +2229,7 @@ export class AdminService {
           mentor_title: body.mentor_title,
           updated_by: body.by,
           img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          is_show: body.is_show,
         },
         select: {
           mentor_id: true,
@@ -2242,6 +2247,7 @@ export class AdminService {
         description: body.description,
         mentor_title: body.mentor_title,
         updated_by: body.by,
+        is_show: body.is_show,
       },
       select: {
         mentor_id: true,

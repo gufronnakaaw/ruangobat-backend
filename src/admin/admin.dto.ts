@@ -180,6 +180,7 @@ export const createMentorSchema = z.object({
     .trim()
     .transform((val) => val.replace(/\s+/g, ' ')),
   description: z.string(),
+  is_show: z.boolean(),
   by: z.string(),
 });
 
@@ -207,6 +208,7 @@ export const updateMentorSchema = z.object({
     .transform((val) => val.replace(/\s+/g, ' '))
     .optional(),
   description: z.string().optional(),
+  is_show: z.boolean().optional(),
   by: z.string(),
 });
 
