@@ -1,3 +1,4 @@
+import { HttpService } from '@nestjs/axios';
 import {
   BadRequestException,
   Injectable,
@@ -30,7 +31,10 @@ import {
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private httpService: HttpService,
+  ) {}
 
   async getDashboard() {
     const [total_users, total_online_users, total_programs, total_tests] =
@@ -2179,7 +2183,7 @@ export class AdminService {
         created_by: body.by,
         updated_by: body.by,
         img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
-        is_show: body.is_show,
+        is_show: body.is_show === 'true',
       },
       select: {
         mentor_id: true,
@@ -2229,7 +2233,7 @@ export class AdminService {
           mentor_title: body.mentor_title,
           updated_by: body.by,
           img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
-          is_show: body.is_show,
+          is_show: body.is_show === 'true',
         },
         select: {
           mentor_id: true,
@@ -2247,7 +2251,7 @@ export class AdminService {
         description: body.description,
         mentor_title: body.mentor_title,
         updated_by: body.by,
-        is_show: body.is_show,
+        is_show: body.is_show === 'true',
       },
       select: {
         mentor_id: true,

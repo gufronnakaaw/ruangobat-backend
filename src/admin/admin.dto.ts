@@ -180,7 +180,7 @@ export const createMentorSchema = z.object({
     .trim()
     .transform((val) => val.replace(/\s+/g, ' ')),
   description: z.string(),
-  is_show: z.boolean(),
+  is_show: z.enum(['true', 'false']),
   by: z.string(),
 });
 
@@ -188,7 +188,7 @@ export type CreateMentorDto = z.infer<typeof createMentorSchema>;
 
 export const updateMentorSchema = z.object({
   mentor_id: z.string(),
-  with_image: z.string(),
+  with_image: z.enum(['true', 'false']),
   fullname: z
     .string()
     .min(1, { message: 'Nama lengkap wajib diisi' })
@@ -208,7 +208,7 @@ export const updateMentorSchema = z.object({
     .transform((val) => val.replace(/\s+/g, ' '))
     .optional(),
   description: z.string().optional(),
-  is_show: z.boolean().optional(),
+  is_show: z.enum(['true', 'false']),
   by: z.string(),
 });
 
