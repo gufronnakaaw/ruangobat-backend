@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { random } from 'lodash';
+import { scoreCategory } from '../utils/scorecategory';
 import { PrismaService } from '../utils/services/prisma.service';
 import { shuffle } from '../utils/shuffle';
 import { FinishTestsDto, StartTestQuestion } from './tests.dto';
@@ -350,6 +351,7 @@ export class TestsService {
     return {
       result_id: result.result_id,
       score: result.score,
+      score_category: scoreCategory(result.score),
       total_correct: result.total_correct,
       total_incorrect: result.total_incorrect,
       questions: result.details.map((detail) => {

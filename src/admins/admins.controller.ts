@@ -60,7 +60,7 @@ export class AdminsController {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminsService.deleteAdmins(admin_id),
+        data: await this.adminsService.deleteAdmin(admin_id),
       };
     } catch (error) {
       throw error;
@@ -77,7 +77,7 @@ export class AdminsController {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminsService.updateAdmins(body),
+        data: await this.adminsService.updateAdmin(body),
       };
     } catch (error) {
       throw error;

@@ -31,7 +31,7 @@ export class AdminsService {
     });
   }
 
-  async updateAdmins(body: UpdateAdminsDto) {
+  async updateAdmin(body: UpdateAdminsDto) {
     if (body.access_key !== process.env.ACCESS_KEY) {
       throw new ForbiddenException();
     }
@@ -59,7 +59,7 @@ export class AdminsService {
     });
   }
 
-  async deleteAdmins(admin_id: string) {
+  async deleteAdmin(admin_id: string) {
     if (!(await this.prisma.admin.count({ where: { admin_id } }))) {
       throw new NotFoundException('Admin tidak ditemukan');
     }

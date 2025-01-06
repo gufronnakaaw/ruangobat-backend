@@ -4,6 +4,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -70,7 +71,7 @@ export class GeneralController {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.generalService.sendEmailForgotPassword(body.email),
+        data: await this.generalService.sendForgotPasswordOTP(body.email),
       };
     } catch (error) {
       throw error;
@@ -87,7 +88,7 @@ export class GeneralController {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.generalService.sendEmailRegister(body.email),
+        data: await this.generalService.sendRegistrationOTP(body.email),
       };
     } catch (error) {
       throw error;
@@ -175,6 +176,36 @@ export class GeneralController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.generalService.deleteStart(params),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/homepage')
+  @HttpCode(HttpStatus.OK)
+  async getHomepageData(): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.generalService.getHomepageData(),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/mentors/:mentor_id')
+  @HttpCode(HttpStatus.OK)
+  async getMentor(
+    @Param('mentor_id') mentor_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.generalService.getMentor(mentor_id),
       };
     } catch (error) {
       throw error;

@@ -3,19 +3,24 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { existsSync } from 'fs';
+import { unlink } from 'fs/promises';
 import { random } from 'lodash';
 import path from 'path';
 import ShortUniqueId from 'short-unique-id';
 import { hashPassword } from '../utils/bcrypt.util';
 import { decryptString, encryptString } from '../utils/crypto.util';
 import { maskEmail, maskPhoneNumber } from '../utils/masking.util';
+import { scoreCategory } from '../utils/scorecategory';
 import { PrismaService } from '../utils/services/prisma.service';
 import {
   AdminQuery,
   ApprovedUserDto,
+  CreateMentorDto,
   CreateProgramsDto,
   CreateTestsDto,
   InviteUsersDto,
+  UpdateMentorDto,
   UpdateProgramsDto,
   UpdateStatusProgramsDto,
   UpdateStatusTestsDto,
@@ -135,7 +140,7 @@ export class AdminService {
     };
   }
 
-  async searchUsers(query: AdminQuery, role: string) {
+  async getUsersBySearch(query: AdminQuery, role: string) {
     const default_page = 1;
     const take = 8;
 
@@ -420,7 +425,7 @@ export class AdminService {
     };
   }
 
-  async createPrograms(
+  async createProgram(
     body: CreateProgramsDto,
     file: Express.Multer.File,
     fullurl: string,
@@ -490,7 +495,7 @@ export class AdminService {
     });
   }
 
-  async updatePrograms(
+  async updateProgram(
     body: UpdateProgramsDto,
     file: Express.Multer.File,
     fullurl: string,
@@ -961,7 +966,7 @@ export class AdminService {
     return { program_id };
   }
 
-  async createTests(body: CreateTestsDto) {
+  async createTest(body: CreateTestsDto) {
     const test_id = `ROT${random(100000, 999999)}`;
     const uid = new ShortUniqueId({ length: 6 });
 
@@ -1296,7 +1301,7 @@ export class AdminService {
     };
   }
 
-  async updateStatusTests(body: UpdateStatusTestsDto) {
+  async updateStatusTest(body: UpdateStatusTestsDto) {
     if (
       !(await this.prisma.test.count({
         where: { test_id: body.test_id },
@@ -1319,7 +1324,7 @@ export class AdminService {
     });
   }
 
-  async updateTests(body: UpdateTestsDto) {
+  async updateTest(body: UpdateTestsDto) {
     const test = await this.prisma.test.count({
       where: { test_id: body.test_id },
     });
@@ -1532,6 +1537,7 @@ export class AdminService {
           result_id,
           ...user,
           score,
+          score_category: scoreCategory(score),
         };
       }),
       page,
@@ -1767,7 +1773,7 @@ export class AdminService {
     });
   }
 
-  async getFeedback(query: AdminQuery) {
+  async getFeedbacks(query: AdminQuery) {
     const default_page = 1;
     const take = 8;
 
@@ -1801,7 +1807,7 @@ export class AdminService {
     };
   }
 
-  async getFeedbackBySearch(query: AdminQuery) {
+  async getFeedbacksBySearch(query: AdminQuery) {
     const default_page = 1;
     const take = 8;
 
@@ -2015,5 +2021,268 @@ export class AdminService {
 
       return columns;
     }
+  }
+
+  async getMentors(query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_mentors, mentors] = await this.prisma.$transaction([
+      this.prisma.mentor.count(),
+      this.prisma.mentor.findMany({
+        select: {
+          mentor_id: true,
+          fullname: true,
+          nickname: true,
+          mentor_title: true,
+          description: true,
+          img_url: true,
+          created_at: true,
+          is_show: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        take,
+        skip,
+      }),
+    ]);
+
+    return {
+      mentors,
+      page: parseInt(query.page),
+      total_mentors,
+      total_pages: Math.ceil(total_mentors / take),
+    };
+  }
+
+  getMentor(mentor_id: string) {
+    return this.prisma.mentor.findUnique({
+      where: {
+        mentor_id,
+      },
+      select: {
+        mentor_id: true,
+        fullname: true,
+        nickname: true,
+        mentor_title: true,
+        description: true,
+        img_url: true,
+        created_at: true,
+        is_show: true,
+      },
+    });
+  }
+
+  async getMentorsBySearch(query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_mentors, mentors] = await this.prisma.$transaction([
+      this.prisma.mentor.count({
+        where: {
+          OR: [
+            {
+              mentor_id: {
+                contains: query.q,
+              },
+            },
+            {
+              fullname: {
+                contains: query.q,
+              },
+            },
+            {
+              nickname: {
+                contains: query.q,
+              },
+            },
+            {
+              mentor_title: {
+                contains: query.q,
+              },
+            },
+          ],
+        },
+      }),
+      this.prisma.mentor.findMany({
+        where: {
+          OR: [
+            {
+              mentor_id: {
+                contains: query.q,
+              },
+            },
+            {
+              fullname: {
+                contains: query.q,
+              },
+            },
+            {
+              nickname: {
+                contains: query.q,
+              },
+            },
+            {
+              mentor_title: {
+                contains: query.q,
+              },
+            },
+          ],
+        },
+        select: {
+          mentor_id: true,
+          fullname: true,
+          nickname: true,
+          mentor_title: true,
+          description: true,
+          img_url: true,
+          created_at: true,
+          is_show: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        take,
+        skip,
+      }),
+    ]);
+
+    return {
+      mentors,
+      page: parseInt(query.page),
+      total_mentors,
+      total_pages: Math.ceil(total_mentors / take),
+    };
+  }
+
+  createMentor(
+    body: CreateMentorDto,
+    file: Express.Multer.File,
+    fullurl: string,
+  ) {
+    return this.prisma.mentor.create({
+      data: {
+        mentor_id: `ROM${random(10000, 99999)}`,
+        fullname: body.fullname,
+        nickname: body.nickname,
+        description: body.description,
+        mentor_title: body.mentor_title,
+        created_by: body.by,
+        updated_by: body.by,
+        img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+        is_show: body.is_show === 'true',
+      },
+      select: {
+        mentor_id: true,
+      },
+    });
+  }
+
+  async updateMentor(
+    body: UpdateMentorDto,
+    file: Express.Multer.File,
+    fullurl: string,
+  ) {
+    const mentor = await this.prisma.mentor.findUnique({
+      where: {
+        mentor_id: body.mentor_id,
+      },
+      select: {
+        img_url: true,
+      },
+    });
+
+    if (!mentor) {
+      if (body.with_image == 'true') {
+        if (existsSync(file.path)) {
+          await unlink(file.path);
+        }
+      }
+      throw new NotFoundException('Mentor tidak ditemukan');
+    }
+
+    if (body.with_image == 'true') {
+      const pathname = new URL(mentor.img_url).pathname;
+      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+      if (existsSync(file_path)) {
+        await unlink(file_path);
+      }
+
+      return this.prisma.mentor.update({
+        where: {
+          mentor_id: body.mentor_id,
+        },
+        data: {
+          fullname: body.fullname,
+          nickname: body.nickname,
+          description: body.description,
+          mentor_title: body.mentor_title,
+          updated_by: body.by,
+          img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          is_show: body.is_show === 'true',
+        },
+        select: {
+          mentor_id: true,
+        },
+      });
+    }
+
+    return this.prisma.mentor.update({
+      where: {
+        mentor_id: body.mentor_id,
+      },
+      data: {
+        fullname: body.fullname,
+        nickname: body.nickname,
+        description: body.description,
+        mentor_title: body.mentor_title,
+        updated_by: body.by,
+        is_show: body.is_show === 'true',
+      },
+      select: {
+        mentor_id: true,
+      },
+    });
+  }
+
+  async deleteMentor(mentor_id: string) {
+    const mentor = await this.prisma.mentor.findUnique({
+      where: {
+        mentor_id,
+      },
+      select: {
+        img_url: true,
+      },
+    });
+
+    if (!mentor) {
+      throw new NotFoundException('Mentor tidak ditemukan');
+    }
+
+    const pathname = new URL(mentor.img_url).pathname;
+    const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+    if (existsSync(file_path)) {
+      await unlink(file_path);
+    }
+
+    return this.prisma.mentor.delete({
+      where: {
+        mentor_id,
+      },
+      select: {
+        mentor_id: true,
+      },
+    });
   }
 }

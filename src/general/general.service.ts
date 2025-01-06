@@ -42,7 +42,7 @@ export class GeneralService {
     return body;
   }
 
-  async sendEmailForgotPassword(email: string) {
+  async sendForgotPasswordOTP(email: string) {
     const users = await this.prisma.user.findMany({
       select: {
         email: true,
@@ -94,7 +94,7 @@ export class GeneralService {
     };
   }
 
-  async sendEmailRegister(email: string) {
+  async sendRegistrationOTP(email: string) {
     const otp_code = random(100000, 999999);
     const uid = new ShortUniqueId({ length: 10 });
     const expired_at = new Date();
@@ -222,5 +222,48 @@ export class GeneralService {
     });
 
     return params;
+  }
+
+  getMentors() {
+    return this.prisma.mentor.findMany({
+      where: {
+        is_show: true,
+      },
+      select: {
+        mentor_id: true,
+        fullname: true,
+        nickname: true,
+        mentor_title: true,
+        img_url: true,
+      },
+      orderBy: {
+        created_at: 'asc',
+      },
+    });
+  }
+
+  getMentor(mentor_id: string) {
+    return this.prisma.mentor.findUnique({
+      where: {
+        mentor_id,
+        is_show: true,
+      },
+      select: {
+        mentor_id: true,
+        fullname: true,
+        nickname: true,
+        mentor_title: true,
+        description: true,
+        img_url: true,
+        created_at: true,
+      },
+    });
+  }
+
+  async getHomepageData() {
+    return {
+      classes: [],
+      mentors: await this.getMentors(),
+    };
   }
 }
