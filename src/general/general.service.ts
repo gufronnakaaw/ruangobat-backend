@@ -226,6 +226,9 @@ export class GeneralService {
 
   getMentors() {
     return this.prisma.mentor.findMany({
+      where: {
+        is_show: true,
+      },
       select: {
         mentor_id: true,
         fullname: true,
@@ -243,6 +246,7 @@ export class GeneralService {
     return this.prisma.mentor.findUnique({
       where: {
         mentor_id,
+        is_show: true,
       },
       select: {
         mentor_id: true,
@@ -254,5 +258,12 @@ export class GeneralService {
         created_at: true,
       },
     });
+  }
+
+  async getHomepageData() {
+    return {
+      classes: [],
+      mentors: await this.getMentors(),
+    };
   }
 }

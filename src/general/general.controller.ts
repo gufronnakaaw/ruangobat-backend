@@ -182,14 +182,14 @@ export class GeneralController {
     }
   }
 
-  @Get('/mentors')
+  @Get('/homepage')
   @HttpCode(HttpStatus.OK)
-  async getMentors(): Promise<SuccessResponse> {
+  async getHomepageData(): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.generalService.getMentors(),
+        data: await this.generalService.getHomepageData(),
       };
     } catch (error) {
       throw error;
