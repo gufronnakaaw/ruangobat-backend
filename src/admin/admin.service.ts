@@ -1,4 +1,3 @@
-import { HttpService } from '@nestjs/axios';
 import {
   BadRequestException,
   Injectable,
@@ -31,10 +30,7 @@ import {
 
 @Injectable()
 export class AdminService {
-  constructor(
-    private prisma: PrismaService,
-    private httpService: HttpService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async getDashboard() {
     const [total_users, total_online_users, total_programs, total_tests] =
