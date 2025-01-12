@@ -453,7 +453,6 @@ model ClassMentor {
   class_mentor_id  String           @unique
   type             ClassMentorType
   mentor_id        String
-  position         Int
 
   mentor           Mentor           @relation(fields: [mentor_id], references: [mentor_id], onDelete: Cascade)
 
