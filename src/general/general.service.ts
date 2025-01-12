@@ -303,9 +303,6 @@ export class GeneralService {
             },
           },
         },
-        orderBy: {
-          position: 'asc',
-        },
       }),
     ]);
 
@@ -360,9 +357,6 @@ export class GeneralService {
               img_url: true,
             },
           },
-        },
-        orderBy: {
-          position: 'asc',
         },
       }),
     ]);
@@ -421,9 +415,6 @@ export class GeneralService {
             },
           },
         },
-        orderBy: {
-          position: 'asc',
-        },
       }),
     ]);
 
@@ -473,9 +464,6 @@ export class GeneralService {
               img_url: true,
             },
           },
-        },
-        orderBy: {
-          position: 'asc',
         },
       }),
     ]);
@@ -564,9 +552,6 @@ export class GeneralService {
               img_url: true,
             },
           },
-        },
-        orderBy: {
-          position: 'asc',
         },
       }),
     ]);
