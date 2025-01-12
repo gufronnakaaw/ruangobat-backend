@@ -266,4 +266,319 @@ export class GeneralService {
       mentors: await this.getMentors(),
     };
   }
+
+  async getSubjectPreparation() {
+    const [preparation_classes, mentors] = await this.prisma.$transaction([
+      this.prisma.subject.findMany({
+        where: {
+          subject_type: 'preparation',
+          is_active: true,
+        },
+        select: {
+          subject_id: true,
+          title: true,
+          description: true,
+          price: true,
+          link_order: true,
+          thumbnail_url: true,
+          thumbnail_type: true,
+          created_at: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+      this.prisma.classMentor.findMany({
+        where: {
+          type: 'preparation',
+        },
+        select: {
+          class_mentor_id: true,
+          mentor: {
+            select: {
+              fullname: true,
+              nickname: true,
+              mentor_title: true,
+              img_url: true,
+            },
+          },
+        },
+        orderBy: {
+          position: 'asc',
+        },
+      }),
+    ]);
+
+    return {
+      preparation_classes,
+      mentors: mentors.map((mentor) => {
+        return {
+          class_mentor_id: mentor.class_mentor_id,
+          ...mentor.mentor,
+        };
+      }),
+    };
+  }
+
+  async getSubjectPrivate() {
+    const [private_classes, mentors] = await this.prisma.$transaction([
+      this.prisma.subject.findMany({
+        where: {
+          subject_type: 'private',
+          is_active: true,
+        },
+        select: {
+          subject_id: true,
+          title: true,
+          description: true,
+          created_at: true,
+          subject_part: {
+            select: {
+              subject_part_id: true,
+              price: true,
+              description: true,
+              link_order: true,
+            },
+            orderBy: {
+              price: 'asc',
+            },
+          },
+        },
+      }),
+      this.prisma.classMentor.findMany({
+        where: {
+          type: 'private',
+        },
+        select: {
+          class_mentor_id: true,
+          mentor: {
+            select: {
+              mentor_id: true,
+              fullname: true,
+              nickname: true,
+              mentor_title: true,
+              img_url: true,
+            },
+          },
+        },
+        orderBy: {
+          position: 'asc',
+        },
+      }),
+    ]);
+
+    return {
+      private_classes: private_classes.map((private_class) => {
+        const { subject_part, ...all } = private_class;
+
+        return {
+          ...all,
+          private_sub_classes: subject_part,
+        };
+      }),
+      mentors: mentors.map((mentor) => {
+        return {
+          class_mentor_id: mentor.class_mentor_id,
+          ...mentor.mentor,
+        };
+      }),
+    };
+  }
+
+  async getTheses() {
+    const [theses, mentors] = await this.prisma.$transaction([
+      this.prisma.thesis.findMany({
+        where: {
+          is_active: true,
+        },
+        select: {
+          thesis_id: true,
+          title: true,
+          description: true,
+          price: true,
+          link_order: true,
+          thumbnail_url: true,
+          thumbnail_type: true,
+          created_at: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+      this.prisma.classMentor.findMany({
+        where: {
+          type: 'thesis',
+        },
+        select: {
+          class_mentor_id: true,
+          mentor: {
+            select: {
+              mentor_id: true,
+              fullname: true,
+              nickname: true,
+              mentor_title: true,
+              img_url: true,
+            },
+          },
+        },
+        orderBy: {
+          position: 'asc',
+        },
+      }),
+    ]);
+
+    return {
+      theses,
+      mentors: mentors.map((mentor) => {
+        return {
+          class_mentor_id: mentor.class_mentor_id,
+          ...mentor.mentor,
+        };
+      }),
+    };
+  }
+
+  async getResearch() {
+    const [research, mentors] = await this.prisma.$transaction([
+      this.prisma.research.findMany({
+        where: {
+          is_active: true,
+        },
+        select: {
+          research_id: true,
+          title: true,
+          description: true,
+          price: true,
+          link_order: true,
+          thumbnail_url: true,
+          thumbnail_type: true,
+          created_at: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+      this.prisma.classMentor.findMany({
+        where: {
+          type: 'research',
+        },
+        select: {
+          class_mentor_id: true,
+          mentor: {
+            select: {
+              mentor_id: true,
+              fullname: true,
+              nickname: true,
+              mentor_title: true,
+              img_url: true,
+            },
+          },
+        },
+        orderBy: {
+          position: 'asc',
+        },
+      }),
+    ]);
+
+    return {
+      research,
+      mentors: mentors.map((mentor) => {
+        return {
+          class_mentor_id: mentor.class_mentor_id,
+          ...mentor.mentor,
+        };
+      }),
+    };
+  }
+
+  getUniversity() {
+    return this.prisma.university.findMany({
+      where: {
+        is_active: true,
+      },
+      select: {
+        university_id: true,
+        name: true,
+        description: true,
+        img_url: true,
+        slug: true,
+        created_at: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+  }
+
+  async getPharmacistAdmission(slug: string) {
+    const university = await this.prisma.university.findUnique({
+      where: {
+        slug,
+      },
+    });
+
+    if (!university) {
+      throw new NotFoundException('Kelas tidak ditemukan');
+    }
+
+    const [pharmacist_admissions, mentors] = await this.prisma.$transaction([
+      this.prisma.pharmacistAdmission.findMany({
+        where: {
+          university: {
+            slug,
+          },
+          is_active: true,
+        },
+        select: {
+          pa_id: true,
+          title: true,
+          description: true,
+          price: true,
+          link_order: true,
+          thumbnail_url: true,
+          thumbnail_type: true,
+          slug: true,
+          created_at: true,
+          university: {
+            select: {
+              name: true,
+            },
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+      this.prisma.classMentor.findMany({
+        where: {
+          type: 'pharmacist_admission',
+        },
+        select: {
+          class_mentor_id: true,
+          mentor: {
+            select: {
+              mentor_id: true,
+              fullname: true,
+              nickname: true,
+              mentor_title: true,
+              img_url: true,
+            },
+          },
+        },
+        orderBy: {
+          position: 'asc',
+        },
+      }),
+    ]);
+
+    return {
+      pharmacist_admissions,
+      mentors: mentors.map((mentor) => {
+        return {
+          class_mentor_id: mentor.class_mentor_id,
+          ...mentor.mentor,
+        };
+      }),
+    };
+  }
 }
