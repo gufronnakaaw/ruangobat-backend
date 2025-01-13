@@ -213,3 +213,100 @@ export const updateMentorSchema = z.object({
 });
 
 export type UpdateMentorDto = z.infer<typeof updateMentorSchema>;
+
+export const createProductSharedSchema = z.object({
+  title: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' ')),
+  description: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' ')),
+  thumbnail_type: z.enum(['video', 'image']),
+  by: z.string(),
+  price: z.string(),
+  link_order: z.string(),
+  video_url: z.string().optional(),
+});
+
+export type CreateProductSharedDto = z.infer<typeof createProductSharedSchema>;
+
+export const updateProductSharedSchema = z.object({
+  subject_id: z.string().optional(),
+  thesis_id: z.string().optional(),
+  research_id: z.string().optional(),
+  title: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' '))
+    .optional(),
+  description: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' '))
+    .optional(),
+  thumbnail_type: z.enum(['video', 'image']).optional(),
+  with_image: z.enum(['true', 'false']),
+  is_active: z.enum(['true', 'false']).optional(),
+  by: z.string(),
+  price: z.string().optional(),
+  link_order: z.string().optional(),
+  video_url: z.string().optional(),
+});
+
+export type UpdateProductSharedDto = z.infer<typeof updateProductSharedSchema>;
+
+export const createSubjectPrivateSchema = z.object({
+  title: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' ')),
+  description: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' ')),
+  by: z.string(),
+  subject_parts: z.array(
+    z.object({
+      description: z
+        .string()
+        .min(1, { message: 'Title wajib diisi' })
+        .trim()
+        .transform((val) => val.replace(/\s+/g, ' ')),
+      price: z.number(),
+      link_order: z.string(),
+    }),
+  ),
+});
+
+export type CreateSubjectPrivateDto = z.infer<
+  typeof createSubjectPrivateSchema
+>;
+
+export const classMentorSchema = z.object({
+  type: z.enum([
+    'preparation',
+    'private',
+    'thesis',
+    'research',
+    'pharmacist_admission',
+  ]),
+  mentor_id: z.string(),
+  by: z.string(),
+});
+
+export type CreateClassMentorDto = z.infer<typeof classMentorSchema>;
+
+export type ClassMentorType =
+  | 'preparation'
+  | 'private'
+  | 'thesis'
+  | 'research'
+  | 'pharmacist_admission';

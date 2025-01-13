@@ -3,11 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ClassMentorType } from '@prisma/client';
 import { existsSync } from 'fs';
 import { unlink } from 'fs/promises';
 import { random } from 'lodash';
 import path from 'path';
 import ShortUniqueId from 'short-unique-id';
+import { slug } from 'src/utils/slug.util';
 import { hashPassword } from '../utils/bcrypt.util';
 import { decryptString, encryptString } from '../utils/crypto.util';
 import { maskEmail, maskPhoneNumber } from '../utils/masking.util';
@@ -16,11 +18,15 @@ import { PrismaService } from '../utils/services/prisma.service';
 import {
   AdminQuery,
   ApprovedUserDto,
+  CreateClassMentorDto,
   CreateMentorDto,
+  CreateProductSharedDto,
   CreateProgramsDto,
+  CreateSubjectPrivateDto,
   CreateTestsDto,
   InviteUsersDto,
   UpdateMentorDto,
+  UpdateProductSharedDto,
   UpdateProgramsDto,
   UpdateStatusProgramsDto,
   UpdateStatusTestsDto,
@@ -2282,6 +2288,991 @@ export class AdminService {
       },
       select: {
         mentor_id: true,
+      },
+    });
+  }
+
+  async createSubjectPreparation(
+    body: CreateProductSharedDto,
+    file: Express.Multer.File,
+    fullurl: string,
+  ) {
+    if (body.thumbnail_type == 'image') {
+      return this.prisma.subject.create({
+        data: {
+          subject_id: `ROSBJ${random(10000, 99999)}`,
+          title: body.title,
+          slug: slug(body.title),
+          subject_type: 'preparation',
+          link_order: body.link_order,
+          description: body.description,
+          price: parseInt(body.price),
+          thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          thumbnail_type: 'image',
+          created_by: body.by,
+          updated_by: body.by,
+        },
+        select: {
+          subject_id: true,
+        },
+      });
+    }
+
+    if (file && existsSync(file.path)) {
+      await unlink(file.path);
+    }
+
+    return this.prisma.subject.create({
+      data: {
+        subject_id: `ROSBJ${random(10000, 99999)}`,
+        title: body.title,
+        slug: slug(body.title),
+        subject_type: 'preparation',
+        link_order: body.link_order,
+        description: body.description,
+        price: parseInt(body.price),
+        thumbnail_url: body.video_url,
+        thumbnail_type: 'video',
+        created_by: body.by,
+        updated_by: body.by,
+      },
+      select: {
+        subject_id: true,
+      },
+    });
+  }
+
+  async updateSubjectPreparation(
+    body: UpdateProductSharedDto,
+    file: Express.Multer.File,
+    fullurl: string,
+  ) {
+    if (!body.subject_id) {
+      throw new BadRequestException('Kelas ID tidak ditemukan');
+    }
+
+    const subject = await this.prisma.subject.findUnique({
+      where: {
+        subject_type: 'preparation',
+        subject_id: body.subject_id,
+      },
+      select: {
+        thumbnail_url: true,
+        thumbnail_type: true,
+      },
+    });
+
+    if (!subject) {
+      throw new NotFoundException('Kelas tidak ditemukan');
+    }
+
+    if (body.thumbnail_type == 'image') {
+      if (body.with_image == 'true') {
+        if (subject.thumbnail_type == 'image') {
+          const pathname = new URL(subject.thumbnail_url).pathname;
+          const file_path = pathname.startsWith('/')
+            ? pathname.slice(1)
+            : pathname;
+
+          if (existsSync(file_path)) {
+            await unlink(file_path);
+          }
+        }
+
+        return this.prisma.subject.update({
+          where: {
+            subject_type: 'preparation',
+            subject_id: body.subject_id,
+          },
+          data: {
+            title: body.title,
+            slug: body.title ? slug(body.title) : undefined,
+            subject_type: 'preparation',
+            link_order: body.link_order,
+            description: body.description,
+            price: body.price ? parseInt(body.price) : undefined,
+            thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+            thumbnail_type: 'image',
+            updated_by: body.by,
+            is_active: body.is_active == 'true',
+          },
+          select: {
+            subject_id: true,
+          },
+        });
+      }
+
+      return this.prisma.subject.update({
+        where: {
+          subject_type: 'preparation',
+          subject_id: body.subject_id,
+        },
+        data: {
+          title: body.title,
+          slug: body.title ? slug(body.title) : undefined,
+          subject_type: 'preparation',
+          link_order: body.link_order,
+          description: body.description,
+          price: body.price ? parseInt(body.price) : undefined,
+          thumbnail_type: 'image',
+          updated_by: body.by,
+          is_active: body.is_active == 'true',
+        },
+        select: {
+          subject_id: true,
+        },
+      });
+    }
+
+    if (subject.thumbnail_type == 'image') {
+      const pathname = new URL(subject.thumbnail_url).pathname;
+      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+      if (existsSync(file_path)) {
+        await unlink(file_path);
+      }
+    }
+
+    return this.prisma.subject.update({
+      where: {
+        subject_type: 'preparation',
+        subject_id: body.subject_id,
+      },
+      data: {
+        title: body.title,
+        slug: body.title ? slug(body.title) : undefined,
+        subject_type: 'preparation',
+        link_order: body.link_order,
+        description: body.description,
+        price: body.price ? parseInt(body.price) : undefined,
+        thumbnail_type: 'video',
+        thumbnail_url: body.video_url,
+        updated_by: body.by,
+        is_active: body.is_active == 'true',
+      },
+      select: {
+        subject_id: true,
+      },
+    });
+  }
+
+  async getSubjectPreparation(query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_preparation_classes, preparation_classes] =
+      await this.prisma.$transaction([
+        this.prisma.subject.count({
+          where: {
+            subject_type: 'preparation',
+          },
+        }),
+        this.prisma.subject.findMany({
+          where: {
+            subject_type: 'preparation',
+          },
+          select: {
+            subject_id: true,
+            title: true,
+            description: true,
+            slug: true,
+            price: true,
+            link_order: true,
+            thumbnail_url: true,
+            thumbnail_type: true,
+            is_active: true,
+            created_at: true,
+          },
+          orderBy: {
+            created_at: 'desc',
+          },
+          take,
+          skip,
+        }),
+      ]);
+
+    return {
+      preparation_classes,
+      page: parseInt(query.page),
+      total_preparation_classes,
+      total_pages: Math.ceil(total_preparation_classes / take),
+    };
+  }
+
+  async getSubjectPreparationBySearch(query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_preparation_classes, preparation_classes] =
+      await this.prisma.$transaction([
+        this.prisma.subject.count({
+          where: {
+            subject_type: 'preparation',
+            OR: [
+              {
+                title: {
+                  contains: query.q,
+                },
+              },
+            ],
+          },
+        }),
+        this.prisma.subject.findMany({
+          where: {
+            subject_type: 'preparation',
+            OR: [
+              {
+                title: {
+                  contains: query.q,
+                },
+              },
+            ],
+          },
+          select: {
+            subject_id: true,
+            title: true,
+            description: true,
+            slug: true,
+            price: true,
+            link_order: true,
+            thumbnail_url: true,
+            thumbnail_type: true,
+            is_active: true,
+            created_at: true,
+          },
+          orderBy: {
+            created_at: 'desc',
+          },
+          take,
+          skip,
+        }),
+      ]);
+
+    return {
+      preparation_classes,
+      page: parseInt(query.page),
+      total_preparation_classes,
+      total_pages: Math.ceil(total_preparation_classes / take),
+    };
+  }
+
+  async createSubjectPrivate(body: CreateSubjectPrivateDto) {
+    if (!body.subject_parts.length) {
+      throw new BadRequestException('Minimal 1 data');
+    }
+
+    return this.prisma.subject.create({
+      data: {
+        subject_id: `ROSBJ${random(10000, 99999)}`,
+        title: body.title,
+        slug: slug(body.title),
+        subject_type: 'private',
+        description: body.description,
+        created_by: body.by,
+        updated_by: body.by,
+        subject_part: {
+          create: body.subject_parts.map((part) => {
+            return {
+              subject_part_id: `ROSBJP${random(1000, 9999)}`,
+              description: part.description,
+              price: part.price,
+              link_order: part.link_order,
+              created_by: body.by,
+              updated_by: body.by,
+            };
+          }),
+        },
+      },
+      select: {
+        subject_id: true,
+      },
+    });
+  }
+
+  async deleteSubjectPreparation(subject_id: string) {
+    const subject = await this.prisma.subject.findUnique({
+      where: {
+        subject_type: 'preparation',
+        subject_id,
+      },
+      select: {
+        thumbnail_url: true,
+        thumbnail_type: true,
+      },
+    });
+
+    if (!subject) {
+      throw new NotFoundException('Kelas tidak ditemukan');
+    }
+
+    if (subject.thumbnail_type == 'image') {
+      const pathname = new URL(subject.thumbnail_url).pathname;
+      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+      if (existsSync(file_path)) {
+        await unlink(file_path);
+      }
+
+      return this.prisma.subject.delete({
+        where: {
+          subject_type: 'preparation',
+          subject_id,
+        },
+        select: {
+          subject_id: true,
+        },
+      });
+    }
+
+    return this.prisma.subject.delete({
+      where: {
+        subject_type: 'preparation',
+        subject_id,
+      },
+      select: {
+        subject_id: true,
+      },
+    });
+  }
+
+  async getSubjectPrivate(query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_private_classes, private_classes] =
+      await this.prisma.$transaction([
+        this.prisma.subject.count({
+          where: {
+            subject_type: 'private',
+          },
+        }),
+        this.prisma.subject.findMany({
+          where: {
+            subject_type: 'private',
+          },
+          select: {
+            subject_id: true,
+            title: true,
+            description: true,
+            slug: true,
+            is_active: true,
+            created_at: true,
+            subject_part: {
+              select: {
+                subject_part_id: true,
+                price: true,
+                description: true,
+                link_order: true,
+              },
+              orderBy: {
+                price: 'asc',
+              },
+            },
+          },
+          orderBy: {
+            created_at: 'desc',
+          },
+          take,
+          skip,
+        }),
+      ]);
+
+    return {
+      private_classes: private_classes.map((private_class) => {
+        const { subject_part, ...all } = private_class;
+
+        return {
+          ...all,
+          private_sub_classes: subject_part,
+        };
+      }),
+      page: parseInt(query.page),
+      total_private_classes,
+      total_pages: Math.ceil(total_private_classes / take),
+    };
+  }
+
+  async getSubjectPrivateBySearch(query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_private_classes, private_classes] =
+      await this.prisma.$transaction([
+        this.prisma.subject.count({
+          where: {
+            subject_type: 'private',
+            OR: [
+              {
+                title: {
+                  contains: query.q,
+                },
+              },
+            ],
+          },
+        }),
+        this.prisma.subject.findMany({
+          where: {
+            subject_type: 'private',
+            OR: [
+              {
+                title: {
+                  contains: query.q,
+                },
+              },
+            ],
+          },
+          select: {
+            subject_id: true,
+            title: true,
+            description: true,
+            slug: true,
+            is_active: true,
+            created_at: true,
+            subject_part: {
+              select: {
+                subject_part_id: true,
+                price: true,
+                description: true,
+                link_order: true,
+              },
+              orderBy: {
+                price: 'asc',
+              },
+            },
+          },
+          orderBy: {
+            created_at: 'desc',
+          },
+          take,
+          skip,
+        }),
+      ]);
+
+    return {
+      private_classes: private_classes.map((private_class) => {
+        const { subject_part, ...all } = private_class;
+
+        return {
+          ...all,
+          private_sub_classes: subject_part,
+        };
+      }),
+      page: parseInt(query.page),
+      total_private_classes,
+      total_pages: Math.ceil(total_private_classes / take),
+    };
+  }
+
+  async deleteSubjectPrivate(subject_id: string) {
+    const subject = await this.prisma.subject.findUnique({
+      where: {
+        subject_type: 'private',
+        subject_id,
+      },
+    });
+
+    if (!subject) {
+      throw new NotFoundException('Kelas tidak ditemukan');
+    }
+
+    return this.prisma.subject.delete({
+      where: {
+        subject_type: 'private',
+        subject_id,
+      },
+      select: {
+        subject_id: true,
+      },
+    });
+  }
+
+  async createTheses(
+    body: CreateProductSharedDto,
+    file: Express.Multer.File,
+    fullurl: string,
+  ) {
+    if (body.thumbnail_type == 'image') {
+      return this.prisma.thesis.create({
+        data: {
+          thesis_id: `ROTHE${random(10000, 99999)}`,
+          title: body.title,
+          slug: slug(body.title),
+          link_order: body.link_order,
+          description: body.description,
+          price: parseInt(body.price),
+          thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          thumbnail_type: 'image',
+          created_by: body.by,
+          updated_by: body.by,
+        },
+        select: {
+          thesis_id: true,
+        },
+      });
+    }
+
+    if (file && existsSync(file.path)) {
+      await unlink(file.path);
+    }
+
+    return this.prisma.thesis.create({
+      data: {
+        thesis_id: `ROTHE${random(10000, 99999)}`,
+        title: body.title,
+        slug: slug(body.title),
+        link_order: body.link_order,
+        description: body.description,
+        price: parseInt(body.price),
+        thumbnail_url: body.video_url,
+        thumbnail_type: 'video',
+        created_by: body.by,
+        updated_by: body.by,
+      },
+      select: {
+        thesis_id: true,
+      },
+    });
+  }
+
+  async deleteTheses(thesis_id: string) {
+    const thesis = await this.prisma.thesis.findUnique({
+      where: {
+        thesis_id,
+      },
+      select: {
+        thumbnail_url: true,
+        thumbnail_type: true,
+      },
+    });
+
+    if (!thesis) {
+      throw new NotFoundException('Kelas tidak ditemukan');
+    }
+
+    if (thesis.thumbnail_type == 'image') {
+      const pathname = new URL(thesis.thumbnail_url).pathname;
+      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+      if (existsSync(file_path)) {
+        await unlink(file_path);
+      }
+
+      return this.prisma.thesis.delete({
+        where: {
+          thesis_id,
+        },
+        select: {
+          thesis_id: true,
+        },
+      });
+    }
+
+    return this.prisma.thesis.delete({
+      where: {
+        thesis_id,
+      },
+      select: {
+        thesis_id: true,
+      },
+    });
+  }
+
+  async updateTheses(
+    body: UpdateProductSharedDto,
+    file: Express.Multer.File,
+    fullurl: string,
+  ) {
+    if (!body.thesis_id) {
+      throw new BadRequestException('Kelas ID tidak ditemukan');
+    }
+
+    const thesis = await this.prisma.thesis.findUnique({
+      where: {
+        thesis_id: body.thesis_id,
+      },
+      select: {
+        thumbnail_url: true,
+        thumbnail_type: true,
+      },
+    });
+
+    if (!thesis) {
+      throw new NotFoundException('Kelas tidak ditemukan');
+    }
+
+    if (body.thumbnail_type == 'image') {
+      if (body.with_image == 'true') {
+        if (thesis.thumbnail_type == 'image') {
+          const pathname = new URL(thesis.thumbnail_url).pathname;
+          const file_path = pathname.startsWith('/')
+            ? pathname.slice(1)
+            : pathname;
+
+          if (existsSync(file_path)) {
+            await unlink(file_path);
+          }
+        }
+
+        return this.prisma.thesis.update({
+          where: {
+            thesis_id: body.thesis_id,
+          },
+          data: {
+            title: body.title,
+            slug: body.title ? slug(body.title) : undefined,
+            link_order: body.link_order,
+            description: body.description,
+            price: body.price ? parseInt(body.price) : undefined,
+            thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+            thumbnail_type: 'image',
+            updated_by: body.by,
+            is_active: body.is_active == 'true',
+          },
+          select: {
+            thesis_id: true,
+          },
+        });
+      }
+
+      return this.prisma.thesis.update({
+        where: {
+          thesis_id: body.thesis_id,
+        },
+        data: {
+          title: body.title,
+          slug: body.title ? slug(body.title) : undefined,
+          link_order: body.link_order,
+          description: body.description,
+          price: body.price ? parseInt(body.price) : undefined,
+          thumbnail_type: 'image',
+          updated_by: body.by,
+          is_active: body.is_active == 'true',
+        },
+        select: {
+          thesis_id: true,
+        },
+      });
+    }
+
+    if (thesis.thumbnail_type == 'image') {
+      const pathname = new URL(thesis.thumbnail_url).pathname;
+      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+      if (existsSync(file_path)) {
+        await unlink(file_path);
+      }
+    }
+
+    return this.prisma.thesis.update({
+      where: {
+        thesis_id: body.thesis_id,
+      },
+      data: {
+        title: body.title,
+        slug: body.title ? slug(body.title) : undefined,
+        link_order: body.link_order,
+        description: body.description,
+        price: body.price ? parseInt(body.price) : undefined,
+        thumbnail_type: 'video',
+        thumbnail_url: body.video_url,
+        updated_by: body.by,
+        is_active: body.is_active == 'true',
+      },
+      select: {
+        thesis_id: true,
+      },
+    });
+  }
+
+  async createResearch(
+    body: CreateProductSharedDto,
+    file: Express.Multer.File,
+    fullurl: string,
+  ) {
+    if (body.thumbnail_type == 'image') {
+      return this.prisma.research.create({
+        data: {
+          research_id: `RORSCH${random(10000, 99999)}`,
+          title: body.title,
+          slug: slug(body.title),
+          link_order: body.link_order,
+          description: body.description,
+          price: parseInt(body.price),
+          thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          thumbnail_type: 'image',
+          created_by: body.by,
+          updated_by: body.by,
+        },
+        select: {
+          research_id: true,
+        },
+      });
+    }
+
+    if (file && existsSync(file.path)) {
+      await unlink(file.path);
+    }
+
+    return this.prisma.research.create({
+      data: {
+        research_id: `RORSCH${random(10000, 99999)}`,
+        title: body.title,
+        slug: slug(body.title),
+        link_order: body.link_order,
+        description: body.description,
+        price: parseInt(body.price),
+        thumbnail_url: body.video_url,
+        thumbnail_type: 'video',
+        created_by: body.by,
+        updated_by: body.by,
+      },
+      select: {
+        research_id: true,
+      },
+    });
+  }
+
+  async deleteResearch(research_id: string) {
+    const research = await this.prisma.research.findUnique({
+      where: {
+        research_id,
+      },
+      select: {
+        thumbnail_url: true,
+        thumbnail_type: true,
+      },
+    });
+
+    if (!research) {
+      throw new NotFoundException('Kelas tidak ditemukan');
+    }
+
+    if (research.thumbnail_type == 'image') {
+      const pathname = new URL(research.thumbnail_url).pathname;
+      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+      if (existsSync(file_path)) {
+        await unlink(file_path);
+      }
+
+      return this.prisma.research.delete({
+        where: {
+          research_id,
+        },
+        select: {
+          research_id: true,
+        },
+      });
+    }
+
+    return this.prisma.research.delete({
+      where: {
+        research_id,
+      },
+      select: {
+        research_id: true,
+      },
+    });
+  }
+
+  async updateResearch(
+    body: UpdateProductSharedDto,
+    file: Express.Multer.File,
+    fullurl: string,
+  ) {
+    if (!body.research_id) {
+      throw new BadRequestException('Kelas ID tidak ditemukan');
+    }
+
+    const research = await this.prisma.research.findUnique({
+      where: {
+        research_id: body.research_id,
+      },
+      select: {
+        thumbnail_url: true,
+        thumbnail_type: true,
+      },
+    });
+
+    if (!research) {
+      throw new NotFoundException('Kelas tidak ditemukan');
+    }
+
+    if (body.thumbnail_type == 'image') {
+      if (body.with_image == 'true') {
+        if (research.thumbnail_type == 'image') {
+          const pathname = new URL(research.thumbnail_url).pathname;
+          const file_path = pathname.startsWith('/')
+            ? pathname.slice(1)
+            : pathname;
+
+          if (existsSync(file_path)) {
+            await unlink(file_path);
+          }
+        }
+
+        return this.prisma.research.update({
+          where: {
+            research_id: body.research_id,
+          },
+          data: {
+            title: body.title,
+            slug: body.title ? slug(body.title) : undefined,
+            link_order: body.link_order,
+            description: body.description,
+            price: body.price ? parseInt(body.price) : undefined,
+            thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+            thumbnail_type: 'image',
+            updated_by: body.by,
+            is_active: body.is_active == 'true',
+          },
+          select: {
+            research_id: true,
+          },
+        });
+      }
+
+      return this.prisma.research.update({
+        where: {
+          research_id: body.research_id,
+        },
+        data: {
+          title: body.title,
+          slug: body.title ? slug(body.title) : undefined,
+          link_order: body.link_order,
+          description: body.description,
+          price: body.price ? parseInt(body.price) : undefined,
+          thumbnail_type: 'image',
+          updated_by: body.by,
+          is_active: body.is_active == 'true',
+        },
+        select: {
+          research_id: true,
+        },
+      });
+    }
+
+    if (research.thumbnail_type == 'image') {
+      const pathname = new URL(research.thumbnail_url).pathname;
+      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+      if (existsSync(file_path)) {
+        await unlink(file_path);
+      }
+    }
+
+    return this.prisma.research.update({
+      where: {
+        research_id: body.research_id,
+      },
+      data: {
+        title: body.title,
+        slug: body.title ? slug(body.title) : undefined,
+        link_order: body.link_order,
+        description: body.description,
+        price: body.price ? parseInt(body.price) : undefined,
+        thumbnail_type: 'video',
+        thumbnail_url: body.video_url,
+        updated_by: body.by,
+        is_active: body.is_active == 'true',
+      },
+      select: {
+        research_id: true,
+      },
+    });
+  }
+
+  async getClassMentor(type: ClassMentorType) {
+    const types = [
+      'preparation',
+      'private',
+      'thesis',
+      'research',
+      'pharmacist_admission',
+    ];
+
+    if (!types.includes(type)) {
+      return [];
+    }
+
+    const mentors = await this.prisma.classMentor.findMany({
+      where: {
+        type,
+      },
+      select: {
+        class_mentor_id: true,
+        mentor: {
+          select: {
+            mentor_id: true,
+            fullname: true,
+            nickname: true,
+            mentor_title: true,
+            img_url: true,
+          },
+        },
+      },
+    });
+
+    return mentors.map((mentor) => {
+      return {
+        class_mentor_id: mentor.class_mentor_id,
+        ...mentor.mentor,
+      };
+    });
+  }
+
+  async createClassMentor(body: CreateClassMentorDto) {
+    const mentor = await this.prisma.mentor.count({
+      where: { mentor_id: body.mentor_id },
+    });
+
+    if (!mentor) {
+      throw new NotFoundException('Mentor tidak ditemukan');
+    }
+
+    return this.prisma.classMentor.create({
+      data: {
+        class_mentor_id: `ROCM${random(10000, 99999)}`,
+        mentor_id: body.mentor_id,
+        type: body.type,
+        created_by: body.by,
+        updated_by: body.by,
+      },
+      select: {
+        class_mentor_id: true,
+      },
+    });
+  }
+
+  async deleteClassMentor(class_mentor_id: string) {
+    if (
+      !(await this.prisma.classMentor.count({ where: { class_mentor_id } }))
+    ) {
+      throw new NotFoundException('Mentor tidak ditemukan');
+    }
+
+    return this.prisma.classMentor.delete({
+      where: {
+        class_mentor_id,
+      },
+      select: {
+        class_mentor_id: true,
       },
     });
   }

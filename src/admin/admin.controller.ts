@@ -17,6 +17,7 @@ import {
   UsePipes,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ClassMentorType } from '@prisma/client';
 import { Request } from 'express';
 import { diskStorage } from 'multer';
 import { SuccessResponse } from '../utils/global/global.response';
@@ -27,15 +28,23 @@ import {
   AdminQuery,
   ApprovedUserDto,
   approvedUserSchema,
+  classMentorSchema,
+  CreateClassMentorDto,
   CreateMentorDto,
   createMentorSchema,
+  CreateProductSharedDto,
+  createProductSharedSchema,
   CreateProgramsDto,
+  CreateSubjectPrivateDto,
+  createSubjectPrivateSchema,
   CreateTestsDto,
   createTestsSchema,
   InviteUsersDto,
   inviteUsersSchema,
   UpdateMentorDto,
   updateMentorSchema,
+  UpdateProductSharedDto,
+  updateProductSharedSchema,
   UpdateProgramsDto,
   UpdateStatusProgramsDto,
   updateStatusProgramsSchema,
@@ -758,6 +767,469 @@ export class AdminController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.adminService.deleteMentor(mentor_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/subjects/preparation')
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(
+    FileInterceptor('thumbnail_subject', {
+      storage: diskStorage({
+        destination: './public/subjects',
+        filename(req, file, callback) {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+      fileFilter(req, file, callback) {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+          return callback(
+            new BadRequestException('Hanya gambar yang diperbolehkan'),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: 2 * 1024 * 1024,
+      },
+    }),
+    new ZodInterceptor(createProductSharedSchema),
+  )
+  async createSubjectPreparation(
+    @Body() body: CreateProductSharedDto,
+    @UploadedFile() thumbnail_subject: Express.Multer.File,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.adminService.createSubjectPreparation(
+          body,
+          thumbnail_subject,
+          req.fullurl,
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Patch('/subjects/preparation')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FileInterceptor('thumbnail_subject', {
+      storage: diskStorage({
+        destination: './public/subjects',
+        filename(req, file, callback) {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+      fileFilter(req, file, callback) {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+          return callback(
+            new BadRequestException('Hanya gambar yang diperbolehkan'),
+            false,
+          );
+        }
+
+        if (req.body.with_image == 'true') {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
+      limits: {
+        fileSize: 2 * 1024 * 1024,
+      },
+    }),
+    new ZodInterceptor(updateProductSharedSchema),
+  )
+  async updateSubjectPreparation(
+    @Body() body: UpdateProductSharedDto,
+    @UploadedFile() thumbnail_subject: Express.Multer.File,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.updateSubjectPreparation(
+          body,
+          thumbnail_subject,
+          req.fullurl,
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/subjects/preparation')
+  @HttpCode(HttpStatus.OK)
+  async getSubjectPreparation(
+    @Query() query: AdminQuery,
+  ): Promise<SuccessResponse> {
+    try {
+      if (query.q) {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: await this.adminService.getSubjectPreparationBySearch(query),
+        };
+      }
+
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getSubjectPreparation(query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('/subjects/preparation/:subject_id')
+  @HttpCode(HttpStatus.OK)
+  async deleteSubjectPreparation(
+    @Param('subject_id') subject_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.deleteSubjectPreparation(subject_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/subjects/private')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(createSubjectPrivateSchema))
+  async createSubjectPrivate(
+    @Body() body: CreateSubjectPrivateDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.adminService.createSubjectPrivate(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/subjects/private')
+  @HttpCode(HttpStatus.OK)
+  async getSubjectPrivate(
+    @Query() query: AdminQuery,
+  ): Promise<SuccessResponse> {
+    try {
+      if (query.q) {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: await this.adminService.getSubjectPrivateBySearch(query),
+        };
+      }
+
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getSubjectPrivate(query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('/subjects/private/:subject_id')
+  @HttpCode(HttpStatus.OK)
+  async deleteSubjectPrivate(
+    @Param('subject_id') subject_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.deleteSubjectPrivate(subject_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/theses')
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(
+    FileInterceptor('thumbnail_theses', {
+      storage: diskStorage({
+        destination: './public/theses',
+        filename(req, file, callback) {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+      fileFilter(req, file, callback) {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+          return callback(
+            new BadRequestException('Hanya gambar yang diperbolehkan'),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: 2 * 1024 * 1024,
+      },
+    }),
+    new ZodInterceptor(createProductSharedSchema),
+  )
+  async createTheses(
+    @Body() body: CreateProductSharedDto,
+    @UploadedFile() thumbnail_theses: Express.Multer.File,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.adminService.createTheses(
+          body,
+          thumbnail_theses,
+          req.fullurl,
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Patch('/theses')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FileInterceptor('thumbnail_theses', {
+      storage: diskStorage({
+        destination: './public/theses',
+        filename(req, file, callback) {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+      fileFilter(req, file, callback) {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+          return callback(
+            new BadRequestException('Hanya gambar yang diperbolehkan'),
+            false,
+          );
+        }
+
+        if (req.body.with_image == 'true') {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
+      limits: {
+        fileSize: 2 * 1024 * 1024,
+      },
+    }),
+    new ZodInterceptor(updateProductSharedSchema),
+  )
+  async updateTheses(
+    @Body() body: UpdateProductSharedDto,
+    @UploadedFile() thumbnail_theses: Express.Multer.File,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.updateTheses(
+          body,
+          thumbnail_theses,
+          req.fullurl,
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('/theses/:thesis_id')
+  @HttpCode(HttpStatus.OK)
+  async deleteTheses(
+    @Param('thesis_id') thesis_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.deleteTheses(thesis_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/research')
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(
+    FileInterceptor('thumbnail_research', {
+      storage: diskStorage({
+        destination: './public/research',
+        filename(req, file, callback) {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+      fileFilter(req, file, callback) {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+          return callback(
+            new BadRequestException('Hanya gambar yang diperbolehkan'),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: 2 * 1024 * 1024,
+      },
+    }),
+    new ZodInterceptor(createProductSharedSchema),
+  )
+  async createResearch(
+    @Body() body: CreateProductSharedDto,
+    @UploadedFile() thumbnail_research: Express.Multer.File,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.adminService.createResearch(
+          body,
+          thumbnail_research,
+          req.fullurl,
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Patch('/research')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FileInterceptor('thumbnail_research', {
+      storage: diskStorage({
+        destination: './public/research',
+        filename(req, file, callback) {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+      fileFilter(req, file, callback) {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+          return callback(
+            new BadRequestException('Hanya gambar yang diperbolehkan'),
+            false,
+          );
+        }
+
+        if (req.body.with_image == 'true') {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
+      limits: {
+        fileSize: 2 * 1024 * 1024,
+      },
+    }),
+    new ZodInterceptor(updateProductSharedSchema),
+  )
+  async updateResearch(
+    @Body() body: UpdateProductSharedDto,
+    @UploadedFile() thumbnail_research: Express.Multer.File,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.updateResearch(
+          body,
+          thumbnail_research,
+          req.fullurl,
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('/research/:research_id')
+  @HttpCode(HttpStatus.OK)
+  async deleteResearch(
+    @Param('research_id') research_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.deleteResearch(research_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/classmentor/:type')
+  @HttpCode(HttpStatus.OK)
+  async getClassMentor(
+    @Param('type') type: ClassMentorType,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getClassMentor(type),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/classmentor')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(classMentorSchema))
+  async createClassMentor(
+    @Body() body: CreateClassMentorDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.adminService.createClassMentor(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('/classmentor/:class_mentor_id')
+  @HttpCode(HttpStatus.OK)
+  async deleteClassMentor(
+    @Param('class_mentor_id') class_mentor_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.deleteClassMentor(class_mentor_id),
       };
     } catch (error) {
       throw error;
