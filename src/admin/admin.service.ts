@@ -20,12 +20,14 @@ import {
   ApprovedUserDto,
   CreateClassMentorDto,
   CreateMentorDto,
+  CreatePharmacistAdmissionDto,
   CreateProductSharedDto,
   CreateProgramsDto,
   CreateSubjectPrivateDto,
   CreateTestsDto,
   InviteUsersDto,
   UpdateMentorDto,
+  UpdatePharmacistAdmissionDto,
   UpdateProductSharedDto,
   UpdateProgramsDto,
   UpdateStatusProgramsDto,
@@ -2802,6 +2804,103 @@ export class AdminService {
     });
   }
 
+  async getTheses(query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_theses, theses] = await this.prisma.$transaction([
+      this.prisma.thesis.count(),
+      this.prisma.thesis.findMany({
+        select: {
+          thesis_id: true,
+          title: true,
+          description: true,
+          slug: true,
+          price: true,
+          link_order: true,
+          thumbnail_url: true,
+          thumbnail_type: true,
+          is_active: true,
+          created_at: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        take,
+        skip,
+      }),
+    ]);
+
+    return {
+      theses,
+      page: parseInt(query.page),
+      total_theses,
+      total_pages: Math.ceil(total_theses / take),
+    };
+  }
+
+  async getThesesBySearch(query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_theses, theses] = await this.prisma.$transaction([
+      this.prisma.thesis.count({
+        where: {
+          OR: [
+            {
+              title: {
+                contains: query.q,
+              },
+            },
+          ],
+        },
+      }),
+      this.prisma.thesis.findMany({
+        where: {
+          OR: [
+            {
+              title: {
+                contains: query.q,
+              },
+            },
+          ],
+        },
+        select: {
+          thesis_id: true,
+          title: true,
+          description: true,
+          slug: true,
+          price: true,
+          link_order: true,
+          thumbnail_url: true,
+          thumbnail_type: true,
+          is_active: true,
+          created_at: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        take,
+        skip,
+      }),
+    ]);
+
+    return {
+      theses,
+      page: parseInt(query.page),
+      total_theses,
+      total_pages: Math.ceil(total_theses / take),
+    };
+  }
+
   async createTheses(
     body: CreateProductSharedDto,
     file: Express.Multer.File,
@@ -2998,6 +3097,103 @@ export class AdminService {
         thesis_id: true,
       },
     });
+  }
+
+  async getResearch(query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_research, research] = await this.prisma.$transaction([
+      this.prisma.research.count(),
+      this.prisma.research.findMany({
+        select: {
+          research_id: true,
+          title: true,
+          description: true,
+          slug: true,
+          price: true,
+          link_order: true,
+          thumbnail_url: true,
+          thumbnail_type: true,
+          is_active: true,
+          created_at: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        take,
+        skip,
+      }),
+    ]);
+
+    return {
+      research,
+      page: parseInt(query.page),
+      total_research,
+      total_pages: Math.ceil(total_research / take),
+    };
+  }
+
+  async getResearchBySearch(query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_research, research] = await this.prisma.$transaction([
+      this.prisma.research.count({
+        where: {
+          OR: [
+            {
+              title: {
+                contains: query.q,
+              },
+            },
+          ],
+        },
+      }),
+      this.prisma.research.findMany({
+        where: {
+          OR: [
+            {
+              title: {
+                contains: query.q,
+              },
+            },
+          ],
+        },
+        select: {
+          research_id: true,
+          title: true,
+          description: true,
+          slug: true,
+          price: true,
+          link_order: true,
+          thumbnail_url: true,
+          thumbnail_type: true,
+          is_active: true,
+          created_at: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        take,
+        skip,
+      }),
+    ]);
+
+    return {
+      research,
+      page: parseInt(query.page),
+      total_research,
+      total_pages: Math.ceil(total_research / take),
+    };
   }
 
   async createResearch(
@@ -3273,6 +3469,244 @@ export class AdminService {
       },
       select: {
         class_mentor_id: true,
+      },
+    });
+  }
+
+  async getPharmacistAdmission(query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_pharmacist_admission, pharmacist_admission] =
+      await this.prisma.$transaction([
+        this.prisma.university.count(),
+        this.prisma.university.findMany({
+          select: {
+            university_id: true,
+            name: true,
+            description: true,
+            slug: true,
+            is_active: true,
+            img_url: true,
+            pa: {
+              select: {
+                pa_id: true,
+              },
+            },
+            created_at: true,
+          },
+          orderBy: {
+            created_at: 'desc',
+          },
+          take,
+          skip,
+        }),
+      ]);
+
+    return {
+      pharmacist_admission: pharmacist_admission.map((pa) => {
+        const total_class = pa.pa.length;
+        delete pa.pa;
+
+        return {
+          ...pa,
+          total_class,
+        };
+      }),
+      page: parseInt(query.page),
+      total_pharmacist_admission,
+      total_pages: Math.ceil(total_pharmacist_admission / take),
+    };
+  }
+
+  async getPharmacistAdmissionBySearch(query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_pharmacist_admission, pharmacist_admission] =
+      await this.prisma.$transaction([
+        this.prisma.university.count({
+          where: {
+            OR: [
+              {
+                name: {
+                  contains: query.q,
+                },
+              },
+            ],
+          },
+        }),
+        this.prisma.university.findMany({
+          where: {
+            OR: [
+              {
+                name: {
+                  contains: query.q,
+                },
+              },
+            ],
+          },
+          select: {
+            university_id: true,
+            name: true,
+            description: true,
+            slug: true,
+            is_active: true,
+            img_url: true,
+            pa: {
+              select: {
+                pa_id: true,
+              },
+            },
+            created_at: true,
+          },
+          orderBy: {
+            created_at: 'desc',
+          },
+          take,
+          skip,
+        }),
+      ]);
+
+    return {
+      pharmacist_admission: pharmacist_admission.map((pa) => {
+        const total_class = pa.pa.length;
+        delete pa.pa;
+
+        return {
+          ...pa,
+          total_class,
+        };
+      }),
+      page: parseInt(query.page),
+      total_pharmacist_admission,
+      total_pages: Math.ceil(total_pharmacist_admission / take),
+    };
+  }
+
+  async createPharmacistAdmission(
+    body: CreatePharmacistAdmissionDto,
+    file: Express.Multer.File,
+    fullurl: string,
+  ) {
+    if (
+      await this.prisma.university.count({
+        where: { slug: slug(body.name) },
+      })
+    ) {
+      throw new BadRequestException('Kelas sudah ada');
+    }
+
+    return this.prisma.university.create({
+      data: {
+        university_id: `ROUNI${random(10000, 99999)}`,
+        name: body.name,
+        slug: slug(body.name),
+        description: body.description,
+        img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+        created_by: body.by,
+        updated_by: body.by,
+      },
+      select: {
+        university_id: true,
+      },
+    });
+  }
+
+  async updatePharmacistAdmission(
+    body: UpdatePharmacistAdmissionDto,
+    file: Express.Multer.File,
+    fullurl: string,
+  ) {
+    const university = await this.prisma.university.findUnique({
+      where: {
+        university_id: body.university_id,
+      },
+      select: {
+        img_url: true,
+      },
+    });
+
+    if (!university) {
+      throw new NotFoundException('Kelas tidak ditemukan');
+    }
+
+    if (body.with_image == 'true') {
+      const pathname = new URL(university.img_url).pathname;
+      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+      if (existsSync(file_path)) {
+        await unlink(file_path);
+      }
+
+      return this.prisma.university.update({
+        where: {
+          university_id: body.university_id,
+        },
+        data: {
+          name: body.name,
+          slug: body.name ? slug(body.name) : undefined,
+          description: body.description,
+          img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          is_active: body.is_active == 'true',
+        },
+        select: {
+          university_id: true,
+        },
+      });
+    }
+
+    return this.prisma.university.update({
+      where: {
+        university_id: body.university_id,
+      },
+      data: {
+        name: body.name,
+        slug: body.name ? slug(body.name) : undefined,
+        description: body.description,
+        is_active: body.is_active == 'true',
+      },
+      select: {
+        university_id: true,
+      },
+    });
+  }
+
+  async deletePharmacistAdmission(university_id: string) {
+    const university = await this.prisma.university.findUnique({
+      where: {
+        university_id,
+      },
+      select: {
+        img_url: true,
+      },
+    });
+
+    if (!university) {
+      throw new NotFoundException('Data tidak ditemukan');
+    }
+
+    const pathname = new URL(university.img_url).pathname;
+    const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+    if (existsSync(file_path)) {
+      await unlink(file_path);
+    }
+
+    return this.prisma.university.delete({
+      where: {
+        university_id,
+      },
+      select: {
+        university_id: true,
       },
     });
   }
