@@ -2566,6 +2566,27 @@ export class AdminService {
     };
   }
 
+  getSubjectPreparationById(subject_id: string) {
+    return this.prisma.subject.findUnique({
+      where: {
+        subject_id,
+        subject_type: 'preparation',
+      },
+      select: {
+        subject_id: true,
+        title: true,
+        description: true,
+        slug: true,
+        price: true,
+        link_order: true,
+        thumbnail_url: true,
+        thumbnail_type: true,
+        is_active: true,
+        created_at: true,
+      },
+    });
+  }
+
   async createSubjectPrivate(body: CreateSubjectPrivateDto) {
     if (!body.subject_parts.length) {
       throw new BadRequestException('Minimal 1 data');
@@ -2781,6 +2802,35 @@ export class AdminService {
     };
   }
 
+  getSubjectPrivateById(subject_id: string) {
+    return this.prisma.subject.findUnique({
+      where: {
+        subject_id,
+        subject_type: 'private',
+      },
+      select: {
+        subject_id: true,
+        title: true,
+        description: true,
+        slug: true,
+        is_active: true,
+        created_at: true,
+        subject_part: {
+          select: {
+            subject_part_id: true,
+            price: true,
+            description: true,
+            link_order: true,
+            created_at: true,
+          },
+          orderBy: {
+            price: 'asc',
+          },
+        },
+      },
+    });
+  }
+
   async deleteSubjectPrivate(subject_id: string) {
     const subject = await this.prisma.subject.findUnique({
       where: {
@@ -2899,6 +2949,26 @@ export class AdminService {
       total_theses,
       total_pages: Math.ceil(total_theses / take),
     };
+  }
+
+  getThesesById(thesis_id: string) {
+    return this.prisma.thesis.findUnique({
+      where: {
+        thesis_id,
+      },
+      select: {
+        thesis_id: true,
+        title: true,
+        description: true,
+        slug: true,
+        price: true,
+        link_order: true,
+        thumbnail_url: true,
+        thumbnail_type: true,
+        is_active: true,
+        created_at: true,
+      },
+    });
   }
 
   async createTheses(
@@ -3194,6 +3264,26 @@ export class AdminService {
       total_research,
       total_pages: Math.ceil(total_research / take),
     };
+  }
+
+  getResearchById(research_id: string) {
+    return this.prisma.research.findUnique({
+      where: {
+        research_id,
+      },
+      select: {
+        research_id: true,
+        title: true,
+        description: true,
+        slug: true,
+        price: true,
+        link_order: true,
+        thumbnail_url: true,
+        thumbnail_type: true,
+        is_active: true,
+        created_at: true,
+      },
+    });
   }
 
   async createResearch(

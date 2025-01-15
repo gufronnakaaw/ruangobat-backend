@@ -896,6 +896,22 @@ export class AdminController {
     }
   }
 
+  @Get('/subjects/preparation/:subject_id')
+  @HttpCode(HttpStatus.OK)
+  async getSubjectPreparationById(
+    @Param('subject_id') subject_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getSubjectPreparationById(subject_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Delete('/subjects/preparation/:subject_id')
   @HttpCode(HttpStatus.OK)
   async deleteSubjectPreparation(
@@ -953,6 +969,22 @@ export class AdminController {
     }
   }
 
+  @Get('/subjects/private/:subject_id')
+  @HttpCode(HttpStatus.OK)
+  async getSubjectPrivateById(
+    @Param('subject_id') subject_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getSubjectPrivateById(subject_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Delete('/subjects/private/:subject_id')
   @HttpCode(HttpStatus.OK)
   async deleteSubjectPrivate(
@@ -985,6 +1017,22 @@ export class AdminController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.adminService.getTheses(query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/theses/:thesis_id')
+  @HttpCode(HttpStatus.OK)
+  async getThesesById(
+    @Param('thesis_id') thesis_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getThesesById(thesis_id),
       };
     } catch (error) {
       throw error;
@@ -1118,6 +1166,22 @@ export class AdminController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.adminService.getResearch(query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/research/:research_id')
+  @HttpCode(HttpStatus.OK)
+  async getResearchById(
+    @Param('research_id') research_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getResearchById(research_id),
       };
     } catch (error) {
       throw error;
