@@ -32,6 +32,7 @@ import {
   UpdateProgramsDto,
   UpdateStatusProgramsDto,
   UpdateStatusTestsDto,
+  UpdateSubjectPrivateDto,
   UpdateTestsDto,
   UpdateUserDto,
 } from './admin.dto';
@@ -2620,6 +2621,81 @@ export class AdminService {
     });
   }
 
+  async updateSubjectPrivate(body: UpdateSubjectPrivateDto) {
+    if (
+      !(await this.prisma.subject.count({
+        where: { subject_id: body.subject_id, subject_type: 'private' },
+      }))
+    ) {
+      throw new NotFoundException('Kelas tidak ditemukan');
+    }
+
+    if (!body.subject_parts || !body.subject_parts.length) {
+      return this.prisma.subject.update({
+        where: {
+          subject_id: body.subject_id,
+          subject_type: 'private',
+        },
+        data: {
+          title: body.title,
+          slug: body.title ? slug(body.title) : undefined,
+          subject_type: 'private',
+          description: body.description,
+          updated_by: body.by,
+        },
+        select: {
+          subject_id: true,
+        },
+      });
+    }
+
+    const promises = [];
+
+    for (const part of body.subject_parts) {
+      promises.push(
+        this.prisma.subjectPart.upsert({
+          where: {
+            subject_part_id: part.subject_part_id,
+          },
+          create: {
+            subject_id: body.subject_id,
+            subject_part_id: `ROSBJP${random(1000, 9999)}`,
+            description: part.description,
+            price: part.price,
+            link_order: part.link_order,
+            created_by: body.by,
+            updated_by: body.by,
+          },
+          update: {
+            description: part.description,
+            price: part.price,
+            link_order: part.link_order,
+            updated_by: body.by,
+          },
+        }),
+      );
+    }
+
+    await Promise.all(promises);
+
+    return this.prisma.subject.update({
+      where: {
+        subject_id: body.subject_id,
+        subject_type: 'private',
+      },
+      data: {
+        title: body.title,
+        slug: body.title ? slug(body.title) : undefined,
+        subject_type: 'private',
+        description: body.description,
+        updated_by: body.by,
+      },
+      select: {
+        subject_id: true,
+      },
+    });
+  }
+
   async deleteSubjectPreparation(subject_id: string) {
     const subject = await this.prisma.subject.findUnique({
       where: {
@@ -2832,7 +2908,7 @@ export class AdminService {
   }
 
   async deleteSubjectPrivate(subject_id: string) {
-    const subject = await this.prisma.subject.findUnique({
+    const subject = await this.prisma.subject.count({
       where: {
         subject_type: 'private',
         subject_id,
@@ -2850,6 +2926,38 @@ export class AdminService {
       },
       select: {
         subject_id: true,
+      },
+    });
+  }
+
+  async deleteSubjectPartPrivate(subject_id: string, subject_part_id: string) {
+    const subject = await this.prisma.subject.count({
+      where: {
+        subject_type: 'private',
+        subject_id,
+      },
+    });
+
+    if (!subject) {
+      throw new NotFoundException('Kelas tidak ditemukan');
+    }
+
+    const subject_part = await this.prisma.subjectPart.count({
+      where: {
+        subject_part_id,
+      },
+    });
+
+    if (!subject_part) {
+      throw new NotFoundException('Produk tidak ditemukan');
+    }
+
+    return this.prisma.subjectPart.delete({
+      where: {
+        subject_part_id,
+      },
+      select: {
+        subject_part_id: true,
       },
     });
   }

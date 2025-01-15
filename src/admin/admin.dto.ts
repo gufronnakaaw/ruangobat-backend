@@ -290,6 +290,42 @@ export type CreateSubjectPrivateDto = z.infer<
   typeof createSubjectPrivateSchema
 >;
 
+export const updateSubjectPrivateSchema = z.object({
+  subject_id: z.string(),
+  title: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' '))
+    .optional(),
+  description: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' '))
+    .optional(),
+  by: z.string(),
+  subject_parts: z
+    .array(
+      z.object({
+        subject_part_id: z.string(),
+        description: z
+          .string()
+          .min(1, { message: 'Title wajib diisi' })
+          .trim()
+          .transform((val) => val.replace(/\s+/g, ' '))
+          .optional(),
+        price: z.number().optional(),
+        link_order: z.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+export type UpdateSubjectPrivateDto = z.infer<
+  typeof updateSubjectPrivateSchema
+>;
+
 export const classMentorSchema = z.object({
   type: z.enum([
     'preparation',

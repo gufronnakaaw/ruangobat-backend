@@ -54,6 +54,8 @@ import {
   updateStatusProgramsSchema,
   UpdateStatusTestsDto,
   updateStatusTestsSchema,
+  UpdateSubjectPrivateDto,
+  updateSubjectPrivateSchema,
   UpdateTestsDto,
   updateTestsSchema,
   UpdateUserDto,
@@ -985,6 +987,23 @@ export class AdminController {
     }
   }
 
+  @Patch('/subjects/private')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(updateSubjectPrivateSchema))
+  async updateSubjectPrivate(
+    @Body() body: UpdateSubjectPrivateDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.updateSubjectPrivate(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Delete('/subjects/private/:subject_id')
   @HttpCode(HttpStatus.OK)
   async deleteSubjectPrivate(
@@ -995,6 +1014,32 @@ export class AdminController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.adminService.deleteSubjectPrivate(subject_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('/subjects/private/parts/:subject_id/:subject_part_id')
+  @HttpCode(HttpStatus.OK)
+  async deleteSubjectPartPrivate(
+    @Param()
+    {
+      subject_id,
+      subject_part_id,
+    }: {
+      subject_id: string;
+      subject_part_id: string;
+    },
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.deleteSubjectPartPrivate(
+          subject_id,
+          subject_part_id,
+        ),
       };
     } catch (error) {
       throw error;
