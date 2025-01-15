@@ -262,7 +262,6 @@ export class GeneralService {
 
   async getHomepageData() {
     return {
-      classes: [],
       mentors: await this.getMentors(),
     };
   }
@@ -503,11 +502,15 @@ export class GeneralService {
       where: {
         slug,
       },
+      select: {
+        university_id: true,
+        name: true,
+        description: true,
+        img_url: true,
+      },
     });
 
-    if (!university) {
-      throw new NotFoundException('Kelas tidak ditemukan');
-    }
+    if (!university) return { pharmacist_admissions: [], mentors: [] };
 
     const [pharmacist_admissions, mentors] = await this.prisma.$transaction([
       this.prisma.pharmacistAdmission.findMany({
@@ -527,11 +530,6 @@ export class GeneralService {
           thumbnail_type: true,
           slug: true,
           created_at: true,
-          university: {
-            select: {
-              name: true,
-            },
-          },
         },
         orderBy: {
           created_at: 'desc',
@@ -557,6 +555,7 @@ export class GeneralService {
     ]);
 
     return {
+      ...university,
       pharmacist_admissions,
       mentors: mentors.map((mentor) => {
         return {
