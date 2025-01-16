@@ -334,7 +334,7 @@ export const classMentorSchema = z.object({
     'research',
     'pharmacist_admission',
   ]),
-  mentor_id: z.string(),
+  mentors: z.array(z.string()),
   by: z.string(),
 });
 

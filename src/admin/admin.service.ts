@@ -3632,26 +3632,25 @@ export class AdminService {
   }
 
   async createClassMentor(body: CreateClassMentorDto) {
-    const mentor = await this.prisma.mentor.count({
-      where: { mentor_id: body.mentor_id },
-    });
+    const promises = [];
 
-    if (!mentor) {
-      throw new NotFoundException('Mentor tidak ditemukan');
+    for (const mentor of body.mentors) {
+      promises.push(
+        this.prisma.classMentor.create({
+          data: {
+            class_mentor_id: `ROCM${random(10000, 99999)}`,
+            mentor_id: mentor,
+            type: body.type,
+            created_by: body.by,
+            updated_by: body.by,
+          },
+        }),
+      );
     }
 
-    return this.prisma.classMentor.create({
-      data: {
-        class_mentor_id: `ROCM${random(10000, 99999)}`,
-        mentor_id: body.mentor_id,
-        type: body.type,
-        created_by: body.by,
-        updated_by: body.by,
-      },
-      select: {
-        class_mentor_id: true,
-      },
-    });
+    await Promise.all(promises);
+
+    return body.mentors;
   }
 
   async deleteClassMentor(class_mentor_id: string) {
