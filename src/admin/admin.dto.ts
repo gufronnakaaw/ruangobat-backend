@@ -215,6 +215,7 @@ export const updateMentorSchema = z.object({
 export type UpdateMentorDto = z.infer<typeof updateMentorSchema>;
 
 export const createProductSharedSchema = z.object({
+  university_id: z.string().optional(),
   title: z
     .string()
     .min(1, { message: 'Title wajib diisi' })
@@ -238,6 +239,7 @@ export const updateProductSharedSchema = z.object({
   subject_id: z.string().optional(),
   thesis_id: z.string().optional(),
   research_id: z.string().optional(),
+  pa_id: z.string().optional(),
   title: z
     .string()
     .min(1, { message: 'Title wajib diisi' })

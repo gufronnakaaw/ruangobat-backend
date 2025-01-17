@@ -1527,4 +1527,157 @@ export class AdminController {
       throw error;
     }
   }
+
+  @Get('/pharmacistadmission/products')
+  @HttpCode(HttpStatus.OK)
+  async getPharmacistAdmissionProducts(
+    @Query() query: AdminQuery,
+  ): Promise<SuccessResponse> {
+    try {
+      if (query.q) {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: await this.adminService.getPharmacistAdmissionProductsBySearch(
+            query,
+          ),
+        };
+      }
+
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getPharmacistAdmissionProducts(query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/pharmacistadmission/products/:pa_id')
+  @HttpCode(HttpStatus.OK)
+  async getPharmacistAdmissionProductById(
+    @Param('pa_id') pa_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getPharmacistAdmissionProductById(pa_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/pharmacistadmission/products')
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(
+    FileInterceptor('thumbnail_pa', {
+      storage: diskStorage({
+        destination: './public/pharmacistadmission',
+        filename(req, file, callback) {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+      fileFilter(req, file, callback) {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+          return callback(
+            new BadRequestException('Hanya gambar yang diperbolehkan'),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: 2 * 1024 * 1024,
+      },
+    }),
+    new ZodInterceptor(createProductSharedSchema),
+  )
+  async createPaProduct(
+    @Body() body: CreateProductSharedDto,
+    @UploadedFile() thumbnail_pa: Express.Multer.File,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.adminService.createPaProduct(
+          body,
+          thumbnail_pa,
+          req.fullurl,
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Patch('/pharmacistadmission/products')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FileInterceptor('thumbnail_pa', {
+      storage: diskStorage({
+        destination: './public/pharmacistadmission',
+        filename(req, file, callback) {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+      fileFilter(req, file, callback) {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+          return callback(
+            new BadRequestException('Hanya gambar yang diperbolehkan'),
+            false,
+          );
+        }
+
+        if (req.body.with_image == 'true') {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
+      limits: {
+        fileSize: 2 * 1024 * 1024,
+      },
+    }),
+    new ZodInterceptor(updateProductSharedSchema),
+  )
+  async updatePaProduct(
+    @Body() body: UpdateProductSharedDto,
+    @UploadedFile() thumbnail_pa: Express.Multer.File,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.updatePaProduct(
+          body,
+          thumbnail_pa,
+          req.fullurl,
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('/pharmacistadmission/products/:pa_id')
+  @HttpCode(HttpStatus.OK)
+  async deletePharmacistAdmissionProduct(
+    @Param('pa_id') pa_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.deletePharmacistAdmissionProduct(pa_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }

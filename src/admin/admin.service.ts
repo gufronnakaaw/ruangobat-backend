@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -3464,15 +3465,6 @@ export class AdminService {
       if (existsSync(file_path)) {
         await unlink(file_path);
       }
-
-      return this.prisma.research.delete({
-        where: {
-          research_id,
-        },
-        select: {
-          research_id: true,
-        },
-      });
     }
 
     return this.prisma.research.delete({
@@ -3904,6 +3896,334 @@ export class AdminService {
       },
       select: {
         university_id: true,
+      },
+    });
+  }
+
+  async getPharmacistAdmissionProducts(query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_pa_products, pa_products] = await this.prisma.$transaction([
+      this.prisma.pharmacistAdmission.count(),
+      this.prisma.pharmacistAdmission.findMany({
+        select: {
+          pa_id: true,
+          title: true,
+          description: true,
+          slug: true,
+          price: true,
+          link_order: true,
+          thumbnail_url: true,
+          thumbnail_type: true,
+          is_active: true,
+          created_at: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        take,
+        skip,
+      }),
+    ]);
+
+    return {
+      pa_products,
+      page: parseInt(query.page),
+      total_pa_products,
+      total_pages: Math.ceil(total_pa_products / take),
+    };
+  }
+
+  async getPharmacistAdmissionProductsBySearch(query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
+
+    const [total_pa_products, pa_products] = await this.prisma.$transaction([
+      this.prisma.pharmacistAdmission.count({
+        where: {
+          OR: [
+            {
+              title: {
+                contains: query.q,
+              },
+            },
+          ],
+        },
+      }),
+      this.prisma.pharmacistAdmission.findMany({
+        where: {
+          OR: [
+            {
+              title: {
+                contains: query.q,
+              },
+            },
+          ],
+        },
+        select: {
+          pa_id: true,
+          title: true,
+          description: true,
+          slug: true,
+          price: true,
+          link_order: true,
+          thumbnail_url: true,
+          thumbnail_type: true,
+          is_active: true,
+          created_at: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        take,
+        skip,
+      }),
+    ]);
+
+    return {
+      pa_products,
+      page: parseInt(query.page),
+      total_pa_products,
+      total_pages: Math.ceil(total_pa_products / take),
+    };
+  }
+
+  async getPharmacistAdmissionProductById(pa_id: string) {
+    return this.prisma.pharmacistAdmission.findUnique({
+      where: {
+        pa_id,
+      },
+      select: {
+        pa_id: true,
+        title: true,
+        description: true,
+        slug: true,
+        price: true,
+        link_order: true,
+        thumbnail_url: true,
+        thumbnail_type: true,
+        is_active: true,
+        created_at: true,
+      },
+    });
+  }
+
+  async createPaProduct(
+    body: CreateProductSharedDto,
+    file: Express.Multer.File,
+    fullurl: string,
+  ) {
+    if (!body.university_id) {
+      throw new BadRequestException('Universitas ID tidak ditemukan');
+    }
+
+    if (
+      !(await this.prisma.university.count({
+        where: { university_id: body.university_id },
+      }))
+    ) {
+      throw new NotFoundException('Universitas tidak ditemukan');
+    }
+
+    if (
+      await this.prisma.pharmacistAdmission.count({
+        where: { slug: slug(body.title) },
+      })
+    ) {
+      throw new ConflictException('Kelas sudah ada');
+    }
+
+    if (body.thumbnail_type == 'image') {
+      return this.prisma.pharmacistAdmission.create({
+        data: {
+          pa_id: `ROPAP${random(10000, 99999)}`,
+          university_id: body.university_id,
+          title: body.title,
+          slug: slug(body.title),
+          link_order: body.link_order,
+          description: body.description,
+          price: parseInt(body.price),
+          thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          thumbnail_type: 'image',
+          created_by: body.by,
+          updated_by: body.by,
+        },
+        select: {
+          pa_id: true,
+        },
+      });
+    }
+
+    if (file && existsSync(file.path)) {
+      await unlink(file.path);
+    }
+
+    return this.prisma.pharmacistAdmission.create({
+      data: {
+        pa_id: `ROPAP${random(10000, 99999)}`,
+        university_id: body.university_id,
+        title: body.title,
+        slug: slug(body.title),
+        link_order: body.link_order,
+        description: body.description,
+        price: parseInt(body.price),
+        thumbnail_url: body.video_url,
+        thumbnail_type: 'video',
+        created_by: body.by,
+        updated_by: body.by,
+      },
+      select: {
+        pa_id: true,
+      },
+    });
+  }
+
+  async updatePaProduct(
+    body: UpdateProductSharedDto,
+    file: Express.Multer.File,
+    fullurl: string,
+  ) {
+    if (!body.pa_id) {
+      throw new BadRequestException('Kelas ID tidak ditemukan');
+    }
+
+    const pa = await this.prisma.pharmacistAdmission.findUnique({
+      where: {
+        pa_id: body.pa_id,
+      },
+      select: {
+        thumbnail_url: true,
+        thumbnail_type: true,
+      },
+    });
+
+    if (!pa) {
+      throw new NotFoundException('Kelas tidak ditemukan');
+    }
+
+    if (body.thumbnail_type == 'image') {
+      if (body.with_image == 'true') {
+        if (pa.thumbnail_type == 'image') {
+          const pathname = new URL(pa.thumbnail_url).pathname;
+          const file_path = pathname.startsWith('/')
+            ? pathname.slice(1)
+            : pathname;
+
+          if (existsSync(file_path)) {
+            await unlink(file_path);
+          }
+        }
+
+        return this.prisma.pharmacistAdmission.update({
+          where: {
+            pa_id: body.pa_id,
+          },
+          data: {
+            title: body.title,
+            slug: body.title ? slug(body.title) : undefined,
+            link_order: body.link_order,
+            description: body.description,
+            price: body.price ? parseInt(body.price) : undefined,
+            thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+            thumbnail_type: 'image',
+            updated_by: body.by,
+            is_active: body.is_active == 'true',
+          },
+          select: {
+            pa_id: true,
+          },
+        });
+      }
+
+      return this.prisma.pharmacistAdmission.update({
+        where: {
+          pa_id: body.pa_id,
+        },
+        data: {
+          title: body.title,
+          slug: body.title ? slug(body.title) : undefined,
+          link_order: body.link_order,
+          description: body.description,
+          price: body.price ? parseInt(body.price) : undefined,
+          thumbnail_type: 'image',
+          updated_by: body.by,
+          is_active: body.is_active == 'true',
+        },
+        select: {
+          pa_id: true,
+        },
+      });
+    }
+
+    if (pa.thumbnail_type == 'image') {
+      const pathname = new URL(pa.thumbnail_url).pathname;
+      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+      if (existsSync(file_path)) {
+        await unlink(file_path);
+      }
+    }
+
+    return this.prisma.pharmacistAdmission.update({
+      where: {
+        pa_id: body.pa_id,
+      },
+      data: {
+        title: body.title,
+        slug: body.title ? slug(body.title) : undefined,
+        link_order: body.link_order,
+        description: body.description,
+        price: body.price ? parseInt(body.price) : undefined,
+        thumbnail_type: 'video',
+        thumbnail_url: body.video_url,
+        updated_by: body.by,
+        is_active: body.is_active == 'true',
+      },
+      select: {
+        pa_id: true,
+      },
+    });
+  }
+
+  async deletePharmacistAdmissionProduct(pa_id: string) {
+    const pa = await this.prisma.pharmacistAdmission.findUnique({
+      where: {
+        pa_id,
+      },
+      select: {
+        thumbnail_url: true,
+        thumbnail_type: true,
+      },
+    });
+
+    if (!pa) {
+      throw new NotFoundException('Kelas tidak ditemukan');
+    }
+
+    if (pa.thumbnail_type == 'image') {
+      const pathname = new URL(pa.thumbnail_url).pathname;
+      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+
+      if (existsSync(file_path)) {
+        await unlink(file_path);
+      }
+    }
+
+    return this.prisma.pharmacistAdmission.delete({
+      where: {
+        pa_id,
+      },
+      select: {
+        pa_id: true,
       },
     });
   }
