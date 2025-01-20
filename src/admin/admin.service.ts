@@ -3781,6 +3781,23 @@ export class AdminService {
     };
   }
 
+  getPharmacistAdmissionById(university_id: string) {
+    return this.prisma.university.findUnique({
+      where: {
+        university_id,
+      },
+      select: {
+        university_id: true,
+        name: true,
+        description: true,
+        slug: true,
+        is_active: true,
+        img_url: true,
+        created_at: true,
+      },
+    });
+  }
+
   async createPharmacistAdmission(
     body: CreatePharmacistAdmissionDto,
     file: Express.Multer.File,

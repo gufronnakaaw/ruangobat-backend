@@ -1512,6 +1512,22 @@ export class AdminController {
     }
   }
 
+  @Get('/pharmacistadmission/:university_id')
+  @HttpCode(HttpStatus.OK)
+  async getPharmacistAdmissionById(
+    @Param('university_id') university_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.getPharmacistAdmissionById(university_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Delete('/pharmacistadmission/:university_id')
   @HttpCode(HttpStatus.OK)
   async deletePharmacistAdmission(
