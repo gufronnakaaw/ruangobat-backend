@@ -1544,7 +1544,7 @@ export class AdminController {
     }
   }
 
-  @Get('/pharmacistadmission/products')
+  @Get('/pa/products')
   @HttpCode(HttpStatus.OK)
   async getPharmacistAdmissionProducts(
     @Query() query: AdminQuery,
@@ -1570,7 +1570,7 @@ export class AdminController {
     }
   }
 
-  @Get('/pharmacistadmission/products/:pa_id')
+  @Get('/pa/products/:pa_id')
   @HttpCode(HttpStatus.OK)
   async getPharmacistAdmissionProductById(
     @Param('pa_id') pa_id: string,
@@ -1586,7 +1586,7 @@ export class AdminController {
     }
   }
 
-  @Post('/pharmacistadmission/products')
+  @Post('/pa/products')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(
     FileInterceptor('thumbnail_pa', {
@@ -1631,7 +1631,7 @@ export class AdminController {
     }
   }
 
-  @Patch('/pharmacistadmission/products')
+  @Patch('/pa/products')
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
     FileInterceptor('thumbnail_pa', {
@@ -1681,7 +1681,7 @@ export class AdminController {
     }
   }
 
-  @Delete('/pharmacistadmission/products/:pa_id')
+  @Delete('/pa/products/:pa_id')
   @HttpCode(HttpStatus.OK)
   async deletePharmacistAdmissionProduct(
     @Param('pa_id') pa_id: string,
