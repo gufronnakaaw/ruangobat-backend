@@ -213,3 +213,161 @@ export const updateMentorSchema = z.object({
 });
 
 export type UpdateMentorDto = z.infer<typeof updateMentorSchema>;
+
+export const createProductSharedSchema = z.object({
+  university_id: z.string().optional(),
+  title: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' ')),
+  description: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' ')),
+  thumbnail_type: z.enum(['video', 'image']),
+  by: z.string(),
+  price: z.string(),
+  link_order: z.string(),
+  video_url: z.string().optional(),
+});
+
+export type CreateProductSharedDto = z.infer<typeof createProductSharedSchema>;
+
+export const updateProductSharedSchema = z.object({
+  subject_id: z.string().optional(),
+  thesis_id: z.string().optional(),
+  research_id: z.string().optional(),
+  pa_id: z.string().optional(),
+  title: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' '))
+    .optional(),
+  description: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' '))
+    .optional(),
+  thumbnail_type: z.enum(['video', 'image']).optional(),
+  with_image: z.enum(['true', 'false']),
+  is_active: z.enum(['true', 'false']).optional(),
+  by: z.string(),
+  price: z.string().optional(),
+  link_order: z.string().optional(),
+  video_url: z.string().optional(),
+});
+
+export type UpdateProductSharedDto = z.infer<typeof updateProductSharedSchema>;
+
+export const createSubjectPrivateSchema = z.object({
+  title: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' ')),
+  description: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' ')),
+  by: z.string(),
+  subject_parts: z.array(
+    z.object({
+      description: z
+        .string()
+        .min(1, { message: 'Title wajib diisi' })
+        .trim()
+        .transform((val) => val.replace(/\s+/g, ' ')),
+      price: z.number(),
+      link_order: z.string(),
+    }),
+  ),
+});
+
+export type CreateSubjectPrivateDto = z.infer<
+  typeof createSubjectPrivateSchema
+>;
+
+export const updateSubjectPrivateSchema = z.object({
+  subject_id: z.string(),
+  title: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' '))
+    .optional(),
+  description: z
+    .string()
+    .min(1, { message: 'Title wajib diisi' })
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' '))
+    .optional(),
+  by: z.string(),
+  subject_parts: z
+    .array(
+      z.object({
+        subject_part_id: z.string(),
+        description: z
+          .string()
+          .min(1, { message: 'Title wajib diisi' })
+          .trim()
+          .transform((val) => val.replace(/\s+/g, ' '))
+          .optional(),
+        price: z.number().optional(),
+        link_order: z.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+export type UpdateSubjectPrivateDto = z.infer<
+  typeof updateSubjectPrivateSchema
+>;
+
+export const classMentorSchema = z.object({
+  type: z.enum([
+    'preparation',
+    'private',
+    'thesis',
+    'research',
+    'pharmacist_admission',
+  ]),
+  mentors: z.array(z.string()),
+  by: z.string(),
+});
+
+export type CreateClassMentorDto = z.infer<typeof classMentorSchema>;
+
+export type ClassMentorType =
+  | 'preparation'
+  | 'private'
+  | 'thesis'
+  | 'research'
+  | 'pharmacist_admission';
+
+export const createPharmacistAdmissionSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  by: z.string(),
+});
+
+export type CreatePharmacistAdmissionDto = z.infer<
+  typeof createPharmacistAdmissionSchema
+>;
+
+export const updatePharmacistAdmissionSchema = z.object({
+  university_id: z.string(),
+  with_image: z.enum(['true', 'false']),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  is_active: z.enum(['true', 'false']),
+  by: z.string(),
+});
+
+export type UpdatePharmacistAdmissionDto = z.infer<
+  typeof updatePharmacistAdmissionSchema
+>;

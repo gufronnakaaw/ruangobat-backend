@@ -296,5 +296,172 @@ model Mentor {
   created_by       String         
   updated_by       String    
 
+  class_mentor     ClassMentor[]
+
   @@map("mentor")    
 }
+
+enum ThumbnailType {
+  video
+  image
+}
+
+enum SubjectType {
+  preparation
+  private
+}
+
+model Subject {
+  id               Int              @id               @default(autoincrement())
+  subject_id       String           @unique 
+  title            String
+  slug             String           @unique 
+  description      String           @db.Text
+  thumbnail_url    String?
+  thumbnail_type   ThumbnailType?
+  price            Int?             @db.UnsignedInt
+  link_order       String?
+  subject_type     SubjectType
+  is_active        Boolean          @default(true)
+  
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String         
+  updated_by       String  
+
+  subject_part     SubjectPart[] 
+
+  @@map("subject")
+}
+
+model SubjectPart {
+  id               Int              @id               @default(autoincrement())
+  subject_part_id  String           @unique 
+  subject_id       String 
+  description      String           @db.Text
+  price            Int              @db.UnsignedInt
+  link_order       String
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String         
+  updated_by       String 
+
+  subject          Subject          @relation(fields: [subject_id], references: [subject_id], onDelete: Cascade)
+
+  @@map("subject_part")
+}
+
+model Thesis {
+  id               Int              @id               @default(autoincrement())
+  thesis_id        String           @unique 
+  title            String
+  slug             String           @unique 
+  description      String           @db.Text
+  thumbnail_url    String?
+  thumbnail_type   ThumbnailType?
+  price            Int              @db.UnsignedInt
+  link_order       String
+  is_active        Boolean          @default(true)
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String         
+  updated_by       String 
+
+  @@map("thesis")
+}
+
+model Research {
+  id               Int              @id               @default(autoincrement())
+  research_id      String           @unique 
+  title            String
+  slug             String           @unique 
+  description      String           @db.Text
+  thumbnail_url    String?
+  thumbnail_type   ThumbnailType?
+  price            Int              @db.UnsignedInt
+  link_order       String
+  is_active        Boolean          @default(true)
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String         
+  updated_by       String 
+
+  @@map("research")
+}
+
+model University {
+  id               Int              @id               @default(autoincrement())
+  university_id    String           @unique
+  name             String
+  slug             String           @unique
+  description      String?          @db.Text
+  img_url          String
+  is_active        Boolean          @default(true)
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String         
+  updated_by       String
+  
+  pa               PharmacistAdmission[]
+
+  @@map("university")
+}
+
+model PharmacistAdmission {
+  id               Int              @id               @default(autoincrement())
+  pa_id            String           @unique
+  university_id    String
+  title            String
+  slug             String
+  description      String           @db.Text
+  thumbnail_url    String?
+  thumbnail_type   ThumbnailType?
+  price            Int              @db.UnsignedInt
+  link_order       String
+  is_active        Boolean          @default(true)
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String         
+  updated_by       String 
+
+  university       University       @relation(fields: [university_id], references: [university_id], onDelete: Cascade)
+
+  @@map("pharmacist_admission")
+}
+
+enum ClassMentorType {
+  preparation
+  private
+  thesis
+  research
+  pharmacist_admission
+}
+
+model ClassMentor {
+  id               Int              @id               @default(autoincrement())
+  class_mentor_id  String           @unique
+  type             ClassMentorType
+  mentor_id        String
+
+  mentor           Mentor           @relation(fields: [mentor_id], references: [mentor_id], onDelete: Cascade)
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String         
+  updated_by       String
+
+  @@map("class_mentor")
+}
+
