@@ -408,6 +408,7 @@ export class ProgramsService {
         return {
           ...all,
           has_result: Boolean(results.length),
+          remaining_tests: 3 - results.length,
           result_id: Boolean(results.length) ? results[0].result_id : null,
           status,
         };

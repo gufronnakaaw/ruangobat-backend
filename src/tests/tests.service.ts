@@ -80,6 +80,7 @@ export class TestsService {
       total_questions: questions.length,
       has_start: start_test ? true : false,
       has_result: Boolean(result.length) ? result[0].result_id : false,
+      remaining_tests: 3 - result.length,
       end_time: start_test ? start_test.end_time : null,
       status,
     };
