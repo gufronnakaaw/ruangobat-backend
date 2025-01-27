@@ -209,11 +209,35 @@ export class TestsService {
             },
           },
         },
+        test_id: true,
       },
     });
 
     if (!test) {
       throw new NotFoundException('Test tidak ditemukan');
+    }
+
+    const start = await this.prisma.start.findUnique({
+      where: {
+        user_id_test_id: {
+          test_id: test.test_id,
+          user_id,
+        },
+      },
+      select: {
+        end_time: true,
+      },
+    });
+
+    if (start) {
+      await this.prisma.start.delete({
+        where: {
+          user_id_test_id: {
+            test_id: test.test_id,
+            user_id,
+          },
+        },
+      });
     }
 
     const questions = test.questions;
