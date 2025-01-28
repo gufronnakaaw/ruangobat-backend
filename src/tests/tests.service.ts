@@ -80,6 +80,7 @@ export class TestsService {
       total_questions: questions.length,
       has_start: start_test ? true : false,
       has_result: Boolean(result.length) ? result[0].result_id : false,
+      remaining_tests: 3 - result.length,
       end_time: start_test ? start_test.end_time : null,
       status,
     };
@@ -208,11 +209,35 @@ export class TestsService {
             },
           },
         },
+        test_id: true,
       },
     });
 
     if (!test) {
       throw new NotFoundException('Test tidak ditemukan');
+    }
+
+    const start = await this.prisma.start.findUnique({
+      where: {
+        user_id_test_id: {
+          test_id: test.test_id,
+          user_id,
+        },
+      },
+      select: {
+        end_time: true,
+      },
+    });
+
+    if (start) {
+      await this.prisma.start.delete({
+        where: {
+          user_id_test_id: {
+            test_id: test.test_id,
+            user_id,
+          },
+        },
+      });
     }
 
     const questions = test.questions;
