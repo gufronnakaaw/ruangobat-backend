@@ -81,9 +81,9 @@ export class GeneralService {
         },
       }),
       this.mailerService.sendMail({
-        from: `IT Ruang Obat <${process.env.EMAIL_USERNAME}>`,
+        from: `Ruang Obat <${process.env.EMAIL_ALIAS_ONE}>`,
         to: user.email,
-        subject: 'OTP',
+        subject: 'Verification Code (OTP)',
         html: template,
       }),
     ]);
@@ -114,9 +114,9 @@ export class GeneralService {
         },
       }),
       this.mailerService.sendMail({
-        from: `IT Ruang Obat <${process.env.EMAIL_USERNAME}>`,
+        from: `Ruang Obat <${process.env.EMAIL_ALIAS_ONE}>`,
         to: email,
-        subject: 'OTP',
+        subject: 'Verification Code (OTP)',
         html: template,
       }),
     ]);
