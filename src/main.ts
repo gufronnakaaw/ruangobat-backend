@@ -1,3 +1,5 @@
+import './instrument';
+
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';

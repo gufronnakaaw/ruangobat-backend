@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { Prisma } from '@prisma/client';
+import { SentryExceptionCaptured } from '@sentry/nestjs';
 import { ZodError } from 'zod';
 import { ErrorResponse } from './global.response';
 
@@ -14,6 +15,7 @@ import { ErrorResponse } from './global.response';
 export class GlobalExceptionFilter implements ExceptionFilter {
   constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
 
+  @SentryExceptionCaptured()
   catch(exception: unknown, host: ArgumentsHost) {
     const { httpAdapter } = this.httpAdapterHost;
     const ctx = host.switchToHttp();

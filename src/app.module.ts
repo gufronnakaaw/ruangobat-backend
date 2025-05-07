@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { SentryModule } from '@sentry/nestjs/setup';
 import { join } from 'path';
 import { AdminModule } from './admin/admin.module';
 import { AdminsModule } from './admins/admins.module';
@@ -19,6 +20,7 @@ import { GlobalMiddleware } from './utils/global/global.middleware';
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ConfigModule.forRoot(),
     JwtModule.register({
       global: true,
