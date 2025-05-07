@@ -19,6 +19,13 @@ export const userUpdateSchema = z.object({
     .transform((val) => val.replace(/\s+/g, ' '))
     .optional(),
   gender: z.enum(['M', 'F']).optional(),
+  email: z.string().email({ message: 'Email tidak valid' }).optional(),
 });
 
 export type UserUpdateDto = z.infer<typeof userUpdateSchema>;
+
+export const userVerifyEmailSchema = z.object({
+  otp_code: z.string().min(6, { message: 'OTP tidak valid' }),
+});
+
+export type UserVerifyEmailDto = z.infer<typeof userVerifyEmailSchema>;
