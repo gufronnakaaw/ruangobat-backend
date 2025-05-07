@@ -7,7 +7,6 @@ import {
 import { random } from 'lodash';
 import ShortUniqueId from 'short-unique-id';
 import { decryptString, encryptString } from 'src/utils/crypto.util';
-import { maskEmail } from 'src/utils/masking.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import { UserUpdateDto } from './my.dto';
 
@@ -35,7 +34,7 @@ export class MyService {
 
     return {
       ...user,
-      email: maskEmail(decryptString(user.email, process.env.ENCRYPT_KEY)),
+      email: decryptString(user.email, process.env.ENCRYPT_KEY),
       phone_number: decryptString(user.phone_number, process.env.ENCRYPT_KEY),
     };
   }
