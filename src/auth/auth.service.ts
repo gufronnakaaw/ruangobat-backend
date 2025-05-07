@@ -187,6 +187,7 @@ export class AuthService {
         user_id: true,
         fullname: true,
         gender: true,
+        is_verified: true,
       },
     });
 
@@ -232,6 +233,7 @@ export class AuthService {
       fullname: user.fullname,
       expired,
       gender: user.gender,
+      is_verified: user.is_verified,
       access_token: await this.jwtService.signAsync(
         {
           user_id: user.user_id,
