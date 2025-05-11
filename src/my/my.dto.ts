@@ -22,3 +22,23 @@ export const userUpdateSchema = z.object({
 });
 
 export type UserUpdateDto = z.infer<typeof userUpdateSchema>;
+
+export const userSendEmailSchema = z.object({
+  type: z.enum(['input', 'db']),
+  email: z.string().email().optional(),
+});
+
+export type UserSendEmailDto = z.infer<typeof userSendEmailSchema>;
+
+export const userVerifyEmailSchema = z.object({
+  otp_code: z.string().min(6, { message: 'OTP tidak valid' }),
+});
+
+export type UserVerifyEmailDto = z.infer<typeof userVerifyEmailSchema>;
+
+export const userChangeEmailSchema = z.object({
+  email: z.string().email(),
+  otp_code: z.string().min(6, { message: 'OTP tidak valid' }),
+});
+
+export type UserChangeEmailDto = z.infer<typeof userChangeEmailSchema>;

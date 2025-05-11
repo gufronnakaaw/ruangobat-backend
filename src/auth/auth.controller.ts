@@ -26,8 +26,6 @@ import {
   userLoginSchema,
   UserRegisterDto,
   userRegisterSchema,
-  UserRegisterTemporaryDto,
-  userRegisterTemporarySchema,
 } from './auth.dto';
 import { AuthService } from './auth.service';
 
@@ -77,23 +75,6 @@ export class AuthController {
         success: true,
         status_code: HttpStatus.CREATED,
         data: await this.authService.userRegister(body),
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  @Post('/register/users/temporary')
-  @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(userRegisterTemporarySchema))
-  async usersRegisterTemporary(
-    @Body() body: UserRegisterTemporaryDto,
-  ): Promise<SuccessResponse> {
-    try {
-      return {
-        success: true,
-        status_code: HttpStatus.CREATED,
-        data: await this.authService.userRegisterTemporary(body),
       };
     } catch (error) {
       throw error;

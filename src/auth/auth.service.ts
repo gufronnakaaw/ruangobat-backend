@@ -16,7 +16,6 @@ import {
   AdminRegisterDto,
   UserLoginDto,
   UserRegisterDto,
-  UserRegisterTemporaryDto,
 } from './auth.dto';
 
 @Injectable()
@@ -135,50 +134,6 @@ export class AuthService {
     });
   }
 
-  async userRegisterTemporary(body: UserRegisterTemporaryDto) {
-    const users = await this.prisma.user.findMany({
-      select: { email: true, phone_number: true },
-    });
-
-    for (const user of users) {
-      const email = decryptString(user.email, process.env.ENCRYPT_KEY);
-      if (email === body.email) {
-        throw new BadRequestException('Email sudah digunakan');
-      }
-    }
-
-    for (const user of users) {
-      const phone_number = decryptString(
-        user.phone_number,
-        process.env.ENCRYPT_KEY,
-      );
-      if (phone_number === body.phone_number) {
-        throw new BadRequestException('Nomor telepon sudah digunakan');
-      }
-    }
-
-    const fullname = capitalize(body.fullname.toLowerCase());
-
-    return this.prisma.user.create({
-      data: {
-        user_id: `ROU${getInitials(fullname)}${random(100000, 999999)}`,
-        email: encryptString(body.email, process.env.ENCRYPT_KEY),
-        phone_number: encryptString(body.phone_number, process.env.ENCRYPT_KEY),
-        fullname,
-        gender: body.gender,
-        password: await hashPassword(body.password),
-        university: capitalize(body.university.toLowerCase()),
-        is_verified: false,
-      },
-      select: {
-        user_id: true,
-        fullname: true,
-        gender: true,
-        university: true,
-      },
-    });
-  }
-
   async userLogin(body: UserLoginDto, user_agent: string) {
     const users = await this.prisma.user.findMany({
       select: {
@@ -187,6 +142,7 @@ export class AuthService {
         user_id: true,
         fullname: true,
         gender: true,
+        is_verified: true,
       },
     });
 
@@ -232,6 +188,7 @@ export class AuthService {
       fullname: user.fullname,
       expired,
       gender: user.gender,
+      is_verified: user.is_verified,
       access_token: await this.jwtService.signAsync(
         {
           user_id: user.user_id,
