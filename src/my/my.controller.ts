@@ -15,6 +15,10 @@ import { SuccessResponse } from '../utils/global/global.response';
 import { UserGuard } from '../utils/guards/user.guard';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
 import {
+  UserChangeEmailDto,
+  userChangeEmailSchema,
+  UserSendEmailDto,
+  userSendEmailSchema,
   UserUpdateDto,
   userUpdateSchema,
   UserVerifyEmailDto,
@@ -77,14 +81,36 @@ export class MyController {
     }
   }
 
-  @Post('/email/otp')
+  @Post('/email/change')
   @HttpCode(HttpStatus.CREATED)
-  async sendEmailOtp(@Req() req: Request): Promise<SuccessResponse> {
+  @UsePipes(new ZodValidationPipe(userChangeEmailSchema))
+  async changeEmail(
+    @Req() req: Request,
+    @Body() body: UserChangeEmailDto,
+  ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.myService.sendEmailOtp(req.user.user_id),
+        data: await this.myService.changeEmail(req.user.user_id, body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/email/otp')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(userSendEmailSchema))
+  async sendEmailOtp(
+    @Req() req: Request,
+    @Body() body: UserSendEmailDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.myService.sendEmailOtp(req.user.user_id, body),
       };
     } catch (error) {
       throw error;

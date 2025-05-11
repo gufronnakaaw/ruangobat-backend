@@ -1,5 +1,6 @@
 import { MailerService } from '@nestjs-modules/mailer';
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -8,7 +9,7 @@ import { random } from 'lodash';
 import ShortUniqueId from 'short-unique-id';
 import { decryptString, encryptString } from 'src/utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
-import { UserUpdateDto } from './my.dto';
+import { UserChangeEmailDto, UserSendEmailDto, UserUpdateDto } from './my.dto';
 
 @Injectable()
 export class MyService {
@@ -50,7 +51,6 @@ export class MyService {
       },
       data: {
         fullname: body.fullname,
-        email: encryptString(body.email, process.env.ENCRYPT_KEY),
         phone_number: encryptString(body.phone_number, process.env.ENCRYPT_KEY),
         gender: body.gender,
         university: body.university,
@@ -115,7 +115,76 @@ export class MyService {
     };
   }
 
-  async sendEmailOtp(user_id: string) {
+  async changeEmail(user_id: string, body: UserChangeEmailDto) {
+    const otp = await this.prisma.otp.findMany({
+      where: { otp_code: body.otp_code, user_id },
+      select: {
+        expired_at: true,
+        user_id: true,
+        otp_id: true,
+        otp_code: true,
+        used_at: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    if (!otp.length) {
+      throw new NotFoundException('OTP tidak ditemukan');
+    }
+
+    const date = new Date();
+    const expired_at = new Date(otp[0].expired_at);
+
+    if (date > expired_at) {
+      throw new UnauthorizedException('OTP expired');
+    }
+
+    if (otp[0].used_at) {
+      throw new UnauthorizedException('OTP telah digunakan');
+    }
+
+    const users = await this.prisma.user.findMany({
+      select: { email: true, phone_number: true },
+    });
+
+    for (const user of users) {
+      const email = decryptString(user.email, process.env.ENCRYPT_KEY);
+      if (email === body.email) {
+        await this.prisma.otp.updateMany({
+          where: { otp_code: body.otp_code, user_id },
+          data: {
+            used_at: new Date(),
+          },
+        });
+        throw new BadRequestException('Email sudah digunakan');
+      }
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.otp.updateMany({
+        where: { otp_code: body.otp_code, user_id },
+        data: {
+          used_at: new Date(),
+        },
+      }),
+      this.prisma.user.update({
+        where: { user_id },
+        data: {
+          is_verified: true,
+          email: encryptString(body.email, process.env.ENCRYPT_KEY),
+        },
+      }),
+    ]);
+
+    return {
+      user_id,
+      message: 'Email berhasil dirubah dan diverifikasi',
+    };
+  }
+
+  async sendEmailOtp(user_id: string, body: UserSendEmailDto) {
     const user = await this.prisma.user.findUnique({
       where: { user_id },
       select: {
@@ -126,7 +195,6 @@ export class MyService {
     if (!user) {
       throw new NotFoundException('User tidak ditemukan');
     }
-
     const otp_code = random(100000, 999999);
     const uid = new ShortUniqueId({ length: 10 });
     const expired_at = new Date();
@@ -145,7 +213,10 @@ export class MyService {
       }),
       this.mailerService.sendMail({
         from: `Ruang Obat <${process.env.EMAIL_ALIAS_ONE}>`,
-        to: decryptString(user.email, process.env.ENCRYPT_KEY),
+        to:
+          body.type === 'db'
+            ? decryptString(user.email, process.env.ENCRYPT_KEY)
+            : body.email,
         subject: 'Verification Code (OTP)',
         html: template,
       }),
