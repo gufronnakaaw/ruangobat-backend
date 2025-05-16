@@ -48,3 +48,38 @@ export const updateContextSchema = z.object({
 });
 
 export type UpdateContextDto = z.infer<typeof updateContextSchema>;
+
+export const createAiLimit = z.object({
+  type: z.enum(['free', 'paid']),
+  total: z.number().int().nonnegative(),
+  by: z.string(),
+});
+
+export type CreateAiLimitDto = z.infer<typeof createAiLimit>;
+
+export const updateAiLimit = z.object({
+  limit_id: z.string(),
+  type: z.enum(['free', 'paid']).optional(),
+  total: z.number().int().nonnegative().optional(),
+  by: z.string(),
+});
+
+export type UpdateAiLimitDto = z.infer<typeof updateAiLimit>;
+
+export const createUserAiLimit = z.object({
+  user_id: z.string(),
+  total: z.number().int().nonnegative(),
+  expired_at: z.string().optional(),
+  by: z.string(),
+});
+
+export type CreateUserAiLimitDto = z.infer<typeof createUserAiLimit>;
+
+export const updateUserAiLimit = z.object({
+  user_id: z.string(),
+  total: z.number().int().nonnegative().optional(),
+  expired_at: z.string().optional(),
+  by: z.string(),
+});
+
+export type UpdateUserAiLimitDto = z.infer<typeof updateUserAiLimit>;
