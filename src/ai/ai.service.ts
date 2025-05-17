@@ -306,6 +306,9 @@ export class AiService {
           question: true,
           answer: true,
         },
+        orderBy: {
+          created_at: 'desc',
+        },
         take: 5,
       }),
     ]);
@@ -331,7 +334,9 @@ export class AiService {
         content: input,
       });
     } else {
-      for (const chat of user_chats) {
+      const reverse_chats = user_chats.reverse();
+
+      for (const chat of reverse_chats) {
         messages.push(
           {
             role: 'user',
