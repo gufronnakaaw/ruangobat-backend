@@ -27,14 +27,12 @@ export class AiService {
     private readonly http: HttpService,
   ) {}
 
-  async getProviders() {
-    const providers = await this.prisma.aiProvider.findMany({
+  getProviders() {
+    return this.prisma.aiProvider.findMany({
       select: {
         provider_id: true,
         name: true,
         model: true,
-        api_key: true,
-        api_url: true,
         type: true,
         is_active: true,
         created_at: true,
@@ -46,13 +44,36 @@ export class AiService {
         created_at: 'desc',
       },
     });
+  }
 
-    return providers.map((provider) => {
-      return {
-        ...provider,
-        api_key: decryptString(provider.api_key, process.env.ENCRYPT_KEY),
-      };
-    });
+  getProvider(provider_id: string) {
+    return this.prisma.aiProvider
+      .findUnique({
+        where: { provider_id },
+        select: {
+          provider_id: true,
+          name: true,
+          model: true,
+          api_key: true,
+          api_url: true,
+          type: true,
+          is_active: true,
+          created_at: true,
+          updated_at: true,
+          created_by: true,
+          updated_by: true,
+        },
+      })
+      .then((provider) => {
+        if (!provider) {
+          return {};
+        }
+
+        return {
+          ...provider,
+          api_key: decryptString(provider.api_key, process.env.ENCRYPT_KEY),
+        };
+      });
   }
 
   createProvider(body: CreateProviderDto) {
@@ -159,6 +180,31 @@ export class AiService {
       total_contexts,
       total_pages: Math.ceil(total_contexts / take),
     };
+  }
+
+  getContext(context_id: string) {
+    return this.prisma.aiContext
+      .findUnique({
+        where: { context_id },
+        select: {
+          context_id: true,
+          title: true,
+          content: true,
+          type: true,
+          is_active: true,
+          created_at: true,
+          updated_at: true,
+          created_by: true,
+          updated_by: true,
+        },
+      })
+      .then((context) => {
+        if (!context) {
+          return {};
+        }
+
+        return context;
+      });
   }
 
   async getContextsBySearch(query: AiQuery) {
@@ -280,6 +326,34 @@ export class AiService {
         context_id: true,
       },
     });
+  }
+
+  async getChat(user_id: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const until = new Date(today);
+    until.setDate(until.getDate() + 1);
+
+    const chats = await this.prisma.aiChat.findMany({
+      where: {
+        user_id,
+        created_at: {
+          gte: today,
+          lt: until,
+        },
+      },
+      select: {
+        chat_id: true,
+        question: true,
+        answer: true,
+      },
+    });
+
+    return chats.flatMap((chat) => [
+      { role: 'user', content: chat.question },
+      { role: 'assistant', content: chat.answer },
+    ]);
   }
 
   async chatCompletion(user_id: string, input: string) {

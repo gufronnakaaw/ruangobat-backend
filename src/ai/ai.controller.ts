@@ -59,6 +59,23 @@ export class AiController {
   }
 
   @UseGuards(AdminGuard)
+  @Get('/providers/:provider_id')
+  @HttpCode(HttpStatus.OK)
+  async getProvider(
+    @Param('provider_id') provider_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.aiService.getProvider(provider_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
   @Post('/providers')
   @UsePipes(new ZodValidationPipe(createProviderSchema))
   @HttpCode(HttpStatus.CREATED)
@@ -129,6 +146,23 @@ export class AiController {
   }
 
   @UseGuards(AdminGuard)
+  @Get('/contexts/:context_id')
+  @HttpCode(HttpStatus.OK)
+  async getContext(
+    @Param('context_id') context_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.aiService.getContext(context_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
   @Post('/contexts')
   @UsePipes(new ZodValidationPipe(createContextSchema))
   @HttpCode(HttpStatus.CREATED)
@@ -175,6 +209,21 @@ export class AiController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.aiService.deleteContext(context_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(UserGuard)
+  @Get('/chat')
+  @HttpCode(HttpStatus.OK)
+  async getChat(@Req() req: Request): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.aiService.getChat(req.user.user_id),
       };
     } catch (error) {
       throw error;
