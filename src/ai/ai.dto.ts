@@ -23,11 +23,20 @@ export const updateProviderSchema = z.object({
   api_key: z.string().optional(),
   api_url: z.string().url('URL tidak valid').optional(),
   type: z.enum(['free', 'paid']).optional(),
-  is_active: z.boolean().optional(),
   by: z.string(),
 });
 
 export type UpdateProviderDto = z.infer<typeof updateProviderSchema>;
+
+export const updateProviderStatusSchema = z.object({
+  provider_id: z.string(),
+  is_active: z.boolean(),
+  by: z.string(),
+});
+
+export type UpdateProviderStatusDto = z.infer<
+  typeof updateProviderStatusSchema
+>;
 
 export const createContextSchema = z.object({
   title: z.string().min(1, 'Judul tidak boleh kosong'),

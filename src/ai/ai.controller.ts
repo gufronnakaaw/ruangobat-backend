@@ -34,6 +34,8 @@ import {
   updateContextSchema,
   UpdateProviderDto,
   updateProviderSchema,
+  UpdateProviderStatusDto,
+  updateProviderStatusSchema,
   updateUserAiLimit,
   UpdateUserAiLimitDto,
 } from './ai.dto';
@@ -105,6 +107,24 @@ export class AiController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.aiService.updateProvider(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Patch('/providers/status')
+  @UsePipes(new ZodValidationPipe(updateProviderStatusSchema))
+  @HttpCode(HttpStatus.OK)
+  async updateProviderStatus(
+    @Body() body: UpdateProviderStatusDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.aiService.updateProviderStatus(body),
       };
     } catch (error) {
       throw error;

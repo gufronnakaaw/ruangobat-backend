@@ -3,7 +3,6 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 import { decryptString, encryptString } from '../utils/crypto.util';
@@ -17,6 +16,7 @@ import {
   UpdateAiLimitDto,
   UpdateContextDto,
   UpdateProviderDto,
+  UpdateProviderStatusDto,
   UpdateUserAiLimitDto,
 } from './ai.dto';
 
@@ -115,7 +115,54 @@ export class AiService {
         api_url: body.api_url,
         type: body.type,
         updated_by: body.by,
+      },
+      select: {
+        provider_id: true,
+      },
+    });
+  }
+
+  async updateProviderStatus(body: UpdateProviderStatusDto) {
+    if (
+      !(await this.prisma.aiProvider.count({
+        where: { provider_id: body.provider_id },
+      }))
+    ) {
+      throw new NotFoundException('Provider tidak ditemukan');
+    }
+
+    if (body.is_active) {
+      await this.prisma.aiProvider.updateMany({
+        where: {
+          provider_id: { not: body.provider_id },
+          is_active: true,
+        },
+        data: {
+          is_active: false,
+        },
+      });
+
+      return this.prisma.aiProvider.update({
+        where: {
+          provider_id: body.provider_id,
+        },
+        data: {
+          is_active: body.is_active,
+          updated_by: body.by,
+        },
+        select: {
+          provider_id: true,
+        },
+      });
+    }
+
+    return this.prisma.aiProvider.update({
+      where: {
+        provider_id: body.provider_id,
+      },
+      data: {
         is_active: body.is_active,
+        updated_by: body.by,
       },
       select: {
         provider_id: true,
@@ -361,10 +408,6 @@ export class AiService {
       this.prisma.aiProvider.findFirst({
         where: {
           is_active: true,
-          type: 'paid',
-        },
-        orderBy: {
-          created_at: 'desc',
         },
         select: {
           api_key: true,
@@ -388,12 +431,13 @@ export class AiService {
     ]);
 
     if (!provider) {
-      throw new ServiceUnavailableException(
-        'Fitur chat untuk sementara tidak tersedia',
-      );
+      return {
+        role: 'assistant',
+        content: 'Maaf ya fitur chat untuk sementara tidak tersedia 😫',
+      };
     }
 
-    const prompt = `${process.env.PROMPT_HEADER}\n${process.env.PROMPT_FOOTER}`;
+    const prompt = `${process.env.PROMPT_HEADER}\n\n${process.env.PROMPT_FOOTER}`;
 
     const messages = [
       {
@@ -449,21 +493,24 @@ export class AiService {
         this.http.post(provider.api_url, { ...data }, { ...config }),
       );
 
+      const { role, content } = response.data.choices[0].message;
+
       await this.prisma.aiChat.create({
         data: {
           user_id,
           question: input,
-          answer: response.data.choices[0].message.content,
+          answer: content,
           model: provider.model,
           source: 'web',
         },
       });
 
-      return response.data.choices[0].message;
+      return { role, content };
     } catch (error) {
       return {
         role: 'assistant',
-        content: 'Terjadi kesalahan saat memproses pertanyaan',
+        content:
+          'Ups sepertinya server kita ada masalah. Maaf ya atas ketidaknyamanannya 😫',
       };
     }
   }
