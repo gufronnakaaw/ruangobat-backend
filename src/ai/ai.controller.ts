@@ -238,12 +238,15 @@ export class AiController {
   @UseGuards(UserGuard)
   @Get('/chat')
   @HttpCode(HttpStatus.OK)
-  async getChat(@Req() req: Request): Promise<SuccessResponse> {
+  async getChat(
+    @Req() req: Request,
+    @Query() query: { timezone: string },
+  ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.aiService.getChat(req.user.user_id),
+        data: await this.aiService.getChat(req.user.user_id, query.timezone),
       };
     } catch (error) {
       throw error;

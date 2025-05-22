@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { DateTime } from 'luxon';
 import { firstValueFrom } from 'rxjs';
 import { decryptString, encryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
@@ -375,19 +376,16 @@ export class AiService {
     });
   }
 
-  async getChat(user_id: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const until = new Date(today);
-    until.setDate(until.getDate() + 1);
+  async getChat(user_id: string, timezone = 'Asia/Jakarta') {
+    const today = DateTime.now().setZone(timezone).startOf('day');
+    const until = today.plus({ days: 1 });
 
     const chats = await this.prisma.aiChat.findMany({
       where: {
         user_id,
         created_at: {
-          gte: today,
-          lt: until,
+          gte: today.toJSDate(),
+          lt: until.toJSDate(),
         },
       },
       select: {
