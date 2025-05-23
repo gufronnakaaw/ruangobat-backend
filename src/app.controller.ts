@@ -133,8 +133,8 @@ export class AppController {
     }
   }
 
-  @Post('/questions/image')
   @UseGuards(AdminGuard)
+  @Post('/questions/image')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(
     FileInterceptor('upload', {
@@ -171,8 +171,8 @@ export class AppController {
     }
   }
 
-  @Delete('/start/:test_id/:user_id')
   @UseGuards(AdminGuard)
+  @Delete('/start/:test_id/:user_id')
   @HttpCode(HttpStatus.OK)
   async deleteResult(
     @Param() params: { test_id: string; user_id: string },
