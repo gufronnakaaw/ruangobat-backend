@@ -2,17 +2,23 @@ import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
   HttpCode,
   HttpStatus,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Patch,
   Post,
   Query,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
@@ -265,6 +271,40 @@ export class AiController {
         success: true,
         status_code: HttpStatus.CREATED,
         data: await this.aiService.chatCompletion(req.user.user_id, body.input),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(UserGuard)
+  @Post('/chat/image')
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(FileInterceptor('image'))
+  async uploadChatImage(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 5 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png)$/,
+          }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: {
+          url: await this.aiService.uploadChatImage(file, req.user.user_id),
+        },
       };
     } catch (error) {
       throw error;

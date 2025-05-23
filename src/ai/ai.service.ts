@@ -8,6 +8,7 @@ import { DateTime } from 'luxon';
 import { firstValueFrom } from 'rxjs';
 import { decryptString, encryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
+import { StorageService } from '../utils/services/storage.service';
 import {
   AiQuery,
   CreateAiLimitDto,
@@ -26,6 +27,7 @@ export class AiService {
   constructor(
     private prisma: PrismaService,
     private readonly http: HttpService,
+    private storage: StorageService,
   ) {}
 
   getProviders() {
@@ -511,6 +513,15 @@ export class AiService {
           'Ups sepertinya server kita ada masalah. Maaf ya atas ketidaknyamanannya 😫',
       };
     }
+  }
+
+  uploadChatImage(file: Express.Multer.File, user_id: string) {
+    return this.storage.uploadFile({
+      buffer: file.buffer,
+      bucket: `${process.env.MODE === 'prod' ? 'ruangobat' : 'ruangobatdev'}`,
+      key: `chat/${Date.now()}-${user_id}-${file.originalname}`,
+      mimetype: file.mimetype,
+    });
   }
 
   async getChatLogs(query: AiQuery) {
