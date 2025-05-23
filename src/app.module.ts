@@ -8,7 +8,9 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AdminModule } from './admin/admin.module';
 import { AdminsModule } from './admins/admins.module';
+import { AiModule } from './ai/ai.module';
 import { AppController } from './app.controller';
+import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { CronModule } from './cron/cron.module';
 import { GeneralModule } from './general/general.module';
@@ -16,7 +18,7 @@ import { MyModule } from './my/my.module';
 import { ProgramsModule } from './programs/programs.module';
 import { TestsModule } from './tests/tests.module';
 import { GlobalMiddleware } from './utils/global/global.middleware';
-import { AiModule } from './ai/ai.module';
+import { PrismaService } from './utils/services/prisma.service';
 
 @Module({
   imports: [
@@ -58,6 +60,7 @@ import { AiModule } from './ai/ai.module';
     AiModule,
   ],
   controllers: [AppController],
+  providers: [AppService, PrismaService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
