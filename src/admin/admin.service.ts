@@ -10,12 +10,12 @@ import { unlink } from 'fs/promises';
 import { random } from 'lodash';
 import path from 'path';
 import ShortUniqueId from 'short-unique-id';
-import { slug } from 'src/utils/slug.util';
 import { hashPassword } from '../utils/bcrypt.util';
 import { decryptString, encryptString } from '../utils/crypto.util';
 import { maskEmail, maskPhoneNumber } from '../utils/masking.util';
 import { scoreCategory } from '../utils/scorecategory';
 import { PrismaService } from '../utils/services/prisma.service';
+import { slug } from '../utils/slug.util';
 import {
   AdminQuery,
   ApprovedUserDto,

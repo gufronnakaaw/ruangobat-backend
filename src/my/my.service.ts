@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { random } from 'lodash';
 import ShortUniqueId from 'short-unique-id';
-import { decryptString, encryptString } from 'src/utils/crypto.util';
+import { decryptString, encryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import { UserChangeEmailDto, UserSendEmailDto, UserUpdateDto } from './my.dto';
 

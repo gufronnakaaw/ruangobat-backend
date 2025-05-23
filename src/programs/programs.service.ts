@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import path from 'path';
-import { PrismaService } from 'src/utils/services/prisma.service';
+import { PrismaService } from '../utils/services/prisma.service';
 import { FollowPaidProgramsDto, ProgramsQuery } from './programs.dto';
 
 @Injectable()

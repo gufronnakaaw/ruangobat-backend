@@ -17,9 +17,9 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { diskStorage } from 'multer';
-import { SuccessResponse } from 'src/utils/global/global.response';
-import { ZodValidationPipe } from 'src/utils/pipes/zod.pipe';
+import { SuccessResponse } from '../utils/global/global.response';
 import { UserGuard } from '../utils/guards/user.guard';
+import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
 import {
   FollowPaidProgramsDto,
   followPaidProgramsSchema,

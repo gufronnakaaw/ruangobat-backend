@@ -20,8 +20,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { diskStorage } from 'multer';
 import path from 'path';
-import { AdminGuard } from 'src/utils/guards/admin.guard';
 import { SuccessResponse } from '../utils/global/global.response';
+import { AdminGuard } from '../utils/guards/admin.guard';
 import { UserGuard } from '../utils/guards/user.guard';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
 import {

@@ -14,9 +14,9 @@ import {
   UsePipes,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { UserGuard } from 'src/utils/guards/user.guard';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
+import { UserGuard } from '../utils/guards/user.guard';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
 import {
   AiQuery,
