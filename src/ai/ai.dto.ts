@@ -92,3 +92,10 @@ export const updateUserAiLimit = z.object({
 });
 
 export type UpdateUserAiLimitDto = z.infer<typeof updateUserAiLimit>;
+
+export const userChatCompletionSchema = z.object({
+  input: z.string(),
+  img_url: z.string().url().optional(),
+});
+
+export type UserChatCompletionDto = z.infer<typeof userChatCompletionSchema>;

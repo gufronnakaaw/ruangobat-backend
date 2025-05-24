@@ -20,6 +20,7 @@ import {
   UpdateProviderDto,
   UpdateProviderStatusDto,
   UpdateUserAiLimitDto,
+  UserChatCompletionDto,
 } from './ai.dto';
 
 @Injectable()
@@ -403,7 +404,8 @@ export class AiService {
     ]);
   }
 
-  async chatCompletion(user_id: string, input: string) {
+  async chatCompletion(user_id: string, body: UserChatCompletionDto) {
+    const { input } = body;
     const [provider, user_chats] = await this.prisma.$transaction([
       this.prisma.aiProvider.findFirst({
         where: {

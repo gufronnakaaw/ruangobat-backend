@@ -1,7 +1,7 @@
 import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
-import { StorageService } from 'src/utils/services/storage.service';
 import { PrismaService } from '../utils/services/prisma.service';
+import { StorageService } from '../utils/services/storage.service';
 import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
 

@@ -44,6 +44,8 @@ import {
   updateProviderStatusSchema,
   updateUserAiLimit,
   UpdateUserAiLimitDto,
+  UserChatCompletionDto,
+  userChatCompletionSchema,
 } from './ai.dto';
 import { AiService } from './ai.service';
 
@@ -262,15 +264,16 @@ export class AiController {
   @UseGuards(UserGuard)
   @Post('/chat')
   @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(userChatCompletionSchema))
   async chatCompletion(
-    @Body() body: { input: string },
+    @Body() body: UserChatCompletionDto,
     @Req() req: Request,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.aiService.chatCompletion(req.user.user_id, body.input),
+        data: await this.aiService.chatCompletion(req.user.user_id, body),
       };
     } catch (error) {
       throw error;
