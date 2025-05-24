@@ -28,6 +28,11 @@ enum QuestionType {
   image
 }
 
+enum SubscriptionType {
+  videocourse
+  apotekerclass
+}
+
 model Admin {
   id               Int              @id               @default(autoincrement())
   admin_id         String           @unique
@@ -516,6 +521,7 @@ model AiChat {
   model            String
   question         String?          @db.Text
   answer           String?          @db.Text
+  img_url          String?   
 
   created_at       DateTime         @default(now())
 
@@ -554,4 +560,42 @@ model UserAiLimit {
 
   @@index([user_id])
   @@map("user_ai_limit")
+}
+
+model SubscriptionPackage {
+  id               Int              @id               @default(autoincrement())
+  package_id       String           @unique           @default(uuid())
+  name             String
+  price            Int              @db.UnsignedInt
+  duration         Int              @db.UnsignedInt
+  type             SubscriptionType
+  link_order       String
+  is_active        Boolean          @default(true)
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String         
+  updated_by       String 
+
+  benefit          SubscriptionBenefit[]
+
+  @@map("subscription_package")
+}
+
+model SubscriptionBenefit {
+  id               Int              @id               @default(autoincrement())
+  benefit_id       String           @unique           @default(uuid())
+  package_id       String
+  description      String
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String         
+  updated_by       String 
+
+  package          SubscriptionPackage @relation(fields: [package_id], references: [package_id], onDelete: Cascade)
+
+  @@map("subscription_benefit")
 }
