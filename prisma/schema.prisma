@@ -60,7 +60,7 @@ model User {
   created_at       DateTime         @default(now())
   updated_at       DateTime         @updatedAt
 
-  session          Session?
+  session          Session[]
   results          Result[]
   participants     Participant[]
   starts           Start[]
@@ -75,7 +75,7 @@ model User {
 model Session {
   id               Int              @id               @default(autoincrement())
   session_id       String           @unique           @default(uuid())
-  user_id          String           @unique
+  user_id          String           
   expired          DateTime
   os               String?
   browser          String?
@@ -502,6 +502,7 @@ model AiContext {
   title            String
   content          String           @db.Text
   type             String
+  file_url         String?
   is_active        Boolean          @default(true)
 
   created_at       DateTime         @default(now())
@@ -522,12 +523,15 @@ model AiChat {
   question         String?          @db.Text
   answer           String?          @db.Text
   img_url          String?   
+  prompt_tokens    Int?             @db.UnsignedInt
+  completion_tokens Int?            @db.UnsignedInt
+  total_tokens     Int?             @db.UnsignedInt
 
   created_at       DateTime         @default(now())
 
   user             User             @relation(fields: [user_id], references: [user_id])
 
-  @@index([user_id])
+  @@index([user_id, created_at])
   @@map("ai_chat")
 }
 
