@@ -4,13 +4,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { AxiosResponse } from 'axios';
 import { DateTime } from 'luxon';
 import { firstValueFrom } from 'rxjs';
 import { decryptString, encryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import { StorageService } from '../utils/services/storage.service';
+import { buildPrompt } from '../utils/string.util';
 import {
   AiQuery,
+  AiResponse,
   CreateAiLimitDto,
   CreateContextDto,
   CreateProviderDto,
@@ -439,7 +442,7 @@ export class AiService {
       };
     }
 
-    const prompt = `${process.env.PROMPT_HEADER}\n\n${process.env.PROMPT_FOOTER}`;
+    const prompt = buildPrompt(input);
 
     const messages = [
       {
@@ -488,10 +491,13 @@ export class AiService {
     const data = {
       model: provider.model,
       messages,
+      usage: {
+        include: true,
+      },
     };
 
     try {
-      const response = await firstValueFrom(
+      const response: AxiosResponse<AiResponse> = await firstValueFrom(
         this.http.post(provider.api_url, { ...data }, { ...config }),
       );
 
@@ -504,6 +510,10 @@ export class AiService {
           answer: content,
           model: provider.model,
           source: 'web',
+          prompt_tokens: response.data.usage.prompt_tokens,
+          completion_tokens: response.data.usage.completion_tokens,
+          total_tokens: response.data.usage.total_tokens,
+          total_cost: response.data.usage.cost,
         },
       });
 
@@ -554,6 +564,8 @@ export class AiService {
           source: true,
           question: true,
           answer: true,
+          total_cost: true,
+          total_tokens: true,
           created_at: true,
         },
       }),
@@ -566,6 +578,7 @@ export class AiService {
         return {
           ...user,
           ...all,
+          total_cost: Number(all.total_cost),
         };
       }),
       page: parseInt(query.page),
@@ -639,6 +652,8 @@ export class AiService {
           source: true,
           question: true,
           answer: true,
+          total_cost: true,
+          total_tokens: true,
           created_at: true,
         },
       }),
@@ -651,6 +666,7 @@ export class AiService {
         return {
           ...user,
           ...all,
+          total_cost: Number(all.total_cost),
         };
       }),
       page: parseInt(query.page),

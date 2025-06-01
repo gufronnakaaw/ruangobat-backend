@@ -5,6 +5,39 @@ export type AiQuery = {
   page: string;
 };
 
+export interface AiResponse {
+  id: string;
+  provider: string;
+  model: string;
+  object: string;
+  created: number;
+  choices: {
+    logprobs: any;
+    finish_reason: string;
+    native_finish_reason: string;
+    index: number;
+    message: {
+      role: string;
+      content: string;
+      refusal: any;
+      reasoning: any;
+    };
+  }[];
+  system_fingerprint: string;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    cost: number;
+    prompt_tokens_details: {
+      cached_tokens: number;
+    };
+    completion_tokens_details: {
+      reasoning_tokens: number;
+    };
+  };
+}
+
 export const createProviderSchema = z.object({
   name: z.string().min(1, 'Nama provider tidak boleh kosong'),
   model: z.string().min(1, 'Model tidak boleh kosong'),
