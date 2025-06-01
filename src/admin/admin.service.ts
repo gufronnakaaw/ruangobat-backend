@@ -1,3 +1,4 @@
+import { HttpService } from '@nestjs/axios';
 import {
   BadRequestException,
   ConflictException,
@@ -5,10 +6,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ClassMentorType } from '@prisma/client';
+import { AxiosResponse } from 'axios';
 import { existsSync } from 'fs';
 import { unlink } from 'fs/promises';
 import { random } from 'lodash';
 import path from 'path';
+import { firstValueFrom, Observable } from 'rxjs';
 import ShortUniqueId from 'short-unique-id';
 import { hashPassword } from '../utils/bcrypt.util';
 import { decryptString, encryptString } from '../utils/crypto.util';
@@ -40,22 +43,51 @@ import {
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly http: HttpService,
+  ) {}
 
   async getDashboard() {
-    const [total_users, total_online_users, total_programs, total_tests] =
-      await this.prisma.$transaction([
-        this.prisma.user.count(),
-        this.prisma.session.count(),
-        this.prisma.program.count(),
-        this.prisma.test.count(),
-      ]);
+    const [
+      total_users,
+      total_online_users,
+      total_programs,
+      total_tests,
+      exchange_rates,
+      credits,
+    ] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.session.count(),
+      this.prisma.program.count(),
+      this.prisma.test.count(),
+      firstValueFrom(
+        this.http.get('https://open.er-api.com/v6/latest/usd') as Observable<
+          AxiosResponse<{ rates: { IDR: number } }>
+        >,
+      ),
+      firstValueFrom(
+        this.http.get(`${process.env.PROVIDER_URL}/api/v1/credits`, {
+          headers: {
+            Authorization: `Bearer ${process.env.PROVIDER_CREDIT_KEY}`,
+          },
+        }) as Observable<
+          AxiosResponse<{
+            data: { total_credits: number; total_usage: number };
+          }>
+        >,
+      ),
+    ]);
 
     return {
       total_users,
       total_online_users,
       total_programs,
       total_tests,
+      ...credits.data.data,
+      remaining_credits:
+        credits.data.data.total_credits - credits.data.data.total_usage,
+      usd_to_idr_rate: Math.round(exchange_rates.data.rates.IDR),
     };
   }
 
