@@ -526,6 +526,7 @@ model AiChat {
   prompt_tokens    Int?             @db.UnsignedInt
   completion_tokens Int?            @db.UnsignedInt
   total_tokens     Int?             @db.UnsignedInt
+  total_cost       Decimal?         @db.Decimal(38, 20)                      
 
   created_at       DateTime         @default(now())
 
