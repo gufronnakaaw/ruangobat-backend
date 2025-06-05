@@ -522,7 +522,6 @@ model AiChat {
   model            String
   question         String?          @db.Text
   answer           String?          @db.Text
-  img_url          String?   
   prompt_tokens    Int?             @db.UnsignedInt
   completion_tokens Int?            @db.UnsignedInt
   total_tokens     Int?             @db.UnsignedInt
@@ -530,10 +529,25 @@ model AiChat {
 
   created_at       DateTime         @default(now())
 
-  user             User             @relation(fields: [user_id], references: [user_id])
+  user             User             @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  image            AiChatImage[]
 
   @@index([user_id, created_at])
   @@map("ai_chat")
+}
+
+model AiChatImage {
+  id               Int              @id               @default(autoincrement())
+  chat_id          String
+  image_id         String           @unique           @default(uuid())
+  img_url          String   
+
+  created_at       DateTime         @default(now())
+
+  chat             AiChat           @relation(fields: [chat_id], references: [chat_id], onDelete: Cascade)
+
+  @@index([chat_id])
+  @@map("ai_chat_image")
 }
 
 model AiLimit {
