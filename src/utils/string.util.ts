@@ -7,6 +7,7 @@ export function buildPrompt(question: string, context?: string): string {
       ${prompts.INSTRUCTION}
 
       [CONTEXT]
+      ${context}
 
       [QUESTION]
       ${question}
