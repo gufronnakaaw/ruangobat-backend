@@ -523,6 +523,7 @@ export class AiService {
         role: 'assistant',
         content:
           'Ups sepertinya server kita ada masalah. Maaf ya atas ketidaknyamanannya 😫',
+        error,
       };
     }
   }
