@@ -1,30 +1,56 @@
 import { prompts } from './prompts.util';
 
-export function buildPrompt(question: string, context?: string): string {
-  if (context) {
-    return `
-      [INSTRUCTION]
-      ${prompts.INSTRUCTION}
+export function buildPrompt(
+  context?: string | string[],
+  has_image?: boolean | number,
+): string {
+  let contextText = '';
 
-      [CONTEXT]
-      ${context}
+  if (Array.isArray(context)) {
+    contextText = context
+      .map((ctx, i) => `\tContext #${i + 1}:\n\t${ctx}`)
+      .join('\n\n');
+  } else if (typeof context === 'string') {
+    contextText = context;
+  }
 
-      [QUESTION]
-      ${question}
+  if (has_image) {
+    if (contextText) {
+      return `
+    [INSTRUCTION]
+    ${prompts.INSTRUCTION}
+
+    [CONTEXT]
+${contextText}
       
-      [ANSWER_FORMAT]
-      ${prompts.ANSWER_FORMAT}
-    `;
+    [ANSWER_FORMAT]
+    ${prompts.ANSWER_FORMAT}`;
+    } else {
+      return `
+    [INSTRUCTION]
+    ${prompts.INSTRUCTION}
+      
+    [ANSWER_FORMAT]
+    ${prompts.ANSWER_FORMAT}`;
+    }
+  }
+
+  if (contextText) {
+    return `
+    [INSTRUCTION]
+    ${prompts.INSTRUCTION}
+
+    [CONTEXT]
+${contextText}
+      
+    [ANSWER_FORMAT]
+    ${prompts.ANSWER_FORMAT}`;
   }
 
   return `
-      [INSTRUCTION]
-      ${prompts.INSTRUCTION}
-
-      [QUESTION]
-      ${question}
+    [INSTRUCTION]
+    ${prompts.INSTRUCTION}
       
-      [ANSWER_FORMAT]
-      ${prompts.ANSWER_FORMAT}
-    `;
+    [ANSWER_FORMAT]
+    ${prompts.ANSWER_FORMAT}`;
 }
