@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { AxiosResponse } from 'axios';
 import { DateTime } from 'luxon';
-import fetch from 'node-fetch';
 import { firstValueFrom } from 'rxjs';
 import { ind, removeStopwords } from 'stopword';
 import { decryptString, encryptString } from '../utils/crypto.util';
@@ -28,6 +27,8 @@ import {
   UpdateUserAiLimitDto,
   UserChatCompletionDto,
 } from './ai.dto';
+const fetch = (url: any, opt: any) =>
+  import('node-fetch').then((mod) => mod.default(url, opt));
 
 @Injectable()
 export class AiService {
