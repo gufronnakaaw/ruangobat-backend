@@ -6,7 +6,9 @@ import {
 } from '@nestjs/common';
 import { AxiosResponse } from 'axios';
 import { DateTime } from 'luxon';
+import fetch from 'node-fetch';
 import { firstValueFrom } from 'rxjs';
+import { ind, removeStopwords } from 'stopword';
 import { decryptString, encryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import { StorageService } from '../utils/services/storage.service';
@@ -18,6 +20,7 @@ import {
   CreateContextDto,
   CreateProviderDto,
   CreateUserAiLimitDto,
+  Message,
   UpdateAiLimitDto,
   UpdateContextDto,
   UpdateProviderDto,
@@ -398,11 +401,12 @@ export class AiService {
         chat_id: true,
         question: true,
         answer: true,
+        image: { select: { image_id: true, img_url: true } },
       },
     });
 
     return chats.flatMap((chat) => [
-      { role: 'user', content: chat.question },
+      { role: 'user', content: chat.question, images: chat.image },
       { role: 'assistant', content: chat.answer },
     ]);
   }
@@ -442,7 +446,7 @@ export class AiService {
       };
     }
 
-    const prompt = buildPrompt(input);
+    const prompt = buildPrompt();
 
     const messages = [
       {
@@ -526,6 +530,234 @@ export class AiService {
         error,
       };
     }
+  }
+
+  async chatStreaming(
+    provider: {
+      model: string;
+      api_key: string;
+      api_url: string;
+    },
+    messages: Message[],
+  ) {
+    const data = {
+      model: provider.model,
+      messages,
+      usage: {
+        include: true,
+      },
+      stream: true,
+    };
+
+    try {
+      const response = await fetch(provider.api_url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${decryptString(
+            provider.api_key,
+            process.env.ENCRYPT_KEY,
+          )}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      return response.body;
+    } catch (error) {
+      console.log('Error in chatStreaming:', error);
+      return `event: error\ndata: Ups sepertinya ada masalah di komunikasi server aku 😫\n\n` as string;
+    }
+  }
+
+  async getMessages(user_id: string, body: UserChatCompletionDto) {
+    const { input, timezone } = body;
+    const today = DateTime.now().setZone(timezone).startOf('day');
+    const until = today.plus({ days: 1 });
+
+    const keywords = removeStopwords(input.split(' '), ind);
+
+    try {
+      const [provider, user_chats, contexts] = await this.prisma.$transaction([
+        this.prisma.aiProvider.findFirst({
+          where: {
+            is_active: true,
+          },
+          select: {
+            api_key: true,
+            api_url: true,
+            model: true,
+          },
+        }),
+        this.prisma.aiChat.findMany({
+          where: {
+            user_id,
+            created_at: {
+              gte: today.toJSDate(),
+              lt: until.toJSDate(),
+            },
+          },
+          select: {
+            question: true,
+            answer: true,
+          },
+          orderBy: {
+            created_at: 'desc',
+          },
+          take: 5,
+        }),
+        this.prisma.aiContext.findMany({
+          where: {
+            is_active: true,
+            OR: keywords.map((word) => ({
+              OR: [
+                { title: { contains: word } },
+                { content: { contains: word } },
+              ],
+            })),
+          },
+          select: {
+            title: true,
+            content: true,
+          },
+        }),
+      ]);
+
+      if (!provider) {
+        return `event: error\ndata: Maaf ya fitur chat untuk sementara tidak tersedia 😫\n\n` as string;
+      }
+
+      const prompt = buildPrompt(
+        contexts.map((context) => context.content),
+        Array.isArray(body.img_url) && body.img_url.length,
+      );
+
+      const messages: Message[] = [
+        {
+          role: 'system',
+          content: prompt,
+        },
+      ];
+
+      if (!user_chats.length) {
+        if (Array.isArray(body.img_url) && body.img_url.length) {
+          messages.push({
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: input,
+              },
+              ...(body.img_url.map((image) => {
+                return {
+                  type: 'image_url',
+                  image_url: { url: image },
+                };
+              }) as { type: 'image_url'; image_url: { url: string } }[]),
+            ],
+          });
+        } else {
+          messages.push({
+            role: 'user',
+            content: input,
+          });
+        }
+      } else {
+        const reverse_chats = user_chats.reverse();
+
+        for (const chat of reverse_chats) {
+          messages.push(
+            {
+              role: 'user',
+              content: chat.question,
+            },
+            {
+              role: 'assistant',
+              content: chat.answer,
+            },
+          );
+        }
+
+        if (Array.isArray(body.img_url) && body.img_url.length) {
+          messages.push({
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: input,
+              },
+              ...(body.img_url.map((image) => {
+                return {
+                  type: 'image_url',
+                  image_url: { url: image },
+                };
+              }) as { type: 'image_url'; image_url: { url: string } }[]),
+            ],
+          });
+        } else {
+          messages.push({
+            role: 'user',
+            content: input,
+          });
+        }
+      }
+
+      return {
+        provider,
+        messages,
+      };
+    } catch (error) {
+      console.log('Error in getMessages:', error);
+      return `event: error\ndata: Ups sepertinya ada masalah di server database aku 😫\n\n` as string;
+    }
+  }
+
+  async saveChat(params: {
+    user_id: string;
+    input: string;
+    answer: string;
+    model: string;
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    cost: number;
+    img_url?: string[];
+  }) {
+    const {
+      user_id,
+      input,
+      answer,
+      model,
+      prompt_tokens,
+      completion_tokens,
+      total_tokens,
+      cost,
+      img_url,
+    } = params;
+
+    return this.prisma.aiChat.create({
+      data: {
+        user_id,
+        question: input,
+        answer,
+        model,
+        source: 'web',
+        prompt_tokens,
+        completion_tokens,
+        total_tokens,
+        total_cost: cost,
+        ...(Array.isArray(img_url) && img_url.length
+          ? {
+              image: {
+                createMany: {
+                  data: img_url.map((url) => ({
+                    img_url: url,
+                  })),
+                },
+              },
+            }
+          : {}),
+      },
+    });
   }
 
   uploadChatImage(file: Express.Multer.File, user_id: string) {
@@ -676,12 +908,9 @@ export class AiService {
     };
   }
 
-  async checkLimitUser(user_id: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const until = new Date(today);
-    until.setDate(until.getDate() + 1);
+  async checkLimitUser(user_id: string, timezone = 'Asia/Jakarta') {
+    const today = DateTime.now().setZone(timezone).startOf('day');
+    const until = today.plus({ days: 1 });
 
     const [user_limit, total_user_chats, global_limits] =
       await this.prisma.$transaction([
@@ -696,8 +925,8 @@ export class AiService {
           where: {
             user_id,
             created_at: {
-              gte: today,
-              lt: until,
+              gte: today.toJSDate(),
+              lt: until.toJSDate(),
             },
           },
         }),

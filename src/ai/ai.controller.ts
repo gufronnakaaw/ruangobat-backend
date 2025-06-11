@@ -13,13 +13,15 @@ import {
   Post,
   Query,
   Req,
-  UploadedFile,
+  Res,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { Request } from 'express';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { Request, Response } from 'express';
+import readline from 'readline';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
 import { UserGuard } from '../utils/guards/user.guard';
@@ -281,11 +283,131 @@ export class AiController {
   }
 
   @UseGuards(UserGuard)
-  @Post('/chat/image')
+  @Post('/chat/streaming')
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(FileInterceptor('image'))
+  @UsePipes(new ZodValidationPipe(userChatCompletionSchema))
+  async chatStreaming(
+    @Body() body: UserChatCompletionDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const limit = await this.aiService.checkLimitUser(req.user.user_id);
+
+    if (!limit.remaining) {
+      res.write(
+        'event: error\ndata: Maaf, kamu sudah mencapai batas penggunaan harianmu 😢\n\n',
+      );
+      res.end();
+      return;
+    }
+
+    const query = await this.aiService.getMessages(req.user.user_id, body);
+
+    if (typeof query === 'string') {
+      res.write(query);
+      res.end();
+      return;
+    }
+
+    const stream = await this.aiService.chatStreaming(
+      query.provider,
+      query.messages,
+    );
+
+    if (typeof stream === 'string') {
+      res.write(query);
+      res.end();
+      return;
+    }
+
+    let answer = '';
+    let usage: {
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+      cost: number;
+    } | null = null;
+
+    try {
+      const rl = readline.createInterface({
+        input: stream,
+        crlfDelay: Infinity,
+      });
+
+      rl.on('line', (line) => {
+        line = line.trim();
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+
+          if (data === '[DONE]') {
+            res.write('data: [DONE]\n\n');
+            rl.close();
+            return;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+
+            if (parsed.usage) {
+              usage = parsed.usage;
+            }
+
+            const content = parsed.choices?.[0]?.delta?.content;
+
+            if (content) {
+              answer += content;
+              res.write(`data: ${content}\n\n`);
+            }
+          } catch (e) {
+            // skip json parse error
+          }
+        }
+      });
+
+      rl.on('close', async () => {
+        try {
+          await this.aiService.saveChat({
+            user_id: req.user.user_id,
+            input: body.input,
+            answer,
+            model: query.provider.model,
+            prompt_tokens: usage?.prompt_tokens || 0,
+            completion_tokens: usage?.completion_tokens || 0,
+            total_tokens: usage?.total_tokens || 0,
+            cost: usage?.cost || 0,
+            img_url: body.img_url,
+          });
+        } catch (error) {
+          console.error('Error Saving Chat: ', error);
+        } finally {
+          res.end();
+        }
+      });
+
+      rl.on('error', (error) => {
+        console.error('Stream Error: ', error);
+        res.end();
+      });
+    } catch (error) {
+      console.error('Server Error: ', error);
+      res.write(
+        'event: error\ndata: Ups sepertinya ada masalah di server aku 😫\n\n',
+      );
+      res.end();
+    }
+  }
+
+  @UseGuards(UserGuard)
+  @Post('/chat/images')
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(FilesInterceptor('images'))
   async uploadChatImage(
-    @UploadedFile(
+    @UploadedFiles(
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({
@@ -298,16 +420,22 @@ export class AiController {
         ],
       }),
     )
-    file: Express.Multer.File,
+    files: Array<Express.Multer.File>,
     @Req() req: Request,
   ): Promise<SuccessResponse> {
     try {
+      const data = [];
+
+      for (const file of files) {
+        data.push({
+          url: await this.aiService.uploadChatImage(file, req.user.user_id),
+        });
+      }
+
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: {
-          url: await this.aiService.uploadChatImage(file, req.user.user_id),
-        },
+        data,
       };
     } catch (error) {
       throw error;

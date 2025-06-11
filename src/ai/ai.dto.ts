@@ -128,7 +128,21 @@ export type UpdateUserAiLimitDto = z.infer<typeof updateUserAiLimit>;
 
 export const userChatCompletionSchema = z.object({
   input: z.string(),
-  img_url: z.string().url().optional(),
+  img_url: z.array(z.string().url()).optional(),
+  timezone: z.string().default('Asia/Jakarta'),
 });
 
 export type UserChatCompletionDto = z.infer<typeof userChatCompletionSchema>;
+
+export type Message = {
+  role: 'user' | 'assistant' | 'system';
+  content:
+    | string
+    | {
+        type: 'text' | 'image_url';
+        text?: string;
+        image_url?: {
+          url: string;
+        };
+      }[];
+};
