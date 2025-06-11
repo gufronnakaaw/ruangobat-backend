@@ -8,6 +8,7 @@ import { AxiosResponse } from 'axios';
 import { DateTime } from 'luxon';
 import { firstValueFrom } from 'rxjs';
 import { ind, removeStopwords } from 'stopword';
+import { fetch } from 'undici';
 import { decryptString, encryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import { StorageService } from '../utils/services/storage.service';
@@ -27,8 +28,6 @@ import {
   UpdateUserAiLimitDto,
   UserChatCompletionDto,
 } from './ai.dto';
-const fetch = (url: any, opt: any) =>
-  import('node-fetch').then((mod) => mod.default(url, opt));
 
 @Injectable()
 export class AiService {

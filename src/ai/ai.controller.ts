@@ -22,6 +22,7 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Request, Response } from 'express';
 import readline from 'readline';
+import { Readable } from 'stream';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
 import { UserGuard } from '../utils/guards/user.guard';
@@ -333,9 +334,25 @@ export class AiController {
       cost: number;
     } | null = null;
 
+    function webStreamToNodeReadable(
+      webStream: ReadableStream<Uint8Array>,
+    ): Readable {
+      const reader = webStream.getReader();
+      return new Readable({
+        async read() {
+          const { done, value } = await reader.read();
+          if (done) {
+            this.push(null);
+          } else {
+            this.push(Buffer.from(value));
+          }
+        },
+      });
+    }
+
     try {
       const rl = readline.createInterface({
-        input: stream,
+        input: webStreamToNodeReadable(stream),
         crlfDelay: Infinity,
       });
 
