@@ -21,8 +21,6 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Request, Response } from 'express';
-import readline from 'readline';
-import { Readable } from 'stream';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
 import { UserGuard } from '../utils/guards/user.guard';
@@ -334,82 +332,63 @@ export class AiController {
       cost: number;
     } | null = null;
 
-    function webStreamToNodeReadable(
-      webStream: ReadableStream<Uint8Array>,
-    ): Readable {
-      const reader = webStream.getReader();
-      return new Readable({
-        async read() {
-          const { done, value } = await reader.read();
-          if (done) {
-            this.push(null);
-          } else {
-            this.push(Buffer.from(value));
-          }
-        },
-      });
-    }
-
     try {
-      const rl = readline.createInterface({
-        input: webStreamToNodeReadable(stream),
-        crlfDelay: Infinity,
-      });
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-      rl.on('line', (line) => {
-        line = line.trim();
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-          if (data === '[DONE]') {
-            res.write('data: [DONE]\n\n');
-            rl.close();
-            return;
-          }
+        buffer += decoder.decode(value, { stream: true });
 
-          try {
-            const parsed = JSON.parse(data);
+        let newlineIndex;
+        while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
+          const line = buffer.slice(0, newlineIndex).trim();
+          buffer = buffer.slice(newlineIndex + 1);
 
-            if (parsed.usage) {
-              usage = parsed.usage;
+          if (line.startsWith('data:')) {
+            const data = line.replace(/^data:\s?/, '');
+
+            if (data === '[DONE]') {
+              res.write('data: [DONE]\n\n');
+
+              await this.aiService.saveChat({
+                user_id: req.user.user_id,
+                input: body.input,
+                answer,
+                model: query.provider.model,
+                prompt_tokens: usage?.prompt_tokens || 0,
+                completion_tokens: usage?.completion_tokens || 0,
+                total_tokens: usage?.total_tokens || 0,
+                cost: usage?.cost || 0,
+                img_url: body.img_url,
+              });
+
+              res.end();
+
+              return;
             }
 
-            const content = parsed.choices?.[0]?.delta?.content;
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
 
-            if (content) {
-              answer += content;
-              res.write(`data: ${content}\n\n`);
+              if (content) {
+                answer += content;
+                res.write(`data: ${content}\n\n`);
+              }
+
+              if (parsed.usage) {
+                usage = parsed.usage;
+              }
+            } catch (e) {
+              // skip json parse error
             }
-          } catch (e) {
-            // skip json parse error
           }
         }
-      });
-
-      rl.on('close', async () => {
-        try {
-          await this.aiService.saveChat({
-            user_id: req.user.user_id,
-            input: body.input,
-            answer,
-            model: query.provider.model,
-            prompt_tokens: usage?.prompt_tokens || 0,
-            completion_tokens: usage?.completion_tokens || 0,
-            total_tokens: usage?.total_tokens || 0,
-            cost: usage?.cost || 0,
-            img_url: body.img_url,
-          });
-        } catch (error) {
-          console.error('Error Saving Chat: ', error);
-        } finally {
-          res.end();
-        }
-      });
-
-      rl.on('error', (error) => {
-        console.error('Stream Error: ', error);
-        res.end();
-      });
+      }
     } catch (error) {
       console.error('Server Error: ', error);
       res.write(
