@@ -540,7 +540,7 @@ model AiChatImage {
   id               Int              @id               @default(autoincrement())
   chat_id          String
   image_id         String           @unique           @default(uuid())
-  img_url          String   
+  img_url          String           @db.Text
 
   created_at       DateTime         @default(now())
 
