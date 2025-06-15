@@ -12,14 +12,13 @@ import { AiModule } from './ai/ai.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
-import { CronModule } from './cron/cron.module';
 import { GeneralModule } from './general/general.module';
 import { MyModule } from './my/my.module';
 import { ProgramsModule } from './programs/programs.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TestsModule } from './tests/tests.module';
 import { GlobalMiddleware } from './utils/global/global.middleware';
 import { PrismaService } from './utils/services/prisma.service';
-import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -55,7 +54,6 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     MyModule,
     ProgramsModule,
     AdminModule,
-    CronModule,
     AdminsModule,
     GeneralModule,
     AiModule,
