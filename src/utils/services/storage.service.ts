@@ -9,6 +9,7 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 @Injectable()
 export class StorageService {
   private s3Client: S3Client;
+  private bucket: string;
 
   constructor() {
     this.s3Client = new S3Client({
@@ -19,14 +20,16 @@ export class StorageService {
       },
       endpoint: process.env.STORAGE_ENDPOINT,
     });
+
+    this.bucket = `${process.env.MODE === 'prod' ? 'cdn.ruangobat.id' : 'ruangobatdev'}`;
   }
 
-  async checkFile(params: { bucket: string; key: string }) {
+  async checkFile(key: string) {
     try {
       await this.s3Client.send(
         new HeadObjectCommand({
-          Bucket: params.bucket,
-          Key: params.key,
+          Bucket: this.bucket,
+          Key: key,
         }),
       );
       return true;
@@ -38,16 +41,11 @@ export class StorageService {
     }
   }
 
-  async uploadFile(params: {
-    buffer: Buffer;
-    bucket: string;
-    key: string;
-    mimetype: string;
-  }) {
+  async uploadFile(params: { buffer: Buffer; key: string; mimetype: string }) {
     try {
       await this.s3Client.send(
         new PutObjectCommand({
-          Bucket: params.bucket,
+          Bucket: this.bucket,
           Key: params.key,
           Body: params.buffer,
           ContentType: params.mimetype,
@@ -55,7 +53,7 @@ export class StorageService {
         }),
       );
 
-      return `${process.env.STORAGE_ENDPOINT}/${params.bucket}/${params.key}`;
+      return `${process.env.STORAGE_ENDPOINT}/${this.bucket}/${params.key}`;
     } catch (error) {
       console.log(error);
       throw new InternalServerErrorException(
@@ -64,12 +62,12 @@ export class StorageService {
     }
   }
 
-  deleteFile(params: { bucket: string; key: string }) {
+  deleteFile(key: string) {
     try {
       return this.s3Client.send(
         new DeleteObjectCommand({
-          Bucket: params.bucket,
-          Key: params.key,
+          Bucket: this.bucket,
+          Key: key,
         }),
       );
     } catch (error) {
