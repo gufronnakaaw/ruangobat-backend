@@ -763,7 +763,7 @@ export class AiService {
   uploadChatImage(file: Express.Multer.File, user_id: string) {
     return this.storage.uploadFile({
       buffer: file.buffer,
-      bucket: `${process.env.MODE === 'prod' ? 'ruangobat' : 'ruangobatdev'}`,
+      bucket: `${process.env.MODE === 'prod' ? 'cdn.ruangobat.id' : 'ruangobatdev'}`,
       key: `chat/${Date.now()}-${user_id}-${file.originalname}`,
       mimetype: file.mimetype,
     });

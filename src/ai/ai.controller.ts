@@ -377,7 +377,7 @@ export class AiController {
 
               if (content) {
                 answer += content;
-                res.write(`data: ${content}\n\n`);
+                res.write(`data: ${JSON.stringify({ content })}\n\n`);
               }
 
               if (parsed.usage) {
