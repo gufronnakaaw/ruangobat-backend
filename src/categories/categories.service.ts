@@ -1,8 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../utils/services/prisma.service';
 import { StorageService } from '../utils/services/storage.service';
-import { slug } from '../utils/slug.util';
-import { parseIsActive } from '../utils/string.util';
+import { parseIsActive, slug } from '../utils/string.util';
 import {
   CategoriesQuery,
   CreateCategoryDto,

@@ -7,10 +7,9 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { random } from 'lodash';
 import { hashPassword, verifyPassword } from '../utils/bcrypt.util';
-import { capitalize } from '../utils/capitalize.util';
 import { decryptString, encryptString } from '../utils/crypto.util';
-import { getInitials } from '../utils/getinitials.util';
 import { PrismaService } from '../utils/services/prisma.service';
+import { capitalize, getInitials } from '../utils/string.util';
 import {
   AdminLoginDto,
   AdminRegisterDto,

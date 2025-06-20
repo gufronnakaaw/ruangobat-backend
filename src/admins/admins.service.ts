@@ -4,8 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { hashPassword } from '../utils/bcrypt.util';
-import { capitalize } from '../utils/capitalize.util';
 import { PrismaService } from '../utils/services/prisma.service';
+import { capitalize } from '../utils/string.util';
 import { UpdateAdminsDto } from './admins.dto';
 
 @Injectable()

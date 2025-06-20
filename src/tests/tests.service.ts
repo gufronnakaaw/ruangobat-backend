@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { random } from 'lodash';
-import { scoreCategory } from '../utils/scorecategory';
+import { shuffle } from '../utils/array.util';
 import { PrismaService } from '../utils/services/prisma.service';
-import { shuffle } from '../utils/shuffle';
+import { scoreCategory } from '../utils/string.util';
 import { FinishTestsDto, StartTestQuestion } from './tests.dto';
 
 @Injectable()

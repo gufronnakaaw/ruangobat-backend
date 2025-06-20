@@ -15,10 +15,13 @@ import { firstValueFrom, Observable } from 'rxjs';
 import ShortUniqueId from 'short-unique-id';
 import { hashPassword } from '../utils/bcrypt.util';
 import { decryptString, encryptString } from '../utils/crypto.util';
-import { maskEmail, maskPhoneNumber } from '../utils/masking.util';
-import { scoreCategory } from '../utils/scorecategory';
 import { PrismaService } from '../utils/services/prisma.service';
-import { slug } from '../utils/slug.util';
+import {
+  maskEmail,
+  maskPhoneNumber,
+  scoreCategory,
+  slug,
+} from '../utils/string.util';
 import {
   AdminQuery,
   ApprovedUserDto,
