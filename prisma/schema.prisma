@@ -31,6 +31,23 @@ enum QuestionType {
 enum SubscriptionType {
   videocourse
   apotekerclass
+  videoukmppai
+}
+
+enum ContentType {
+  video
+  test
+}
+
+enum TestType {
+  pre
+  post
+}
+
+enum CardType {
+  image
+  text
+  document
 }
 
 model Admin {
@@ -66,6 +83,7 @@ model User {
   starts           Start[]
   socmedimg        SocialMediaImage[]
   chats            AiChat[]  
+  progress         UserContentProgress[]
 
   userlimit       UserAiLimit?      
 
@@ -617,4 +635,169 @@ model SubscriptionBenefit {
   package          SubscriptionPackage @relation(fields: [package_id], references: [package_id], onDelete: Cascade)
 
   @@map("subscription_benefit")
+}
+
+model Category {
+  id               Int              @id               @default(autoincrement())
+  category_id      String           @unique           @default(uuid())
+  slug             String           
+  name             String
+  img_url          String
+  img_key          String
+  type             SubscriptionType
+  is_active        Boolean          @default(true)
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+  
+  created_by       String
+  updated_by       String
+
+  subcategory      SubCategory[]
+  course           Course[]   
+  card             Card[]
+
+  @@index([slug, name])
+  @@unique([type, slug])
+  @@map("category")
+}
+
+model SubCategory {
+  id               Int              @id               @default(autoincrement())
+  sub_category_id  String           @unique           @default(uuid())
+  category_id      String
+  name             String
+  slug             String           
+  type             SubscriptionType
+  img_url          String
+  img_key          String
+  is_active        Boolean          @default(true)
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+  
+  created_by       String
+  updated_by       String
+
+  course           Course[]
+  card             Card[]
+  category         Category         @relation(fields: [category_id], references: [category_id], onDelete: Cascade)
+
+  @@index([slug, name])
+  @@unique([type, slug])
+  @@map("sub_category")
+}
+
+model Course {
+  id                Int             @id           @default(autoincrement())
+  course_id         String          @unique       @default(uuid())
+  category_id       String?    
+  sub_category_id   String?   
+  title             String
+  slug              String          
+  preview_url       String?
+  thumbnail_url     String
+  thumbnail_key     String
+  description       String
+  is_active         Boolean         @default(true)
+  type              SubscriptionType
+
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+  
+  created_by        String
+  updated_by        String
+
+  category          Category?       @relation(fields: [category_id], references: [category_id], onDelete: Cascade)
+  sub_category      SubCategory?    @relation(fields: [sub_category_id], references: [sub_category_id], onDelete: Cascade)
+  segment           Segment[]    
+
+  @@index([slug, category_id, sub_category_id, title])
+  @@unique([type, slug])
+  @@map("course")   
+}
+
+model Segment {
+  id                Int             @id           @default(autoincrement())
+  segment_id        String          @unique       @default(uuid())
+  course_id         String
+  title             String
+  number            Int             @db.UnsignedInt
+  is_active         Boolean         @default(true)
+  
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+  
+  created_by        String
+  updated_by        String
+
+  course            Course          @relation(fields: [course_id], references: [course_id], onDelete: Cascade)
+  content           Content[]
+
+  @@index([course_id, segment_id])
+  @@map("segment")
+}
+
+model Content {
+  id                Int             @id           @default(autoincrement())
+  content_id        String          @unique       @default(uuid())
+  segment_id        String
+  number            Int             @db.UnsignedInt
+  title             String
+  video_url         String?
+  video_note_url    String?
+  video_note        String?         @db.Text
+  content_type      ContentType
+  test_type         TestType?
+  is_active         Boolean         @default(true)
+
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+  
+  created_by        String
+  updated_by        String
+
+  segment           Segment         @relation(fields: [segment_id], references: [segment_id], onDelete: Cascade)
+  progress          UserContentProgress[]
+
+  @@index([segment_id, content_id])
+  @@map("content")
+}
+
+model UserContentProgress {
+  id                Int             @id           @default(autoincrement())
+  progress_id       String          @unique       @default(uuid())
+  content_id        String
+  user_id           String
+  progress_type     ContentType
+  
+  user              User            @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  content           Content         @relation(fields: [content_id], references: [content_id], onDelete: Cascade)
+
+  @@index([content_id, user_id])
+  @@map("user_content_progress")
+}
+
+model Card {
+  id                Int             @id           @default(autoincrement())
+  card_id           String          @unique       @default(uuid())
+  category_id       String?    
+  sub_category_id   String?
+  type              CardType
+  text              String?         @db.Text
+  url               String?         @db.Text  
+  key               String?
+  is_active         Boolean         @default(true)
+
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+  
+  created_by        String
+  updated_by        String
+
+  category          Category?       @relation(fields: [category_id], references: [category_id], onDelete: Cascade)
+  sub_category      SubCategory?    @relation(fields: [sub_category_id], references: [sub_category_id], onDelete: Cascade)
+
+  @@index([category_id, sub_category_id, type])
+  @@map("card")
 }
