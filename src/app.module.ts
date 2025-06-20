@@ -19,6 +19,8 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TestsModule } from './tests/tests.module';
 import { GlobalMiddleware } from './utils/global/global.middleware';
 import { PrismaService } from './utils/services/prisma.service';
+import { CategoriesModule } from './categories/categories.module';
+import { CardsModule } from './cards/cards.module';
 
 @Module({
   imports: [
@@ -58,6 +60,8 @@ import { PrismaService } from './utils/services/prisma.service';
     GeneralModule,
     AiModule,
     SubscriptionsModule,
+    CategoriesModule,
+    CardsModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
