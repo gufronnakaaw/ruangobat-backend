@@ -406,8 +406,17 @@ export class AiService {
     });
 
     return chats.flatMap((chat) => [
-      { role: 'user', content: chat.question, images: chat.image },
-      { role: 'assistant', content: chat.answer },
+      {
+        role: 'user',
+        content: chat.question,
+        images: chat.image,
+        chat_id: `${chat.chat_id}-user`,
+      },
+      {
+        role: 'assistant',
+        content: chat.answer,
+        chat_id: `${chat.chat_id}-assistant`,
+      },
     ]);
   }
 
@@ -435,7 +444,7 @@ export class AiService {
         orderBy: {
           created_at: 'desc',
         },
-        take: 5,
+        take: 4,
       }),
     ]);
 
