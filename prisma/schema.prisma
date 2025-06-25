@@ -422,50 +422,6 @@ model Research {
   @@map("research")
 }
 
-model University {
-  id               Int              @id               @default(autoincrement())
-  university_id    String           @unique
-  name             String
-  slug             String           @unique
-  description      String?          @db.Text
-  img_url          String
-  is_active        Boolean          @default(true)
-
-  created_at       DateTime         @default(now())
-  updated_at       DateTime         @updatedAt
-
-  created_by       String         
-  updated_by       String
-  
-  pa               PharmacistAdmission[]
-
-  @@map("university")
-}
-
-model PharmacistAdmission {
-  id               Int              @id               @default(autoincrement())
-  pa_id            String           @unique
-  university_id    String
-  title            String
-  slug             String
-  description      String           @db.Text
-  thumbnail_url    String?
-  thumbnail_type   ThumbnailType?
-  price            Int              @db.UnsignedInt
-  link_order       String
-  is_active        Boolean          @default(true)
-
-  created_at       DateTime         @default(now())
-  updated_at       DateTime         @updatedAt
-
-  created_by       String         
-  updated_by       String 
-
-  university       University       @relation(fields: [university_id], references: [university_id], onDelete: Cascade)
-
-  @@map("pharmacist_admission")
-}
-
 enum ClassMentorType {
   preparation
   private
@@ -735,6 +691,7 @@ model Segment {
   content           Content[]
 
   @@index([course_id, segment_id])
+  @@unique([course_id, number])
   @@map("segment")
 }
 
@@ -747,6 +704,7 @@ model Content {
   video_url         String?
   video_note_url    String?
   video_note        String?         @db.Text
+  duration          String?          
   content_type      ContentType
   test_type         TestType?
   is_active         Boolean         @default(true)
@@ -759,8 +717,12 @@ model Content {
 
   segment           Segment         @relation(fields: [segment_id], references: [segment_id], onDelete: Cascade)
   progress          UserContentProgress[]
+  question          AssessmentQuestion[]
+  result            AssessmentResult[]
+
 
   @@index([segment_id, content_id])
+  @@unique([content_id, number])
   @@map("content")
 }
 
@@ -800,4 +762,139 @@ model Card {
 
   @@index([category_id, sub_category_id, type])
   @@map("card")
+}
+
+model University {
+  id               Int              @id               @default(autoincrement())
+  univ_id          String           @unique
+  title            String
+  slug             String           @unique
+  description      String?          @db.Text
+  thumbnail_url    String
+  thumbnail_key    String
+  is_active        Boolean          @default(true)
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String         
+  updated_by       String
+  
+  univdetail       UniversityDetail[]
+
+  @@map("university")
+}
+
+model UniversityDetail {
+  id               Int              @id               @default(autoincrement())
+  univd_id         String           @unique
+  univ_id          String
+  ass_id           String
+
+  university       University       @relation(fields: [univ_id], references: [univ_id], onDelete: Cascade)
+  assessment       Assessment       @relation(fields: [ass_id], references: [ass_id], onDelete: Cascade)
+
+  @@map("university_detail")
+}
+
+model Assessment {
+  id               Int              @id               @default(autoincrement())
+  ass_id           String           @unique
+  title            String
+  description      String?          @db.Text
+  ass_type         SubscriptionType
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String
+  updated_by       String
+
+  univdetail       UniversityDetail[]
+  question         AssessmentQuestion[]
+  result           AssessmentResult[]
+
+  @@unique([title, ass_type])
+  @@map("assessment")
+}
+
+model AssessmentQuestion {
+  id               Int              @id               @default(autoincrement())
+  assq_id          String           @unique
+  ass_id           String?
+  content_id       String?
+  number           Int              @db.UnsignedInt
+  text             String           @db.Text
+  url              String?          @db.Text
+  type             QuestionType
+  explanation      String?          @db.Text
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String
+  updated_by       String
+
+  assessment       Assessment?      @relation(fields: [ass_id], references: [ass_id], onDelete: Cascade)
+  content          Content?         @relation(fields: [content_id], references: [content_id], onDelete: Cascade)
+  option           AssessmentOption[]
+  resultdetail     AssessmentResultDetail[]
+
+  @@map("assessment_question")
+}
+
+
+model AssessmentOption {
+  id               Int              @id               @default(autoincrement())
+  asso_id          String           @unique
+  assq_id          String
+  text             String
+  is_correct       Boolean
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  created_by       String
+  updated_by       String
+
+  question         AssessmentQuestion @relation(fields: [assq_id], references: [assq_id], onDelete: Cascade)
+
+  @@map("assessment_option")
+}
+
+model AssessmentResult {
+  id               Int              @id               @default(autoincrement())
+  assr_id          String           @unique
+  ass_id           String?
+  content_id       String?
+  user_id          String
+  total_correct    Int              @db.UnsignedInt
+  total_incorrect  Int              @db.UnsignedInt
+  score            Int              @db.UnsignedInt
+
+  created_at       DateTime         @default(now())
+
+  assessment       Assessment?      @relation(fields: [ass_id], references: [ass_id], onDelete: Cascade)
+  content          Content?         @relation(fields: [content_id], references: [content_id], onDelete: Cascade)
+  resultdetail     AssessmentResultDetail[]
+
+  @@map("assessment_result")
+}
+
+model AssessmentResultDetail {
+  id               Int              @id               @default(autoincrement())
+  assrd_id         String           @unique
+  assr_id          String
+  assq_id          String
+  number           Int              @db.UnsignedInt
+  correct_option   String
+  user_answer      String?
+  is_correct       Boolean
+
+  created_at       DateTime         @default(now())
+
+  result           AssessmentResult  @relation(fields: [assr_id], references: [assr_id], onDelete: Cascade)
+  question         AssessmentQuestion @relation(fields: [assq_id], references: [assq_id], onDelete: Cascade)
+
+  @@map("assessment_result_detail")
 }
