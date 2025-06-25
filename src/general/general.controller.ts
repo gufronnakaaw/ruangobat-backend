@@ -212,20 +212,6 @@ export class GeneralController {
     }
   }
 
-  @Get('/subjects/preparation')
-  @HttpCode(HttpStatus.OK)
-  async getSubjectPreparation(): Promise<SuccessResponse> {
-    try {
-      return {
-        success: true,
-        status_code: HttpStatus.OK,
-        data: await this.generalService.getSubjectPreparation(),
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
   @Get('/subjects/private')
   @HttpCode(HttpStatus.OK)
   async getSubjectPrivate(): Promise<SuccessResponse> {
@@ -262,36 +248,6 @@ export class GeneralController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.generalService.getResearch(),
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  @Get('/pharmacistadmission')
-  @HttpCode(HttpStatus.OK)
-  async getUniversity(): Promise<SuccessResponse> {
-    try {
-      return {
-        success: true,
-        status_code: HttpStatus.OK,
-        data: await this.generalService.getUniversity(),
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  @Get('/pharmacistadmission/:slug')
-  @HttpCode(HttpStatus.OK)
-  async getPharmacistAdmission(
-    @Param('slug') slug: string,
-  ): Promise<SuccessResponse> {
-    try {
-      return {
-        success: true,
-        status_code: HttpStatus.OK,
-        data: await this.generalService.getPharmacistAdmission(slug),
       };
     } catch (error) {
       throw error;

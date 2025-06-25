@@ -259,34 +259,4 @@ export class AppController {
       throw error;
     }
   }
-
-  @Get('/pharmacistadmission')
-  @HttpCode(HttpStatus.OK)
-  async getUniversity(): Promise<SuccessResponse> {
-    try {
-      return {
-        success: true,
-        status_code: HttpStatus.OK,
-        data: await this.appService.getUniversity(),
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  @Get('/pharmacistadmission/:slug')
-  @HttpCode(HttpStatus.OK)
-  async getPharmacistAdmission(
-    @Param('slug') slug: string,
-  ): Promise<SuccessResponse> {
-    try {
-      return {
-        success: true,
-        status_code: HttpStatus.OK,
-        data: await this.appService.getPharmacistAdmission(slug),
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
 }
