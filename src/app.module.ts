@@ -21,6 +21,7 @@ import { GlobalMiddleware } from './utils/global/global.middleware';
 import { PrismaService } from './utils/services/prisma.service';
 import { CategoriesModule } from './categories/categories.module';
 import { CardsModule } from './cards/cards.module';
+import { CoursesModule } from './courses/courses.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { CardsModule } from './cards/cards.module';
     SubscriptionsModule,
     CategoriesModule,
     CardsModule,
+    CoursesModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
