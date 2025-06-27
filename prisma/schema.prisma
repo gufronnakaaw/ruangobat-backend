@@ -50,6 +50,11 @@ enum CardType {
   document
 }
 
+enum Variant {
+  quiz
+  tryout
+}
+
 model Admin {
   id               Int              @id               @default(autoincrement())
   admin_id         String           @unique
@@ -612,6 +617,7 @@ model Category {
   subcategory      SubCategory[]
   course           Course[]   
   card             Card[]
+  assessment       Assessment[]
 
   @@index([slug, name])
   @@unique([type, slug])
@@ -637,6 +643,7 @@ model SubCategory {
 
   course           Course[]
   card             Card[]
+  assessment       Assessment[]
   category         Category         @relation(fields: [category_id], references: [category_id], onDelete: Cascade)
 
   @@index([slug, name])
@@ -800,9 +807,12 @@ model UniversityDetail {
 model Assessment {
   id               Int              @id               @default(autoincrement())
   ass_id           String           @unique
+  category_id      String?    
+  sub_category_id  String?
   title            String
   description      String?          @db.Text
   ass_type         SubscriptionType
+  variant          Variant?
 
   created_at       DateTime         @default(now())
   updated_at       DateTime         @updatedAt
@@ -813,6 +823,8 @@ model Assessment {
   univdetail       UniversityDetail[]
   question         AssessmentQuestion[]
   result           AssessmentResult[]
+  category         Category?       @relation(fields: [category_id], references: [category_id], onDelete: Cascade)
+  sub_category     SubCategory?    @relation(fields: [sub_category_id], references: [sub_category_id], onDelete: Cascade)
 
   @@unique([title, ass_type])
   @@map("assessment")
