@@ -7,10 +7,18 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { random } from 'lodash';
 import ShortUniqueId from 'short-unique-id';
-import { CreateFeedbackDto, ResetPasswordDto, VerifyOtpDto } from './app.dto';
+import {
+  CreateFeedbackDto,
+  CreateUniversityDto,
+  ResetPasswordDto,
+  UpdateUniversityDto,
+  VerifyOtpDto,
+} from './app.dto';
 import { hashPassword } from './utils/bcrypt.util';
 import { decryptString } from './utils/crypto.util';
 import { PrismaService } from './utils/services/prisma.service';
+import { StorageService } from './utils/services/storage.service';
+import { parseIsActive, slug } from './utils/string.util';
 
 @Injectable()
 export class AppService {
@@ -18,6 +26,7 @@ export class AppService {
     private prisma: PrismaService,
     private mailerService: MailerService,
     private jwtService: JwtService,
+    private storage: StorageService,
   ) {}
 
   async createFeedback(body: CreateFeedbackDto) {
@@ -425,5 +434,181 @@ export class AppService {
         };
       }),
     };
+  }
+
+  async getUniversities(role: string) {
+    const universities = await this.prisma.university.findMany({
+      where: { ...(role === 'admin' ? { is_active: true } : {}) },
+      select: {
+        univ_id: true,
+        slug: true,
+        title: true,
+        description: true,
+        thumbnail_url: true,
+        created_at: true,
+        is_active: true,
+        _count: {
+          select: { univdetail: true },
+        },
+      },
+    });
+
+    return universities.map((university) => {
+      const { _count, ...rest } = university;
+
+      return {
+        ...rest,
+        total_tests: _count.univdetail,
+      };
+    });
+  }
+
+  async getUniversity(id_or_slug: string) {
+    return this.prisma.university
+      .findFirst({
+        where: {
+          OR: [{ univ_id: id_or_slug }, { slug: id_or_slug }],
+        },
+        select: {
+          univ_id: true,
+          slug: true,
+          title: true,
+          description: true,
+          thumbnail_url: true,
+          created_at: true,
+          is_active: true,
+          univdetail: {
+            select: {
+              assessment: {
+                select: {
+                  ass_id: true,
+                  title: true,
+                  description: true,
+                  _count: {
+                    select: { question: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      })
+      .then((university) => {
+        if (!university) return {};
+
+        const { univdetail, ...rest } = university;
+
+        return {
+          ...rest,
+          tests: univdetail.map((detail) => ({
+            ass_id: detail.assessment.ass_id,
+            title: detail.assessment.title,
+            description: detail.assessment.description,
+            total_questions: detail.assessment._count.question,
+          })),
+        };
+      });
+  }
+
+  async createUniversity(body: CreateUniversityDto, file: Express.Multer.File) {
+    const key = `universities/${Date.now()}-${file.originalname}`;
+
+    const url = await this.storage.uploadFile({
+      buffer: file.buffer,
+      key,
+      mimetype: file.mimetype,
+    });
+
+    const uid = new ShortUniqueId({ length: 10 });
+
+    return this.prisma.university.create({
+      data: {
+        univ_id: `ROUNIV${uid.rnd().toUpperCase()}`,
+        title: body.title,
+        slug: slug(body.title),
+        description: body.description,
+        thumbnail_url: url,
+        thumbnail_key: key,
+        created_by: body.by,
+        updated_by: body.by,
+        univdetail: {
+          createMany: {
+            data: body.tests.map((test) => ({
+              univd_id: `ROUNIVDET${uid.rnd().toUpperCase()}`,
+              ass_id: test,
+            })),
+          },
+        },
+      },
+      select: {
+        univ_id: true,
+      },
+    });
+  }
+
+  async updateUniversity(body: UpdateUniversityDto, file: Express.Multer.File) {
+    const university = await this.prisma.university.count({
+      where: { univ_id: body.univ_id },
+    });
+
+    if (!university) {
+      throw new NotFoundException('Universitas tidak ditemukan');
+    }
+
+    let key = '';
+    let url = '';
+
+    if (file) {
+      key += `universities/${Date.now()}-${file.originalname}`;
+
+      url += await this.storage.uploadFile({
+        buffer: file.buffer,
+        key,
+        mimetype: file.mimetype,
+      });
+    }
+
+    const uid = new ShortUniqueId({ length: 10 });
+
+    await this.prisma.universityDetail.deleteMany({
+      where: { univ_id: body.univ_id },
+    });
+
+    return this.prisma.university.update({
+      where: { univ_id: body.univ_id },
+      data: {
+        title: body.title,
+        slug: body.title ? slug(body.title) : undefined,
+        description: body.description,
+        is_active: parseIsActive(body.is_active),
+        thumbnail_url: url ? url : undefined,
+        thumbnail_key: key ? key : undefined,
+        updated_by: body.by,
+        univdetail: {
+          createMany: {
+            data: body.tests.map((test) => ({
+              univd_id: `ROUNIVDET${uid.rnd().toUpperCase()}`,
+              ass_id: test,
+            })),
+          },
+        },
+      },
+      select: { univ_id: true },
+    });
+  }
+
+  async deleteUniversityDetail(univd_id: string) {
+    const count = await this.prisma.universityDetail.count({
+      where: { univd_id },
+    });
+
+    if (!count) {
+      throw new NotFoundException('Ujian tidak ditemukan');
+    }
+
+    return this.prisma.universityDetail.delete({
+      where: { univd_id },
+      select: { univd_id: true },
+    });
   }
 }

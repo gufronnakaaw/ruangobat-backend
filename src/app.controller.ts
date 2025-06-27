@@ -1,12 +1,14 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
   HttpCode,
   HttpStatus,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Patch,
   Post,
   Req,
@@ -17,15 +19,17 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
-import { diskStorage } from 'multer';
-import path from 'path';
 import {
   CreateFeedbackDto,
   createFeedbackSchema,
+  CreateUniversityDto,
+  createUniversitySchema,
   ResetPasswordDto,
   resetPasswordSchema,
   SendEmailDto,
   sendEmailSchema,
+  UpdateUniversityDto,
+  updateUniversitySchema,
   VerifyOtpDto,
   verifyOtpSchema,
 } from './app.dto';
@@ -33,11 +37,16 @@ import { AppService } from './app.service';
 import { SuccessResponse } from './utils/global/global.response';
 import { AdminGuard } from './utils/guards/admin.guard';
 import { UserGuard } from './utils/guards/user.guard';
+import { InputInterceptor } from './utils/interceptors/input.interceptor';
 import { ZodValidationPipe } from './utils/pipes/zod.pipe';
+import { StorageService } from './utils/services/storage.service';
 
 @Controller()
 export class AppController {
-  constructor(private appService: AppService) {}
+  constructor(
+    private appService: AppService,
+    private storage: StorageService,
+  ) {}
 
   @Get()
   @HttpCode(HttpStatus.OK)
@@ -136,35 +145,30 @@ export class AppController {
   @UseGuards(AdminGuard)
   @Post('/questions/image')
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(
-    FileInterceptor('upload', {
-      storage: diskStorage({
-        destination: './public/questions',
-        filename(req, file, callback) {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
+  @UseInterceptors(FileInterceptor('upload'))
+  async uploadQuestionImage(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 2 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png|)$/,
+          }),
+        ],
       }),
-      fileFilter(req, file, callback) {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-          return callback(
-            new BadRequestException('Hanya gambar yang diperbolehkan'),
-            false,
-          );
-        }
-        callback(null, true);
-      },
-      limits: {
-        fileSize: 2 * 1024 * 1024,
-      },
-    }),
-  )
-  uploadQuestionsImage(
-    @UploadedFile() upload: Express.Multer.File,
-    @Req() req: Request,
+    )
+    file: Express.Multer.File,
   ) {
     try {
       return {
-        url: `${req.fullurl}/${upload.path.split(path.sep).join('/')}`,
+        url: await this.storage.uploadFile({
+          buffer: file.buffer,
+          key: `questions/${Date.now()}-${file.originalname}`,
+          mimetype: file.mimetype,
+        }),
       };
     } catch (error) {
       throw error;
@@ -254,6 +258,126 @@ export class AppController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.appService.getResearch(),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Get('/universities')
+  @HttpCode(HttpStatus.OK)
+  async getUniversities(@Req() req: Request): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getUniversities(req.admin.role),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Get('/universities/:id_or_slug')
+  @HttpCode(HttpStatus.OK)
+  async getUniversity(
+    @Param('id_or_slug') id_or_slug: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getUniversity(id_or_slug),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('/universities')
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(
+    FileInterceptor('thumbnail'),
+    new InputInterceptor(createUniversitySchema),
+  )
+  async createUniversity(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 2 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png|)$/,
+          }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+    @Body() body: CreateUniversityDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.appService.createUniversity(body, file),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Patch('/universities')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FileInterceptor('thumbnail'),
+    new InputInterceptor(updateUniversitySchema),
+  )
+  async updateUniversity(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 2 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png|)$/,
+          }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    file: Express.Multer.File,
+    @Body() body: UpdateUniversityDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.updateUniversity(body, file),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Delete('/universities/:univd_id/detail')
+  @HttpCode(HttpStatus.OK)
+  async deleteUniversityDetail(
+    @Param('univd_id') univd_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.deleteUniversityDetail(univd_id),
       };
     } catch (error) {
       throw error;

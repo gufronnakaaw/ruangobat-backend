@@ -31,3 +31,26 @@ export const resetPasswordSchema = z.object({
 });
 
 export type ResetPasswordDto = z.infer<typeof resetPasswordSchema>;
+
+export const createUniversitySchema = z.object({
+  title: z.string().min(1, { message: 'Nama universitas tidak boleh kosong' }),
+  description: z.string().optional(),
+  tests: z.array(z.string().min(1, { message: 'Minimal 1 ujian dipilih' })),
+  by: z.string(),
+});
+
+export type CreateUniversityDto = z.infer<typeof createUniversitySchema>;
+
+export const updateUniversitySchema = z.object({
+  univ_id: z.string(),
+  title: z
+    .string()
+    .min(1, { message: 'Nama universitas tidak boleh kosong' })
+    .optional(),
+  description: z.string().optional(),
+  is_active: z.enum(['true', 'false']).optional(),
+  tests: z.array(z.string().min(1, { message: 'Minimal 1 ujian dipilih' })),
+  by: z.string(),
+});
+
+export type UpdateUniversityDto = z.infer<typeof updateUniversitySchema>;
