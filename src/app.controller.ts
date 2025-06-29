@@ -1,3 +1,4 @@
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
@@ -6,6 +7,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   MaxFileSizeValidator,
   Param,
   ParseFilePipe,
@@ -24,10 +26,13 @@ import {
   createFeedbackSchema,
   CreateUniversityDto,
   createUniversitySchema,
+  FinishAssessmentDto,
+  finishAssessmentSchema,
   ResetPasswordDto,
   resetPasswordSchema,
   SendEmailDto,
   sendEmailSchema,
+  StartAssessmentQuestion,
   UpdateUniversityDto,
   updateUniversitySchema,
   VerifyOtpDto,
@@ -36,6 +41,7 @@ import {
 import { AppService } from './app.service';
 import { SuccessResponse } from './utils/global/global.response';
 import { AdminGuard } from './utils/guards/admin.guard';
+import { PublicGuard } from './utils/guards/public.guard';
 import { UserGuard } from './utils/guards/user.guard';
 import { InputInterceptor } from './utils/interceptors/input.interceptor';
 import { ZodValidationPipe } from './utils/pipes/zod.pipe';
@@ -46,6 +52,7 @@ export class AppController {
   constructor(
     private appService: AppService,
     private storage: StorageService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   @Get()
@@ -378,6 +385,118 @@ export class AppController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.appService.deleteUniversityDetail(univd_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(PublicGuard)
+  @Get('/apotekerclass')
+  @HttpCode(HttpStatus.OK)
+  async getApotekerClass(@Req() req: Request): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getApotekerClass(req),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(PublicGuard)
+  @Get('/videocourse')
+  @HttpCode(HttpStatus.OK)
+  async getVideoCourse(@Req() req: Request): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getVideoCourse(req),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(PublicGuard)
+  @Get('/contents/:cat_or_sub/:type')
+  @HttpCode(HttpStatus.OK)
+  async getContents(
+    @Param('cat_or_sub') cat_or_sub: string,
+    @Param('type') type: 'apotekerclass' | 'videocourse' | 'videoukmppai',
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getContents(cat_or_sub, type, req),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(UserGuard)
+  @Get('/assessments/:ass_or_content_id/start')
+  @HttpCode(HttpStatus.OK)
+  async startAssessment(
+    @Param('ass_or_content_id') ass_or_content_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      const cache = (await this.cacheManager.get(
+        ass_or_content_id,
+      )) as StartAssessmentQuestion[];
+
+      if (cache) {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: await this.appService.startAssessment({
+            ass_or_content_id,
+            questions: cache,
+          }),
+        };
+      }
+
+      const questions =
+        await this.appService.getAssessmentQuestions(ass_or_content_id);
+      await this.cacheManager.set(ass_or_content_id, questions, 120000);
+
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.startAssessment({
+          ass_or_content_id,
+          questions,
+        }),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(UserGuard)
+  @Post('/assessments/:ass_id/finish')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(finishAssessmentSchema))
+  async finishAssessment(
+    @Param('ass_id') ass_id: string,
+    @Body() body: FinishAssessmentDto,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.appService.finishAssessment(
+          ass_id,
+          body,
+          req.user.user_id,
+        ),
       };
     } catch (error) {
       throw error;

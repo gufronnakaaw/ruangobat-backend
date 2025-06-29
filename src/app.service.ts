@@ -5,15 +5,20 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { $Enums } from '@prisma/client';
+import { Request } from 'express';
 import { random } from 'lodash';
 import ShortUniqueId from 'short-unique-id';
 import {
   CreateFeedbackDto,
   CreateUniversityDto,
+  FinishAssessmentDto,
   ResetPasswordDto,
+  StartAssessmentQuestion,
   UpdateUniversityDto,
   VerifyOtpDto,
 } from './app.dto';
+import { shuffle } from './utils/array.util';
 import { hashPassword } from './utils/bcrypt.util';
 import { decryptString } from './utils/crypto.util';
 import { PrismaService } from './utils/services/prisma.service';
@@ -438,15 +443,17 @@ export class AppService {
 
   async getUniversities(role: string) {
     const universities = await this.prisma.university.findMany({
-      where: { ...(role === 'admin' ? { is_active: true } : {}) },
+      where: {
+        ...(role === 'admin' || role === 'public' ? { is_active: true } : {}),
+      },
       select: {
         univ_id: true,
         slug: true,
         title: true,
-        description: true,
         thumbnail_url: true,
-        created_at: true,
-        is_active: true,
+        ...(role === 'public'
+          ? {}
+          : { created_at: true, is_active: true, description: true }),
         _count: {
           select: { univdetail: true },
         },
@@ -609,6 +616,569 @@ export class AppService {
     return this.prisma.universityDetail.delete({
       where: { univd_id },
       select: { univd_id: true },
+    });
+  }
+
+  async getApotekerClass(req: Request) {
+    const subscriptions_promise = req.is_login
+      ? Promise.resolve([])
+      : this.prisma.subscriptionPackage.findMany({
+          where: {
+            is_active: true,
+            type: 'apotekerclass',
+          },
+          select: {
+            package_id: true,
+            name: true,
+            price: true,
+            duration: true,
+            type: true,
+            link_order: true,
+            benefit: {
+              select: {
+                benefit_id: true,
+                description: true,
+              },
+            },
+          },
+          orderBy: {
+            price: 'asc',
+          },
+        });
+
+    const [categories, subscriptions, universities] = await Promise.all([
+      this.prisma.category.findMany({
+        where: {
+          is_active: true,
+          type: 'apotekerclass',
+        },
+        select: {
+          category_id: true,
+          name: true,
+          slug: true,
+          img_url: true,
+        },
+        orderBy: {
+          name: 'asc',
+        },
+      }),
+      subscriptions_promise,
+      this.getUniversities('public'),
+    ]);
+
+    return {
+      categories,
+      universities,
+      subscriptions: subscriptions.length
+        ? subscriptions.map((subscription) => {
+            const { benefit: benefits, ...rest } = subscription;
+
+            return {
+              ...rest,
+              benefits,
+            };
+          })
+        : [],
+      is_login: req.is_login,
+    };
+  }
+
+  async getVideoCourse(req: Request) {
+    const subscriptions_promise = req.is_login
+      ? Promise.resolve([])
+      : this.prisma.subscriptionPackage.findMany({
+          where: {
+            is_active: true,
+            type: 'videocourse',
+          },
+          select: {
+            package_id: true,
+            name: true,
+            price: true,
+            duration: true,
+            type: true,
+            link_order: true,
+            benefit: {
+              select: {
+                benefit_id: true,
+                description: true,
+              },
+            },
+          },
+          orderBy: {
+            price: 'asc',
+          },
+        });
+
+    const [categories, subscriptions] = await Promise.all([
+      this.prisma.category.findMany({
+        where: {
+          is_active: true,
+          type: 'videocourse',
+        },
+        select: {
+          category_id: true,
+          name: true,
+          slug: true,
+          img_url: true,
+        },
+        orderBy: {
+          name: 'asc',
+        },
+      }),
+      subscriptions_promise,
+    ]);
+
+    return {
+      categories,
+      subscriptions: subscriptions.length
+        ? subscriptions.map((subscription) => {
+            const { benefit: benefits, ...rest } = subscription;
+
+            return {
+              ...rest,
+              benefits,
+            };
+          })
+        : [],
+      is_login: req.is_login,
+    };
+  }
+
+  async getContents(
+    cat_or_sub: string,
+    type: 'videocourse' | 'apotekerclass' | 'videoukmppai',
+    req: Request,
+  ) {
+    if (!['videocourse', 'apotekerclass', 'videoukmppai'].includes(type)) {
+      return [];
+    }
+
+    const OR: {
+      category_id?: string;
+      sub_category_id?: string;
+      slug?: string;
+    }[] = [];
+
+    let model: 'category' | 'subCategory' | '' = '';
+    let field: 'category' | 'sub_category' | '' = '';
+
+    if (type === 'apotekerclass') {
+      model += 'category';
+      field += 'category';
+      OR.push({ category_id: cat_or_sub }, { slug: cat_or_sub });
+    } else {
+      model += 'subCategory';
+      field += 'sub_category';
+      OR.push({ sub_category_id: cat_or_sub }, { slug: cat_or_sub });
+    }
+
+    const histories: {
+      assessment: {
+        ass_id: string;
+        title: string;
+      };
+      created_at: Date;
+      assr_id: string;
+      score: number;
+    }[] = [];
+
+    const subscriptions: {
+      name: string;
+      type: $Enums.SubscriptionType;
+      package_id: string;
+      price: number;
+      duration: number;
+      link_order: string;
+      benefit: {
+        description: string;
+        benefit_id: string;
+      }[];
+    }[] = [];
+
+    if (req.is_login) {
+      const result = await this.prisma.assessmentResult.findMany({
+        where: {
+          user_id: req.user.user_id,
+          assessment: {
+            ass_type: type,
+            variant: 'quiz',
+            is_active: true,
+          },
+        },
+        select: {
+          assr_id: true,
+          score: true,
+          created_at: true,
+          assessment: {
+            select: {
+              ass_id: true,
+              title: true,
+            },
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
+
+      histories.push(...result);
+    } else {
+      const results = await this.prisma.subscriptionPackage.findMany({
+        where: {
+          is_active: true,
+          type,
+        },
+        select: {
+          package_id: true,
+          name: true,
+          price: true,
+          duration: true,
+          type: true,
+          link_order: true,
+          benefit: {
+            select: {
+              benefit_id: true,
+              description: true,
+            },
+          },
+        },
+        orderBy: {
+          price: 'asc',
+        },
+      });
+
+      subscriptions.push(...results);
+    }
+
+    const [category, quizzes, cards] = await this.prisma.$transaction([
+      this.prisma[model].findFirst({
+        where: {
+          OR,
+          type,
+          is_active: true,
+        },
+        select: {
+          name: true,
+          slug: true,
+          img_url: true,
+          type: true,
+          course: {
+            where: {
+              is_active: true,
+            },
+            select: {
+              course_id: true,
+              title: true,
+              slug: true,
+              thumbnail_url: true,
+              segment: {
+                select: {
+                  content: {
+                    select: {
+                      content_type: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.assessment.findMany({
+        where: {
+          ass_type: type,
+          variant: 'quiz',
+          [field]: {
+            OR: [{ [field + '_id']: cat_or_sub }, { slug: cat_or_sub }],
+          },
+          is_active: true,
+          ass_id: {
+            notIn: histories.map((item) => item.assessment.ass_id),
+          },
+        },
+        select: {
+          ass_id: true,
+          description: true,
+          title: true,
+          _count: {
+            select: {
+              question: true,
+            },
+          },
+        },
+      }),
+      this.prisma.card.findMany({
+        where: {
+          [field]: {
+            OR: [{ [field + '_id']: cat_or_sub }, { slug: cat_or_sub }],
+          },
+          is_active: true,
+        },
+        select: {
+          card_id: true,
+          text: true,
+          url: true,
+          type: true,
+        },
+      }),
+    ]);
+
+    if (!category) return {};
+
+    const { course, ...rest } = category;
+
+    return {
+      ...rest,
+      courses: course.length
+        ? course.map((item) => {
+            const { segment, ...course_data } = item;
+
+            const segments = segment.flatMap((seg) => seg.content);
+
+            const total_videos = segments.filter(
+              (cont) => cont.content_type === 'video',
+            ).length;
+            const total_tests = segments.filter(
+              (cont) => cont.content_type === 'test',
+            ).length;
+
+            return {
+              ...course_data,
+              total_videos,
+              total_tests,
+            };
+          })
+        : [],
+      quizzes: quizzes.length
+        ? quizzes.map((quiz) => {
+            const { _count, ...rest } = quiz;
+
+            return {
+              ...rest,
+              total_questions: _count.question,
+            };
+          })
+        : [],
+      histories: histories.length
+        ? histories.map((history) => {
+            return {
+              assr_id: history.assr_id,
+              score: history.score,
+              created_at: history.created_at,
+              ...history.assessment,
+            };
+          })
+        : [],
+      cards,
+      subscriptions: subscriptions.length
+        ? subscriptions.map((subscription) => {
+            const { benefit: benefits, ...rest } = subscription;
+
+            return {
+              ...rest,
+              benefits,
+            };
+          })
+        : [],
+      is_login: req.is_login,
+    };
+  }
+
+  async startAssessment({
+    ass_or_content_id,
+    questions,
+  }: {
+    ass_or_content_id: string;
+    questions: StartAssessmentQuestion[];
+  }) {
+    const [assessment_count, content_count] = await this.prisma.$transaction([
+      this.prisma.assessment.count({ where: { ass_id: ass_or_content_id } }),
+      this.prisma.content.count({ where: { content_id: ass_or_content_id } }),
+    ]);
+
+    if (!assessment_count && !content_count) {
+      throw new NotFoundException('Test/kuiz atau konten tidak ditemukan');
+    }
+
+    const shuffles = shuffle(questions).map((question, index) => {
+      return {
+        number: index + 1,
+        ...question,
+        user_answer: '',
+        is_hesitant: false,
+      };
+    });
+
+    return {
+      questions: shuffles,
+      total_questions: questions.length,
+    };
+  }
+
+  async getAssessmentQuestions(ass_or_content_id: string) {
+    const [assessment_count, content_count] = await this.prisma.$transaction([
+      this.prisma.assessment.count({ where: { ass_id: ass_or_content_id } }),
+      this.prisma.content.count({ where: { content_id: ass_or_content_id } }),
+    ]);
+
+    if (!assessment_count && !content_count) {
+      throw new NotFoundException('Test/kuiz atau konten tidak ditemukan');
+    }
+
+    return this.prisma.assessmentQuestion
+      .findMany({
+        where: {
+          OR: [
+            {
+              ass_id: ass_or_content_id,
+            },
+            {
+              content_id: ass_or_content_id,
+            },
+          ],
+        },
+        select: {
+          assq_id: true,
+          text: true,
+          url: true,
+          type: true,
+          option: {
+            select: {
+              asso_id: true,
+              text: true,
+            },
+          },
+        },
+      })
+      .then((questions) => {
+        return questions.map((question) => {
+          const { option, ...rest } = question;
+          return {
+            ...rest,
+            options: option,
+          };
+        });
+      });
+  }
+
+  async finishAssessment(
+    ass_id: string,
+    body: FinishAssessmentDto,
+    user_id: string,
+  ) {
+    const assessment = await this.prisma.assessment.findUnique({
+      where: {
+        ass_id,
+      },
+      select: {
+        ass_id: true,
+        question: {
+          select: {
+            assq_id: true,
+            option: {
+              select: {
+                asso_id: true,
+                is_correct: true,
+              },
+              where: {
+                is_correct: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!assessment) {
+      throw new NotFoundException('Test atau Kuiz tidak ditemukan');
+    }
+
+    const questions = assessment.question;
+    const total_questions = assessment.question.length;
+    const point = 100 / total_questions;
+    let total_correct = 0;
+    let total_incorrect = 0;
+    const uid = new ShortUniqueId({ length: 12 });
+
+    const user_questions: {
+      number: number;
+      assq_id: string;
+      correct_option: string;
+      user_answer: string;
+      is_correct: boolean;
+    }[] = [];
+
+    for (const user_question of body.questions) {
+      const assessment_question = questions.find(
+        (question) => question.assq_id === user_question.assq_id,
+      );
+
+      const correct_options = assessment_question.option.map(
+        (item) => item.asso_id,
+      );
+
+      if (user_question.user_answer) {
+        if (correct_options.includes(user_question.user_answer)) {
+          user_questions.push({
+            number: user_question.number,
+            assq_id: user_question.assq_id,
+            correct_option: correct_options[0],
+            user_answer: user_question.user_answer,
+            is_correct: true,
+          });
+
+          total_correct += 1;
+        } else {
+          user_questions.push({
+            number: user_question.number,
+            assq_id: user_question.assq_id,
+            correct_option: correct_options[0],
+            user_answer: user_question.user_answer,
+            is_correct: false,
+          });
+
+          total_incorrect += 1;
+        }
+      } else {
+        user_questions.push({
+          number: user_question.number,
+          assq_id: user_question.assq_id,
+          correct_option: correct_options[0],
+          user_answer: user_question.user_answer,
+          is_correct: false,
+        });
+
+        total_incorrect += 1;
+      }
+    }
+
+    return this.prisma.assessmentResult.create({
+      data: {
+        assr_id: `ROAR${uid.rnd().toUpperCase()}`,
+        ass_id,
+        user_id,
+        total_correct,
+        total_incorrect,
+        score: Math.round(total_correct * point),
+        resultdetail: {
+          createMany: {
+            data: user_questions.map((item) => {
+              return {
+                assq_id: item.assq_id,
+                assrd_id: `ROARD${uid.rnd().toUpperCase()}`,
+                number: item.number,
+                correct_option: item.correct_option ? item.correct_option : '',
+                user_answer: item.user_answer,
+                is_correct: item.is_correct,
+              };
+            }),
+          },
+        },
+      },
+      select: {
+        assr_id: true,
+      },
     });
   }
 }

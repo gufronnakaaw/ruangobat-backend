@@ -54,3 +54,29 @@ export const updateUniversitySchema = z.object({
 });
 
 export type UpdateUniversityDto = z.infer<typeof updateUniversitySchema>;
+
+export type StartAssessmentQuestion = {
+  assq_id: string;
+  text: string;
+  url?: string;
+  type?: 'text' | 'video' | 'image';
+  options: {
+    text: string;
+    asso_id: string;
+  }[];
+};
+
+export const finishAssessmentSchema = z.object({
+  ass_id: z.string(),
+  questions: z
+    .array(
+      z.object({
+        number: z.number().positive(),
+        assq_id: z.string(),
+        user_answer: z.string().optional(),
+      }),
+    )
+    .min(1),
+});
+
+export type FinishAssessmentDto = z.infer<typeof finishAssessmentSchema>;
