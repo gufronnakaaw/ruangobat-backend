@@ -1185,7 +1185,6 @@ export class AppService {
 
   async getCategory(
     id_or_slug: string,
-    role: string,
     type: 'videocourse' | 'apotekerclass' | 'videoukmppai',
   ) {
     if (!['videocourse', 'apotekerclass', 'videoukmppai'].includes(type)) {
@@ -1202,7 +1201,7 @@ export class AppService {
             slug: id_or_slug,
           },
         ],
-        ...(role === 'admin' ? { is_active: true } : {}),
+        is_active: true,
         type,
       },
       select: {
@@ -1212,7 +1211,7 @@ export class AppService {
         img_url: true,
         type: true,
         subcategory: {
-          where: { ...(role === 'admin' ? { is_active: true } : {}) },
+          where: { is_active: true },
           select: {
             sub_category_id: true,
             name: true,

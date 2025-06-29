@@ -508,17 +508,12 @@ export class AppController {
   async getCategory(
     @Param('id_or_slug') id_or_slug: string,
     @Param('type') type: 'videocourse' | 'apotekerclass' | 'videoukmppai',
-    @Req() req: Request,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.appService.getCategory(
-          id_or_slug,
-          req.admin.role,
-          type,
-        ),
+        data: await this.appService.getCategory(id_or_slug, type),
       };
     } catch (error) {
       throw error;
