@@ -5,5 +5,6 @@ declare module 'express' {
     fullurl: string;
     user: { user_id: string };
     admin: { admin_id: string; role: string };
+    is_login: boolean;
   }
 }
