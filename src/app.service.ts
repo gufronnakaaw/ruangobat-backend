@@ -872,6 +872,7 @@ export class AppService {
               title: true,
               slug: true,
               thumbnail_url: true,
+              created_at: true,
               segment: {
                 select: {
                   content: {
@@ -1180,5 +1181,55 @@ export class AppService {
         assr_id: true,
       },
     });
+  }
+
+  async getCategory(
+    id_or_slug: string,
+    role: string,
+    type: 'videocourse' | 'apotekerclass' | 'videoukmppai',
+  ) {
+    if (!['videocourse', 'apotekerclass', 'videoukmppai'].includes(type)) {
+      return {};
+    }
+
+    const category = await this.prisma.category.findFirst({
+      where: {
+        OR: [
+          {
+            category_id: id_or_slug,
+          },
+          {
+            slug: id_or_slug,
+          },
+        ],
+        ...(role === 'admin' ? { is_active: true } : {}),
+        type,
+      },
+      select: {
+        category_id: true,
+        name: true,
+        slug: true,
+        img_url: true,
+        type: true,
+        subcategory: {
+          where: { ...(role === 'admin' ? { is_active: true } : {}) },
+          select: {
+            sub_category_id: true,
+            name: true,
+            slug: true,
+            img_url: true,
+          },
+        },
+      },
+    });
+
+    if (!category) return {};
+
+    const { subcategory, ...all } = category;
+
+    return {
+      ...all,
+      sub_categories: subcategory,
+    };
   }
 }

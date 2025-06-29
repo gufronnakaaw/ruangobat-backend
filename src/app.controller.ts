@@ -502,4 +502,26 @@ export class AppController {
       throw error;
     }
   }
+
+  @Get('categories/:id_or_slug/:type/detail')
+  @HttpCode(HttpStatus.OK)
+  async getCategory(
+    @Param('id_or_slug') id_or_slug: string,
+    @Param('type') type: 'videocourse' | 'apotekerclass' | 'videoukmppai',
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getCategory(
+          id_or_slug,
+          req.admin.role,
+          type,
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }
