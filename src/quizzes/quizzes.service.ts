@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { random } from 'lodash';
 import ShortUniqueId from 'short-unique-id';
 import { PrismaService } from '../utils/services/prisma.service';
+import { parseIsActive } from '../utils/string.util';
 import { CreateQuizDto, QuizzesQuery, UpdateQuizDto } from './quizzes.dto';
 
 @Injectable()
@@ -186,6 +187,7 @@ export class QuizzesService {
           title: body.title,
           description: body.description,
           updated_by: body.by,
+          is_active: parseIsActive(body.is_active),
         },
         select: {
           ass_id: true,

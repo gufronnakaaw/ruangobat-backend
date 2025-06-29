@@ -80,6 +80,7 @@ export const updateQuizSchema = z.object({
     .optional(),
   by: z.string(),
   update_type: z.enum(['update_quiz', 'update_question', 'add_question']),
+  is_active: z.boolean().optional(),
 });
 
 export type UpdateQuizDto = z.infer<typeof updateQuizSchema>;
