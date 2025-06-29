@@ -813,6 +813,7 @@ model Assessment {
   description      String?          @db.Text
   ass_type         SubscriptionType
   variant          Variant?
+  is_active        Boolean          @default(true)
 
   created_at       DateTime         @default(now())
   updated_at       DateTime         @updatedAt
