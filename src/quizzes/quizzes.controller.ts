@@ -38,6 +38,7 @@ export class QuizzesController {
     @Param('type') type: 'apotekerclass' | 'videocourse' | 'videoukmppai',
     @Param('variant') variant: 'quiz' | 'tryout',
     @Req() req: Request,
+    @Query() query: QuizzesQuery,
   ): Promise<SuccessResponse> {
     try {
       return {
@@ -48,6 +49,7 @@ export class QuizzesController {
           type,
           variant,
           req.admin.role,
+          query,
         ),
       };
     } catch (error) {

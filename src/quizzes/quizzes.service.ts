@@ -14,6 +14,7 @@ export class QuizzesService {
     type: 'apotekerclass' | 'videocourse' | 'videoukmppai',
     variant: 'quiz' | 'tryout',
     role: string,
+    query: QuizzesQuery,
   ) {
     if (
       !['apotekerclass', 'videocourse', 'videoukmppai'].includes(type) ||
@@ -23,6 +24,12 @@ export class QuizzesService {
     }
 
     let model: 'category' | 'sub_category' | '' = '';
+    const default_page = 1;
+    const take = 10;
+
+    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
+
+    const skip = (page - 1) * take;
 
     if (type === 'apotekerclass') {
       model += 'category';
@@ -30,8 +37,8 @@ export class QuizzesService {
       model += 'sub_category';
     }
 
-    return this.prisma.assessment
-      .findMany({
+    const [total_quizzes, quizzes] = await this.prisma.$transaction([
+      this.prisma.assessment.count({
         where: {
           ass_type: type,
           variant,
@@ -39,6 +46,32 @@ export class QuizzesService {
             OR: [{ [model + '_id']: cat_or_sub }, { slug: cat_or_sub }],
           },
           ...(role === 'admin' ? { is_active: true } : {}),
+          ...(query.q
+            ? {
+                OR: [
+                  { title: { contains: query.q } },
+                  { ass_id: { contains: query.q } },
+                ],
+              }
+            : {}),
+        },
+      }),
+      this.prisma.assessment.findMany({
+        where: {
+          ass_type: type,
+          variant,
+          [model]: {
+            OR: [{ [model + '_id']: cat_or_sub }, { slug: cat_or_sub }],
+          },
+          ...(role === 'admin' ? { is_active: true } : {}),
+          ...(query.q
+            ? {
+                OR: [
+                  { title: { contains: query.q } },
+                  { ass_id: { contains: query.q } },
+                ],
+              }
+            : {}),
         },
         select: {
           ass_id: true,
@@ -51,19 +84,26 @@ export class QuizzesService {
             },
           },
         },
-      })
-      .then((assessment) => {
-        if (!assessment.length) return [];
+        take,
+        skip,
+      }),
+    ]);
 
-        return assessment.map((item) => {
-          const { _count, ...rest } = item;
+    return {
+      quizzes: quizzes.length
+        ? quizzes.map((item) => {
+            const { _count, ...rest } = item;
 
-          return {
-            ...rest,
-            total_questions: _count.question,
-          };
-        });
-      });
+            return {
+              ...rest,
+              total_questions: _count.question,
+            };
+          })
+        : [],
+      page: parseInt(query.page),
+      total_quizzes,
+      total_pages: Math.ceil(total_quizzes / take),
+    };
   }
 
   async getQuiz(ass_id: string, query: QuizzesQuery) {

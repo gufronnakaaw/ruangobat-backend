@@ -6,8 +6,8 @@ export type QuizzesQuery = {
 };
 
 export const createQuizSchema = z.object({
-  category_id: z.string().uuid(),
-  sub_category_id: z.string().uuid(),
+  category_id: z.string().uuid().optional(),
+  sub_category_id: z.string().uuid().optional(),
   title: z
     .string()
     .trim()
