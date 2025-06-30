@@ -498,6 +498,7 @@ export class AppController {
     }
   }
 
+  @UseGuards(UserGuard)
   @Get('/assessments/:assr_id/result')
   @HttpCode(HttpStatus.OK)
   async getAssessmentResult(
