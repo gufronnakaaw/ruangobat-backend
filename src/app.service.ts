@@ -23,7 +23,7 @@ import { hashPassword } from './utils/bcrypt.util';
 import { decryptString } from './utils/crypto.util';
 import { PrismaService } from './utils/services/prisma.service';
 import { StorageService } from './utils/services/storage.service';
-import { parseIsActive, slug } from './utils/string.util';
+import { parseIsActive, scoreCategory, slug } from './utils/string.util';
 
 @Injectable()
 export class AppService {
@@ -1177,6 +1177,76 @@ export class AppService {
         assr_id: true,
       },
     });
+  }
+
+  async getAssessmentResult({
+    assr_id,
+    user_id,
+  }: {
+    assr_id: string;
+    user_id: string;
+  }) {
+    const result = await this.prisma.assessmentResult.findUnique({
+      where: {
+        assr_id,
+        user_id,
+      },
+      select: {
+        assr_id: true,
+        score: true,
+        total_correct: true,
+        total_incorrect: true,
+        resultdetail: {
+          select: {
+            number: true,
+            correct_option: true,
+            user_answer: true,
+            is_correct: true,
+            question: {
+              select: {
+                assq_id: true,
+                text: true,
+                explanation: true,
+                type: true,
+                url: true,
+                option: {
+                  select: {
+                    asso_id: true,
+                    text: true,
+                    is_correct: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            number: 'asc',
+          },
+        },
+      },
+    });
+
+    return {
+      assr_id: result.assr_id,
+      score: result.score,
+      score_category: scoreCategory(result.score),
+      total_correct: result.total_correct,
+      total_incorrect: result.total_incorrect,
+      questions: result.resultdetail.map((detail) => {
+        return {
+          number: detail.number,
+          assq_id: detail.question.assq_id,
+          text: detail.question.text,
+          explanation: detail.question.explanation,
+          type: detail.question.type,
+          url: detail.question.url,
+          options: detail.question.option,
+          correct_option: detail.correct_option,
+          user_answer: detail.user_answer,
+          is_correct: detail.is_correct,
+        };
+      }),
+    };
   }
 
   async getCategory(

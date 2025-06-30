@@ -498,6 +498,26 @@ export class AppController {
     }
   }
 
+  @Get('/assessments/:assr_id/result')
+  @HttpCode(HttpStatus.OK)
+  async getAssessmentResult(
+    @Param('assr_id') assr_id: string,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getAssessmentResult({
+          assr_id,
+          user_id: req.user.user_id,
+        }),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Get('categories/:id_or_slug/:type/detail')
   @HttpCode(HttpStatus.OK)
   async getCategory(
