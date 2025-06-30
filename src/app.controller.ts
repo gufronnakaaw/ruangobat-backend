@@ -480,11 +480,10 @@ export class AppController {
   }
 
   @UseGuards(UserGuard)
-  @Post('/assessments/:ass_id/finish')
+  @Post('/assessments/finish')
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(finishAssessmentSchema))
   async finishAssessment(
-    @Param('ass_id') ass_id: string,
     @Body() body: FinishAssessmentDto,
     @Req() req: Request,
   ): Promise<SuccessResponse> {
@@ -492,11 +491,7 @@ export class AppController {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.appService.finishAssessment(
-          ass_id,
-          body,
-          req.user.user_id,
-        ),
+        data: await this.appService.finishAssessment(body, req.user.user_id),
       };
     } catch (error) {
       throw error;

@@ -1063,14 +1063,10 @@ export class AppService {
       });
   }
 
-  async finishAssessment(
-    ass_id: string,
-    body: FinishAssessmentDto,
-    user_id: string,
-  ) {
+  async finishAssessment(body: FinishAssessmentDto, user_id: string) {
     const assessment = await this.prisma.assessment.findUnique({
       where: {
-        ass_id,
+        ass_id: body.ass_id,
       },
       select: {
         ass_id: true,
@@ -1157,7 +1153,7 @@ export class AppService {
     return this.prisma.assessmentResult.create({
       data: {
         assr_id: `ROAR${uid.rnd().toUpperCase()}`,
-        ass_id,
+        ass_id: body.ass_id,
         user_id,
         total_correct,
         total_incorrect,
