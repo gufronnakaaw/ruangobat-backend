@@ -1,5 +1,6 @@
 import { MailerService } from '@nestjs-modules/mailer';
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -11,6 +12,7 @@ import { random } from 'lodash';
 import ShortUniqueId from 'short-unique-id';
 import {
   CreateFeedbackDto,
+  CreateProgressDto,
   CreateUniversityDto,
   FinishAssessmentDto,
   ResetPasswordDto,
@@ -800,11 +802,7 @@ export class AppService {
       const result = await this.prisma.assessmentResult.findMany({
         where: {
           user_id: req.user.user_id,
-          assessment: {
-            ass_type: type,
-            variant: 'quiz',
-            is_active: true,
-          },
+          variant: 'quiz',
         },
         select: {
           assr_id: true,
@@ -993,12 +991,18 @@ export class AppService {
     ass_or_content_id: string;
     questions: StartAssessmentQuestion[];
   }) {
-    const [assessment_count, content_count] = await this.prisma.$transaction([
-      this.prisma.assessment.count({ where: { ass_id: ass_or_content_id } }),
-      this.prisma.content.count({ where: { content_id: ass_or_content_id } }),
+    const [assessment, content] = await this.prisma.$transaction([
+      this.prisma.assessment.findUnique({
+        where: { ass_id: ass_or_content_id },
+        select: { title: true },
+      }),
+      this.prisma.content.findUnique({
+        where: { content_id: ass_or_content_id },
+        select: { title: true },
+      }),
     ]);
 
-    if (!assessment_count && !content_count) {
+    if (!assessment && !content) {
       throw new NotFoundException('Test/kuiz atau konten tidak ditemukan');
     }
 
@@ -1012,6 +1016,7 @@ export class AppService {
     });
 
     return {
+      title: assessment ? assessment.title : content.title,
       questions: shuffles,
       total_questions: questions.length,
     };
@@ -1064,35 +1069,47 @@ export class AppService {
   }
 
   async finishAssessment(body: FinishAssessmentDto, user_id: string) {
-    const assessment = await this.prisma.assessment.findUnique({
+    const [assessment, content] = await this.prisma.$transaction([
+      this.prisma.assessment.findUnique({
+        where: { ass_id: body.ass_id },
+        select: { variant: true },
+      }),
+      this.prisma.content.findUnique({
+        where: { content_id: body.content_id },
+        select: { test_type: true },
+      }),
+    ]);
+
+    if (!assessment && !content) {
+      throw new NotFoundException('Test/kuiz atau konten tidak ditemukan');
+    }
+
+    const questions = await this.prisma.assessmentQuestion.findMany({
       where: {
-        ass_id: body.ass_id,
+        OR: [
+          {
+            ass_id: body.ass_id,
+          },
+          {
+            content_id: body.content_id,
+          },
+        ],
       },
       select: {
-        ass_id: true,
-        question: {
+        assq_id: true,
+        option: {
           select: {
-            assq_id: true,
-            option: {
-              select: {
-                asso_id: true,
-                is_correct: true,
-              },
-              where: {
-                is_correct: true,
-              },
-            },
+            asso_id: true,
+            is_correct: true,
+          },
+          where: {
+            is_correct: true,
           },
         },
       },
     });
 
-    if (!assessment) {
-      throw new NotFoundException('Test atau Kuiz tidak ditemukan');
-    }
-
-    const questions = assessment.question;
-    const total_questions = assessment.question.length;
+    const total_questions = questions.length;
     const point = 100 / total_questions;
     let total_correct = 0;
     let total_incorrect = 0;
@@ -1158,6 +1175,7 @@ export class AppService {
         total_correct,
         total_incorrect,
         score: Math.round(total_correct * point),
+        variant: assessment ? assessment.variant : content.test_type,
         resultdetail: {
           createMany: {
             data: user_questions.map((item) => {
@@ -1295,6 +1313,297 @@ export class AppService {
     return {
       ...all,
       sub_categories: subcategory,
+    };
+  }
+
+  async getContent(
+    slug: string,
+    type: 'videocourse' | 'apotekerclass' | 'videoukmppai',
+    req: Request,
+  ) {
+    if (!['videocourse', 'apotekerclass', 'videoukmppai'].includes(type)) {
+      return {};
+    }
+
+    const [course, total_progress] = await this.prisma.$transaction([
+      this.prisma.course.findFirst({
+        where: {
+          slug,
+          type,
+          is_active: true,
+        },
+        select: {
+          course_id: true,
+          title: true,
+          slug: true,
+          thumbnail_url: true,
+          preview_url: true,
+          description: true,
+          segment: {
+            where: {
+              is_active: true,
+            },
+            select: {
+              _count: {
+                select: {
+                  content: true,
+                },
+              },
+              segment_id: true,
+              title: true,
+              number: true,
+            },
+            orderBy: {
+              number: 'asc',
+            },
+          },
+        },
+      }),
+      this.prisma.userContentProgress.count({
+        where: {
+          user_id: req.user?.user_id,
+          content: {
+            segment: {
+              course: {
+                slug,
+                type,
+                is_active: true,
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const { segment: segments, ...rest } = course;
+    const total_contents = segments.reduce(
+      (acc, segment) => acc + segment._count.content,
+      0,
+    );
+
+    return {
+      ...rest,
+      segments: segments.map((segment) => {
+        return {
+          segment_id: segment.segment_id,
+          number: segment.number,
+          title: segment.title,
+        };
+      }),
+      progress: {
+        total_contents,
+        total_progress,
+        percentage: Math.floor((total_progress / total_contents) * 100),
+      },
+      is_login: req.is_login,
+    };
+  }
+
+  async getSegmentContents(segment_id: string, req: Request) {
+    const contents = await this.prisma.content.findMany({
+      where: {
+        segment_id,
+        is_active: true,
+      },
+      select: {
+        content_id: true,
+        content_type: true,
+        title: true,
+        test_type: true,
+        duration: true,
+        _count: {
+          select: {
+            question: true,
+          },
+        },
+      },
+      orderBy: {
+        number: 'asc',
+      },
+    });
+
+    const contents_mapping = contents.map((content) => {
+      const { _count, ...rest } = content;
+
+      return {
+        ...rest,
+        total_questions: _count.question,
+      };
+    });
+
+    const pre = contents_mapping.find(
+      (item) => item.content_type === 'test' && item.test_type === 'pre',
+    );
+
+    const videos = contents_mapping.filter(
+      (item) => item.content_type === 'video',
+    );
+
+    const post = contents_mapping.find(
+      (item) => item.content_type === 'test' && item.test_type === 'post',
+    );
+
+    return [...(pre ? [pre] : []), ...videos, ...(post ? [post] : [])];
+  }
+
+  async createProgress(body: CreateProgressDto, user_id: string) {
+    const content = await this.prisma.content.findUnique({
+      where: {
+        content_id: body.content_id,
+      },
+      select: {
+        content_type: true,
+      },
+    });
+
+    if (!content) {
+      throw new NotFoundException('Konten tidak ditemukan');
+    }
+
+    if (
+      await this.prisma.userContentProgress.count({
+        where: { user_id, content_id: body.content_id },
+      })
+    ) {
+      throw new BadRequestException('Konten sudah ditandai sebagai selesai');
+    }
+
+    return this.prisma.userContentProgress.create({
+      data: {
+        user_id,
+        content_id: body.content_id,
+        progress_type: content.content_type,
+      },
+      select: {
+        progress_id: true,
+      },
+    });
+  }
+
+  async getVideoUrl(content_id: string) {
+    const content = await this.prisma.content.findUnique({
+      where: { content_id },
+      select: { video_url: true },
+    });
+
+    if (!content) {
+      throw new NotFoundException('Konten tidak ditemukan');
+    }
+
+    const url = new URL(content.video_url);
+
+    return {
+      video_id: url.searchParams.get('v'),
+    };
+  }
+
+  async getContentNotes(content_id: string) {
+    const content = await this.prisma.content.findUnique({
+      where: { content_id },
+      select: {
+        video_note_url: true,
+        video_note: true,
+      },
+    });
+
+    if (!content) {
+      throw new NotFoundException('Konten tidak ditemukan');
+    }
+
+    return content;
+  }
+
+  async getUniversityDetail(id_or_slug: string, req: Request) {
+    const histories: {
+      ass_id: string;
+      title: string;
+      created_at: Date;
+      assr_id: string;
+      score: number;
+    }[] = [];
+
+    if (req.is_login) {
+      const result = await this.prisma.assessmentResult.findMany({
+        where: {
+          user_id: req.user.user_id,
+          variant: 'tryout',
+        },
+        select: {
+          assr_id: true,
+          score: true,
+          created_at: true,
+          assessment: {
+            select: {
+              ass_id: true,
+              title: true,
+            },
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
+
+      histories.push(
+        ...result.map((item) => ({
+          ass_id: item.assessment.ass_id,
+          title: item.assessment.title,
+          created_at: item.created_at,
+          assr_id: item.assr_id,
+          score: item.score,
+        })),
+      );
+    }
+
+    const university = await this.prisma.university.findFirst({
+      where: {
+        OR: [{ univ_id: id_or_slug }, { slug: id_or_slug }],
+        is_active: true,
+      },
+      select: {
+        univ_id: true,
+        slug: true,
+        title: true,
+        description: true,
+        thumbnail_url: true,
+        created_at: true,
+        univdetail: {
+          select: {
+            assessment: {
+              select: {
+                ass_id: true,
+                title: true,
+                description: true,
+                _count: {
+                  select: { question: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!university) return {};
+
+    const { univdetail, ...rest } = university;
+
+    const histories_mapping = new Set(histories.map((item) => item.ass_id));
+
+    const tryouts_mapping = univdetail.filter(
+      (detail) => !histories_mapping.has(detail.assessment.ass_id),
+    );
+
+    return {
+      ...rest,
+      tryouts: tryouts_mapping.map((detail) => ({
+        ass_id: detail.assessment.ass_id,
+        title: detail.assessment.title,
+        description: detail.assessment.description,
+        total_questions: detail.assessment._count.question,
+      })),
+      histories: histories.length ? histories : [],
+      is_login: req.is_login,
     };
   }
 }

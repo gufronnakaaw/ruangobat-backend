@@ -67,7 +67,8 @@ export type StartAssessmentQuestion = {
 };
 
 export const finishAssessmentSchema = z.object({
-  ass_id: z.string(),
+  ass_id: z.string().optional(),
+  content_id: z.string().optional(),
   questions: z
     .array(
       z.object({
@@ -80,3 +81,9 @@ export const finishAssessmentSchema = z.object({
 });
 
 export type FinishAssessmentDto = z.infer<typeof finishAssessmentSchema>;
+
+export const createProgressSchema = z.object({
+  content_id: z.string().uuid(),
+});
+
+export type CreateProgressDto = z.infer<typeof createProgressSchema>;

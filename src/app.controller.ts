@@ -24,6 +24,8 @@ import { Request } from 'express';
 import {
   CreateFeedbackDto,
   createFeedbackSchema,
+  CreateProgressDto,
+  createProgressSchema,
   CreateUniversityDto,
   createUniversitySchema,
   FinishAssessmentDto,
@@ -530,6 +532,114 @@ export class AppController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.appService.getCategory(id_or_slug, type),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(PublicGuard)
+  @Get('/contents/:slug/:type/detail')
+  @HttpCode(HttpStatus.OK)
+  async getContent(
+    @Param('slug') slug: string,
+    @Param('type') type: 'videocourse' | 'apotekerclass' | 'videoukmppai',
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getContent(slug, type, req),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(PublicGuard)
+  @Get('/segments/:segment_id')
+  @HttpCode(HttpStatus.OK)
+  async getSegmentContents(
+    @Param('segment_id') segment_id: string,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getSegmentContents(segment_id, req),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(UserGuard)
+  @Post('/progress')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(createProgressSchema))
+  async createProgress(
+    @Body() body: CreateProgressDto,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.appService.createProgress(body, req.user.user_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(UserGuard)
+  @Get('/contents/:content_id/urls')
+  @HttpCode(HttpStatus.OK)
+  async getVideoUrl(
+    @Param('content_id') content_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getVideoUrl(content_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(UserGuard)
+  @Get('/contents/:content_id/notes')
+  @HttpCode(HttpStatus.OK)
+  async getContentNotes(
+    @Param('content_id') content_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getContentNotes(content_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(PublicGuard)
+  @Get('/universities/:id_or_slug/detail')
+  @HttpCode(HttpStatus.OK)
+  async getUniversityDetail(
+    @Param('id_or_slug') id_or_slug: string,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getUniversityDetail(id_or_slug, req),
       };
     } catch (error) {
       throw error;
