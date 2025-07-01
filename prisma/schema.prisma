@@ -55,6 +55,13 @@ enum Variant {
   tryout
 }
 
+enum VariantResult {
+  quiz
+  tryout
+  pre
+  post
+}
+
 model Admin {
   id               Int              @id               @default(autoincrement())
   admin_id         String           @unique
@@ -884,6 +891,7 @@ model AssessmentResult {
   total_correct    Int              @db.UnsignedInt
   total_incorrect  Int              @db.UnsignedInt
   score            Int              @db.UnsignedInt
+  variant          VariantResult?           
 
   created_at       DateTime         @default(now())
 
