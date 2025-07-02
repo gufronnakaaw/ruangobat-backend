@@ -1070,12 +1070,12 @@ export class AppService {
 
   async finishAssessment(body: FinishAssessmentDto, user_id: string) {
     const [assessment, content] = await this.prisma.$transaction([
-      this.prisma.assessment.findUnique({
+      this.prisma.assessment.findFirst({
         where: { ass_id: body.ass_id },
         select: { variant: true },
       }),
-      this.prisma.content.findUnique({
-        where: { content_id: body.content_id },
+      this.prisma.content.findFirst({
+        where: { content_id: body.ass_id },
         select: { test_type: true },
       }),
     ]);
@@ -1091,7 +1091,7 @@ export class AppService {
             ass_id: body.ass_id,
           },
           {
-            content_id: body.content_id,
+            content_id: body.ass_id,
           },
         ],
       },
@@ -1325,7 +1325,7 @@ export class AppService {
       return {};
     }
 
-    const [course, total_progress] = await this.prisma.$transaction([
+    const [course, total_progress, segments] = await this.prisma.$transaction([
       this.prisma.course.findFirst({
         where: {
           slug,
@@ -1339,29 +1339,11 @@ export class AppService {
           thumbnail_url: true,
           preview_url: true,
           description: true,
-          segment: {
-            where: {
-              is_active: true,
-            },
-            select: {
-              _count: {
-                select: {
-                  content: true,
-                },
-              },
-              segment_id: true,
-              title: true,
-              number: true,
-            },
-            orderBy: {
-              number: 'asc',
-            },
-          },
         },
       }),
       this.prisma.userContentProgress.count({
         where: {
-          user_id: req.user?.user_id,
+          user_id: req.is_login ? req.user.user_id : '',
           content: {
             segment: {
               course: {
@@ -1373,23 +1355,47 @@ export class AppService {
           },
         },
       }),
+      this.prisma.segment.findMany({
+        where: {
+          course: {
+            slug,
+            type,
+            is_active: true,
+          },
+          is_active: true,
+        },
+        select: {
+          segment_id: true,
+          title: true,
+          number: true,
+          _count: {
+            select: {
+              content: true,
+            },
+          },
+        },
+        orderBy: {
+          number: 'asc',
+        },
+      }),
     ]);
 
-    const { segment: segments, ...rest } = course;
     const total_contents = segments.reduce(
       (acc, segment) => acc + segment._count.content,
       0,
     );
 
     return {
-      ...rest,
-      segments: segments.map((segment) => {
-        return {
-          segment_id: segment.segment_id,
-          number: segment.number,
-          title: segment.title,
-        };
-      }),
+      ...course,
+      segments: segments.length
+        ? segments.map((segment) => {
+            return {
+              segment_id: segment.segment_id,
+              number: segment.number,
+              title: segment.title,
+            };
+          })
+        : [],
       progress: {
         total_contents,
         total_progress,

@@ -67,8 +67,7 @@ export type StartAssessmentQuestion = {
 };
 
 export const finishAssessmentSchema = z.object({
-  ass_id: z.string().optional(),
-  content_id: z.string().optional(),
+  ass_id: z.string(),
   questions: z
     .array(
       z.object({
