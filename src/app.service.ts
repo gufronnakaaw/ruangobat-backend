@@ -1519,6 +1519,16 @@ export class AppService {
       },
       select: {
         content_type: true,
+        segment: {
+          select: {
+            course: {
+              select: {
+                slug: true,
+                type: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -1534,16 +1544,55 @@ export class AppService {
       throw new BadRequestException('Konten sudah ditandai sebagai selesai');
     }
 
-    return this.prisma.userContentProgress.create({
+    await this.prisma.userContentProgress.create({
       data: {
         user_id,
         content_id: body.content_id,
         progress_type: content.content_type,
       },
-      select: {
-        progress_id: true,
-      },
     });
+
+    const [total_progress, segments] = await this.prisma.$transaction([
+      this.prisma.userContentProgress.count({
+        where: {
+          user_id,
+          content: {
+            segment: {
+              course: {
+                slug: content.segment.course.slug,
+                type: content.segment.course.type,
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.segment.findMany({
+        where: {
+          course: {
+            slug: content.segment.course.slug,
+            type: content.segment.course.type,
+          },
+        },
+        select: {
+          _count: {
+            select: {
+              content: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const total_contents = segments.reduce(
+      (acc, segment) => acc + segment._count.content,
+      0,
+    );
+
+    return {
+      total_contents,
+      total_progress,
+      percentage: Math.floor((total_progress / total_contents) * 100),
+    };
   }
 
   async getVideoUrl(content_id: string, token: string) {
