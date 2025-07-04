@@ -13,6 +13,7 @@ import {
   ParseFilePipe,
   Patch,
   Post,
+  Query,
   Req,
   UploadedFile,
   UseGuards,
@@ -595,16 +596,17 @@ export class AppController {
   }
 
   @UseGuards(UserGuard)
-  @Get('/contents/:content_id/urls')
+  @Get('/urls/:content_id')
   @HttpCode(HttpStatus.OK)
   async getVideoUrl(
     @Param('content_id') content_id: string,
+    @Query('token') token: string,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.appService.getVideoUrl(content_id),
+        data: await this.appService.getVideoUrl(content_id, token),
       };
     } catch (error) {
       throw error;
@@ -612,16 +614,17 @@ export class AppController {
   }
 
   @UseGuards(UserGuard)
-  @Get('/contents/:content_id/notes')
+  @Get('/notes/:content_id')
   @HttpCode(HttpStatus.OK)
   async getContentNotes(
     @Param('content_id') content_id: string,
+    @Query('token') token: string,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.appService.getContentNotes(content_id),
+        data: await this.appService.getContentNotes(content_id, token),
       };
     } catch (error) {
       throw error;

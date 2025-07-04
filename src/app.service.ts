@@ -1,6 +1,7 @@
 import { MailerService } from '@nestjs-modules/mailer';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -22,7 +23,7 @@ import {
 } from './app.dto';
 import { shuffle } from './utils/array.util';
 import { hashPassword } from './utils/bcrypt.util';
-import { decryptString } from './utils/crypto.util';
+import { decryptString, generateToken, verifyToken } from './utils/crypto.util';
 import { PrismaService } from './utils/services/prisma.service';
 import { StorageService } from './utils/services/storage.service';
 import { parseIsActive, scoreCategory, slug } from './utils/string.util';
@@ -1417,22 +1418,81 @@ export class AppService {
         title: true,
         test_type: true,
         duration: true,
+        video_note: true,
+        video_note_url: true,
         _count: {
           select: {
             question: true,
+            progress: {
+              where: {
+                user_id: req.is_login ? req.user.user_id : '',
+              },
+            },
           },
         },
+        segment: {
+          select: {
+            number: true,
+          },
+        },
+        number: true,
       },
       orderBy: {
         number: 'asc',
       },
     });
 
+    const has_member = true;
+
+    const lowest = Math.min(
+      ...contents
+        .filter((content) => content.content_type === 'video')
+        .map((content) => content.number),
+    );
+
     const contents_mapping = contents.map((content) => {
-      const { _count, ...rest } = content;
+      const { _count, segment, ...rest } = content;
+
+      let is_locked: boolean;
+      let has_note: boolean;
+      let token: string | null = null;
+
+      if (!req.is_login) {
+        is_locked = true;
+      } else {
+        if (has_member) {
+          is_locked = false;
+          token = generateToken(3600);
+        } else {
+          if (
+            segment.number === 1 &&
+            ((rest.content_type === 'test' && rest.test_type === 'pre') ||
+              (rest.content_type === 'video' && rest.number === lowest))
+          ) {
+            is_locked = false;
+            token = generateToken(3600);
+          } else {
+            is_locked = true;
+          }
+        }
+      }
+
+      if (rest.video_note || rest.video_note_url) {
+        has_note = true;
+      } else {
+        has_note = false;
+      }
+
+      delete rest.number;
+      delete rest.video_note;
+      delete rest.video_note_url;
 
       return {
         ...rest,
+        is_locked,
+        is_completed: Boolean(_count.progress),
+        has_note,
+        token,
         total_questions: _count.question,
       };
     });
@@ -1486,7 +1546,11 @@ export class AppService {
     });
   }
 
-  async getVideoUrl(content_id: string) {
+  async getVideoUrl(content_id: string, token: string) {
+    if (!token || !verifyToken(token)) {
+      throw new ForbiddenException('Akses ditolak');
+    }
+
     const content = await this.prisma.content.findUnique({
       where: { content_id },
       select: { video_url: true },
@@ -1496,14 +1560,14 @@ export class AppService {
       throw new NotFoundException('Konten tidak ditemukan');
     }
 
-    const url = new URL(content.video_url);
-
-    return {
-      video_id: url.searchParams.get('v'),
-    };
+    return content;
   }
 
-  async getContentNotes(content_id: string) {
+  async getContentNotes(content_id: string, token: string) {
+    if (!token || !verifyToken(token)) {
+      throw new ForbiddenException('Akses ditolak');
+    }
+
     const content = await this.prisma.content.findUnique({
       where: { content_id },
       select: {
