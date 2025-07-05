@@ -1,9 +1,11 @@
 import {
   DeleteObjectCommand,
   HeadObjectCommand,
+  ListObjectsCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 
 @Injectable()
@@ -22,6 +24,63 @@ export class StorageService {
     });
 
     this.bucket = `${process.env.MODE === 'prod' ? 'cdn.ruangobat.id' : 'ruangobatdev'}`;
+  }
+
+  createFolder(name: string, by: string) {
+    try {
+      return this.s3Client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: `${name}/`,
+          Body: Buffer.alloc(0),
+          ACL: 'public-read',
+          Metadata: {
+            'x-created-by': by,
+          },
+          ContentType: 'application/x-directory',
+        }),
+      );
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Error pada cloud storage saat membuat folder',
+      );
+    }
+  }
+
+  getSignedUrl({ key, type, by }: { key: string; type: string; by: string }) {
+    try {
+      const command = new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ContentType: type,
+        ACL: 'public-read',
+        Metadata: {
+          'x-created-by': by,
+        },
+      });
+
+      return getSignedUrl(this.s3Client, command, { expiresIn: 3600 });
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Error pada cloud storage saat mendapatkan signed URL',
+      );
+    }
+  }
+
+  getLists(prefix = '') {
+    try {
+      return this.s3Client.send(
+        new ListObjectsCommand({
+          Bucket: this.bucket,
+          Prefix: prefix,
+          Delimiter: '/',
+        }),
+      );
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Error pada cloud storage saat mendapatkan daftar objek',
+      );
+    }
   }
 
   async checkFile(key: string) {

@@ -25,6 +25,8 @@ import { Request } from 'express';
 import {
   CreateFeedbackDto,
   createFeedbackSchema,
+  CreateFolderDto,
+  createFolderSchema,
   CreateProgressDto,
   createProgressSchema,
   CreateUniversityDto,
@@ -38,6 +40,8 @@ import {
   StartAssessmentQuestion,
   UpdateUniversityDto,
   updateUniversitySchema,
+  UploadFilesDto,
+  uploadFilesSchema,
   VerifyOtpDto,
   verifyOtpSchema,
 } from './app.dto';
@@ -643,6 +647,84 @@ export class AppController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.appService.getUniversityDetail(id_or_slug, req),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Get('/storage')
+  @HttpCode(HttpStatus.OK)
+  async getStorageLists(
+    @Query('prefix') prefix: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.storage.getLists(prefix),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Delete('/storage')
+  @HttpCode(HttpStatus.OK)
+  async deleteStorageItem(@Query('key') key: string): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.storage.deleteFile(key),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('/storage/presigned')
+  @UsePipes(new ZodValidationPipe(uploadFilesSchema))
+  @HttpCode(HttpStatus.OK)
+  async getSignedUrl(@Body() body: UploadFilesDto): Promise<SuccessResponse> {
+    try {
+      const urls: { key: string; url: string }[] = [];
+
+      for (const file of body.files) {
+        const key = `${body.folder}${file.filename}`;
+
+        const url = await this.storage.getSignedUrl({
+          key,
+          type: file.type,
+          by: body.by,
+        });
+
+        urls.push({ key, url });
+      }
+
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: urls,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('/storage/folders')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(createFolderSchema))
+  async createFolder(@Body() body: CreateFolderDto): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.storage.createFolder(body.folder + body.name, body.by),
       };
     } catch (error) {
       throw error;

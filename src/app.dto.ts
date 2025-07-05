@@ -86,3 +86,26 @@ export const createProgressSchema = z.object({
 });
 
 export type CreateProgressDto = z.infer<typeof createProgressSchema>;
+
+export const uploadFilesSchema = z.object({
+  files: z
+    .array(
+      z.object({
+        filename: z.string(),
+        type: z.string(),
+      }),
+    )
+    .min(1),
+  folder: z.string(),
+  by: z.string(),
+});
+
+export type UploadFilesDto = z.infer<typeof uploadFilesSchema>;
+
+export const createFolderSchema = z.object({
+  name: z.string(),
+  folder: z.string(),
+  by: z.string(),
+});
+
+export type CreateFolderDto = z.infer<typeof createFolderSchema>;
