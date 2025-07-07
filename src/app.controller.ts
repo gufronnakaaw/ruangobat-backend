@@ -663,7 +663,10 @@ export class AppController {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.storage.getLists(prefix),
+        data: {
+          ...(await this.storage.getLists(prefix)),
+          Endpoint: process.env.STORAGE_ENDPOINT,
+        },
       };
     } catch (error) {
       throw error;
@@ -673,12 +676,17 @@ export class AppController {
   @UseGuards(AdminGuard)
   @Delete('/storage')
   @HttpCode(HttpStatus.OK)
-  async deleteStorageItem(@Query('key') key: string): Promise<SuccessResponse> {
+  async deleteStorageItem(
+    @Query('key') key: string,
+    @Query('is_folder') is_folder: string,
+  ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.storage.deleteFile(key),
+        data: await this.storage[
+          is_folder === 'true' ? 'deleteFolder' : 'deleteFile'
+        ](key),
       };
     } catch (error) {
       throw error;

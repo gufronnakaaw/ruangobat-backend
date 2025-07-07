@@ -1,5 +1,6 @@
 import {
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   HeadObjectCommand,
   ListObjectsCommand,
   PutObjectCommand,
@@ -132,6 +133,40 @@ export class StorageService {
     } catch (error) {
       throw new InternalServerErrorException(
         'Error pada cloud storage saat menghapus file',
+      );
+    }
+  }
+
+  async deleteFolder(key: string) {
+    try {
+      const objects = await this.s3Client.send(
+        new ListObjectsCommand({
+          Bucket: this.bucket,
+          Prefix: key.endsWith('/') ? key : `${key}/`,
+        }),
+      );
+
+      const keys = objects.Contents?.map((obj) => ({ Key: obj.Key })) ?? [];
+
+      if (
+        !keys.find((obj) => obj.Key === (key.endsWith('/') ? key : `${key}/`))
+      ) {
+        keys.push({ Key: key.endsWith('/') ? key : `${key}/` });
+      }
+
+      if (keys.length) {
+        await this.s3Client.send(
+          new DeleteObjectsCommand({
+            Bucket: this.bucket,
+            Delete: {
+              Objects: keys,
+            },
+          }),
+        );
+      }
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Error pada cloud storage saat menghapus folder',
       );
     }
   }
