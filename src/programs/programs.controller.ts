@@ -1,11 +1,13 @@
 import {
-  BadRequestException,
   Body,
   Controller,
+  FileTypeValidator,
   Get,
   HttpCode,
   HttpStatus,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Post,
   Query,
   Req,
@@ -16,7 +18,6 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
-import { diskStorage } from 'multer';
 import { SuccessResponse } from '../utils/global/global.response';
 import { UserGuard } from '../utils/guards/user.guard';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
@@ -113,30 +114,23 @@ export class ProgramsController {
   }
 
   @Post('/follow/free')
-  @UseInterceptors(
-    FilesInterceptor('files', 4, {
-      storage: diskStorage({
-        destination: './public/media',
-        filename(req, file, callback) {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
-      }),
-      fileFilter(req, file, callback) {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-          return callback(
-            new BadRequestException('Hanya gambar yang diperbolehkan'),
-            false,
-          );
-        }
-        callback(null, true);
-      },
-      limits: {
-        fileSize: 4 * 1024 * 1024,
-      },
-    }),
-  )
+  @UseInterceptors(FilesInterceptor('files'))
   async uploadFile(
-    @UploadedFiles() files: Array<Express.Multer.File>,
+    @UploadedFiles(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 5 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png)$/,
+          }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    files: Express.Multer.File[],
     @Body() body: { program_id: string },
     @Req() req: Request,
   ) {
@@ -148,7 +142,6 @@ export class ProgramsController {
           program_id: body.program_id,
           user_id: req.user.user_id,
           files,
-          fullurl: req.fullurl,
         }),
       };
     } catch (error) {

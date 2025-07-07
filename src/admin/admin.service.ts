@@ -6,15 +6,13 @@ import {
 } from '@nestjs/common';
 import { ClassMentorType } from '@prisma/client';
 import { AxiosResponse } from 'axios';
-import { existsSync } from 'fs';
-import { unlink } from 'fs/promises';
 import { random } from 'lodash';
-import path from 'path';
 import { firstValueFrom, Observable } from 'rxjs';
 import ShortUniqueId from 'short-unique-id';
 import { hashPassword } from '../utils/bcrypt.util';
 import { decryptString, encryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
+import { StorageService } from '../utils/services/storage.service';
 import {
   maskEmail,
   maskPhoneNumber,
@@ -46,6 +44,7 @@ export class AdminService {
   constructor(
     private prisma: PrismaService,
     private readonly http: HttpService,
+    private readonly storage: StorageService,
   ) {}
 
   async getDashboard() {
@@ -467,11 +466,7 @@ export class AdminService {
     };
   }
 
-  async createProgram(
-    body: CreateProgramsDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
+  async createProgram(body: CreateProgramsDto, file: Express.Multer.File) {
     const program = await this.prisma.program.create({
       data: {
         program_id: `ROP${random(100000, 999999)}`,
@@ -482,6 +477,13 @@ export class AdminService {
         created_by: body.by,
         updated_by: body.by,
         url_qr_code: body.url_qr_code,
+        qr_code: file
+          ? await this.storage.uploadFile({
+              key: `qr/${Date.now()}-${file.originalname}`,
+              buffer: file.buffer,
+              mimetype: file.mimetype,
+            })
+          : null,
         details: {
           createMany: {
             data: body.tests.map((test) => {
@@ -499,15 +501,6 @@ export class AdminService {
         price: true,
         created_at: true,
         is_active: true,
-      },
-    });
-
-    await this.prisma.program.update({
-      where: {
-        program_id: program.program_id,
-      },
-      data: {
-        qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
       },
     });
 
@@ -537,11 +530,7 @@ export class AdminService {
     });
   }
 
-  async updateProgram(
-    body: UpdateProgramsDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
+  async updateProgram(body: UpdateProgramsDto, file: Express.Multer.File) {
     const program = await this.prisma.program.findUnique({
       where: { program_id: body.program_id },
       select: {
@@ -572,7 +561,11 @@ export class AdminService {
             type: body.type,
             price: parseInt(body.price),
             updated_by: body.by,
-            qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+            qr_code: await this.storage.uploadFile({
+              key: `qr/${Date.now()}-${file.originalname}`,
+              buffer: file.buffer,
+              mimetype: file.mimetype,
+            }),
             url_qr_code: body.url_qr_code,
             details: {
               createMany: {
@@ -622,7 +615,11 @@ export class AdminService {
           type: body.type,
           price: parseInt(body.price),
           updated_by: body.by,
-          qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          qr_code: await this.storage.uploadFile({
+            key: `qr/${Date.now()}-${file.originalname}`,
+            buffer: file.buffer,
+            mimetype: file.mimetype,
+          }),
           url_qr_code: body.url_qr_code,
         },
       });
@@ -2206,11 +2203,7 @@ export class AdminService {
     };
   }
 
-  createMentor(
-    body: CreateMentorDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
+  async createMentor(body: CreateMentorDto, file: Express.Multer.File) {
     return this.prisma.mentor.create({
       data: {
         mentor_id: `ROM${random(10000, 99999)}`,
@@ -2220,7 +2213,11 @@ export class AdminService {
         mentor_title: body.mentor_title,
         created_by: body.by,
         updated_by: body.by,
-        img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+        img_url: await this.storage.uploadFile({
+          key: `mentors/${Date.now()}-${file.originalname}`,
+          buffer: file.buffer,
+          mimetype: file.mimetype,
+        }),
         is_show: body.is_show === 'true',
       },
       select: {
@@ -2229,11 +2226,7 @@ export class AdminService {
     });
   }
 
-  async updateMentor(
-    body: UpdateMentorDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
+  async updateMentor(body: UpdateMentorDto, file: Express.Multer.File) {
     const mentor = await this.prisma.mentor.findUnique({
       where: {
         mentor_id: body.mentor_id,
@@ -2244,22 +2237,10 @@ export class AdminService {
     });
 
     if (!mentor) {
-      if (body.with_image == 'true') {
-        if (existsSync(file.path)) {
-          await unlink(file.path);
-        }
-      }
       throw new NotFoundException('Mentor tidak ditemukan');
     }
 
     if (body.with_image == 'true') {
-      const pathname = new URL(mentor.img_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
-
       return this.prisma.mentor.update({
         where: {
           mentor_id: body.mentor_id,
@@ -2270,7 +2251,11 @@ export class AdminService {
           description: body.description,
           mentor_title: body.mentor_title,
           updated_by: body.by,
-          img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          img_url: await this.storage.uploadFile({
+            key: `mentors/${Date.now()}-${file.originalname}`,
+            buffer: file.buffer,
+            mimetype: file.mimetype,
+          }),
           is_show: body.is_show === 'true',
         },
         select: {
@@ -2309,13 +2294,6 @@ export class AdminService {
 
     if (!mentor) {
       throw new NotFoundException('Mentor tidak ditemukan');
-    }
-
-    const pathname = new URL(mentor.img_url).pathname;
-    const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-    if (existsSync(file_path)) {
-      await unlink(file_path);
     }
 
     return this.prisma.mentor.delete({
@@ -2773,11 +2751,7 @@ export class AdminService {
     });
   }
 
-  async createTheses(
-    body: CreateProductSharedDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
+  async createTheses(body: CreateProductSharedDto, file: Express.Multer.File) {
     if (body.thumbnail_type == 'image') {
       return this.prisma.thesis.create({
         data: {
@@ -2787,7 +2761,11 @@ export class AdminService {
           link_order: body.link_order,
           description: body.description,
           price: parseInt(body.price),
-          thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          thumbnail_url: await this.storage.uploadFile({
+            key: `theses/${Date.now()}-${file.originalname}`,
+            buffer: file.buffer,
+            mimetype: file.mimetype,
+          }),
           thumbnail_type: 'image',
           created_by: body.by,
           updated_by: body.by,
@@ -2796,10 +2774,6 @@ export class AdminService {
           thesis_id: true,
         },
       });
-    }
-
-    if (file && existsSync(file.path)) {
-      await unlink(file.path);
     }
 
     return this.prisma.thesis.create({
@@ -2836,24 +2810,6 @@ export class AdminService {
       throw new NotFoundException('Kelas tidak ditemukan');
     }
 
-    if (thesis.thumbnail_type == 'image') {
-      const pathname = new URL(thesis.thumbnail_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
-
-      return this.prisma.thesis.delete({
-        where: {
-          thesis_id,
-        },
-        select: {
-          thesis_id: true,
-        },
-      });
-    }
-
     return this.prisma.thesis.delete({
       where: {
         thesis_id,
@@ -2864,11 +2820,7 @@ export class AdminService {
     });
   }
 
-  async updateTheses(
-    body: UpdateProductSharedDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
+  async updateTheses(body: UpdateProductSharedDto, file: Express.Multer.File) {
     if (!body.thesis_id) {
       throw new BadRequestException('Kelas ID tidak ditemukan');
     }
@@ -2889,17 +2841,6 @@ export class AdminService {
 
     if (body.thumbnail_type == 'image') {
       if (body.with_image == 'true') {
-        if (thesis.thumbnail_type == 'image') {
-          const pathname = new URL(thesis.thumbnail_url).pathname;
-          const file_path = pathname.startsWith('/')
-            ? pathname.slice(1)
-            : pathname;
-
-          if (existsSync(file_path)) {
-            await unlink(file_path);
-          }
-        }
-
         return this.prisma.thesis.update({
           where: {
             thesis_id: body.thesis_id,
@@ -2910,7 +2851,11 @@ export class AdminService {
             link_order: body.link_order,
             description: body.description,
             price: body.price ? parseInt(body.price) : undefined,
-            thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+            thumbnail_url: await this.storage.uploadFile({
+              key: `theses/${Date.now()}-${file.originalname}`,
+              buffer: file.buffer,
+              mimetype: file.mimetype,
+            }),
             thumbnail_type: 'image',
             updated_by: body.by,
             is_active: body.is_active == 'true',
@@ -2939,15 +2884,6 @@ export class AdminService {
           thesis_id: true,
         },
       });
-    }
-
-    if (thesis.thumbnail_type == 'image') {
-      const pathname = new URL(thesis.thumbnail_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
     }
 
     return this.prisma.thesis.update({
@@ -3091,7 +3027,6 @@ export class AdminService {
   async createResearch(
     body: CreateProductSharedDto,
     file: Express.Multer.File,
-    fullurl: string,
   ) {
     if (body.thumbnail_type == 'image') {
       return this.prisma.research.create({
@@ -3102,7 +3037,11 @@ export class AdminService {
           link_order: body.link_order,
           description: body.description,
           price: parseInt(body.price),
-          thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          thumbnail_url: await this.storage.uploadFile({
+            key: `research/${Date.now()}-${file.originalname}`,
+            buffer: file.buffer,
+            mimetype: file.mimetype,
+          }),
           thumbnail_type: 'image',
           created_by: body.by,
           updated_by: body.by,
@@ -3111,10 +3050,6 @@ export class AdminService {
           research_id: true,
         },
       });
-    }
-
-    if (file && existsSync(file.path)) {
-      await unlink(file.path);
     }
 
     return this.prisma.research.create({
@@ -3151,15 +3086,6 @@ export class AdminService {
       throw new NotFoundException('Kelas tidak ditemukan');
     }
 
-    if (research.thumbnail_type == 'image') {
-      const pathname = new URL(research.thumbnail_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
-    }
-
     return this.prisma.research.delete({
       where: {
         research_id,
@@ -3173,7 +3099,6 @@ export class AdminService {
   async updateResearch(
     body: UpdateProductSharedDto,
     file: Express.Multer.File,
-    fullurl: string,
   ) {
     if (!body.research_id) {
       throw new BadRequestException('Kelas ID tidak ditemukan');
@@ -3195,17 +3120,6 @@ export class AdminService {
 
     if (body.thumbnail_type == 'image') {
       if (body.with_image == 'true') {
-        if (research.thumbnail_type == 'image') {
-          const pathname = new URL(research.thumbnail_url).pathname;
-          const file_path = pathname.startsWith('/')
-            ? pathname.slice(1)
-            : pathname;
-
-          if (existsSync(file_path)) {
-            await unlink(file_path);
-          }
-        }
-
         return this.prisma.research.update({
           where: {
             research_id: body.research_id,
@@ -3216,7 +3130,11 @@ export class AdminService {
             link_order: body.link_order,
             description: body.description,
             price: body.price ? parseInt(body.price) : undefined,
-            thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+            thumbnail_url: await this.storage.uploadFile({
+              key: `research/${Date.now()}-${file.originalname}`,
+              buffer: file.buffer,
+              mimetype: file.mimetype,
+            }),
             thumbnail_type: 'image',
             updated_by: body.by,
             is_active: body.is_active == 'true',
@@ -3245,15 +3163,6 @@ export class AdminService {
           research_id: true,
         },
       });
-    }
-
-    if (research.thumbnail_type == 'image') {
-      const pathname = new URL(research.thumbnail_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
     }
 
     return this.prisma.research.update({

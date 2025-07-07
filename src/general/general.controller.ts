@@ -1,29 +1,28 @@
 import { MailerService } from '@nestjs-modules/mailer';
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
   HttpCode,
   HttpStatus,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Patch,
   Post,
-  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Request } from 'express';
-import { diskStorage } from 'multer';
-import path from 'path';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
 import { UserGuard } from '../utils/guards/user.guard';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
+import { StorageService } from '../utils/services/storage.service';
 import {
   CreateFeedbackDto,
   createFeedbackSchema,
@@ -41,6 +40,7 @@ export class GeneralController {
   constructor(
     private readonly generalService: GeneralService,
     private mailerService: MailerService,
+    private storage: StorageService,
   ) {}
 
   @UseGuards(UserGuard)
@@ -130,35 +130,30 @@ export class GeneralController {
   @Post('/questions/image')
   @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(
-    FileInterceptor('upload', {
-      storage: diskStorage({
-        destination: './public/questions',
-        filename(req, file, callback) {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
+  @UseInterceptors(FileInterceptor('upload'))
+  async uploadQuestionsImage(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 2 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png|)$/,
+          }),
+        ],
       }),
-      fileFilter(req, file, callback) {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-          return callback(
-            new BadRequestException('Hanya gambar yang diperbolehkan'),
-            false,
-          );
-        }
-        callback(null, true);
-      },
-      limits: {
-        fileSize: 2 * 1024 * 1024,
-      },
-    }),
-  )
-  uploadQuestionsImage(
-    @UploadedFile() upload: Express.Multer.File,
-    @Req() req: Request,
+    )
+    upload: Express.Multer.File,
   ) {
     try {
       return {
-        url: `${req.fullurl}/${upload.path.split(path.sep).join('/')}`,
+        url: await this.storage.uploadFile({
+          buffer: upload.buffer,
+          key: `questions/${Date.now()}-${upload.originalname}`,
+          mimetype: upload.mimetype,
+        }),
       };
     } catch (error) {
       throw error;

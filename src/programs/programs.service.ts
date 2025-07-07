@@ -4,13 +4,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import path from 'path';
 import { PrismaService } from '../utils/services/prisma.service';
+import { StorageService } from '../utils/services/storage.service';
 import { FollowPaidProgramsDto, ProgramsQuery } from './programs.dto';
 
 @Injectable()
 export class ProgramsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: StorageService,
+  ) {}
 
   async getPrograms(user_id: string, query: ProgramsQuery) {
     const default_page = 1;
@@ -467,7 +470,6 @@ export class ProgramsService {
   async followFreeProgram(body: {
     user_id: string;
     program_id: string;
-    fullurl: string;
     files: Array<Express.Multer.File>;
   }) {
     if (
@@ -478,20 +480,32 @@ export class ProgramsService {
       throw new NotFoundException('Program tidak ditemukan');
     }
 
+    const urls: string[] = [];
+
+    for (const file of body.files) {
+      urls.push(
+        await this.storage.uploadFile({
+          buffer: file.buffer,
+          key: `users/programs/${Date.now()}-${file.originalname}`,
+          mimetype: file.mimetype,
+        }),
+      );
+    }
+
     await this.prisma.$transaction([
       this.prisma.participant.create({
         data: {
           program_id: body.program_id,
           user_id: body.user_id,
-          is_approved: false,
+          is_approved: true,
         },
       }),
       this.prisma.socialMediaImage.createMany({
-        data: body.files.map((file) => {
+        data: urls.map((url) => {
           return {
             program_id: body.program_id,
             user_id: body.user_id,
-            url: `${body.fullurl}/${file.path.split(path.sep).join('/')}`,
+            url,
           };
         }),
       }),

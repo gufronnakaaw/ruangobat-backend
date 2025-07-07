@@ -1,12 +1,14 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
   HttpCode,
   HttpStatus,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Patch,
   Post,
   Query,
@@ -19,10 +21,9 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ClassMentorType } from '@prisma/client';
 import { Request } from 'express';
-import { diskStorage } from 'multer';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
-import { ZodInterceptor } from '../utils/interceptors/zod.interceptor';
+import { InputInterceptor } from '../utils/interceptors/input.interceptor';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
 import {
   AdminQuery,
@@ -35,6 +36,7 @@ import {
   CreateProductSharedDto,
   createProductSharedSchema,
   CreateProgramsDto,
+  createProgramsSchema,
   CreateSubjectPrivateDto,
   createSubjectPrivateSchema,
   CreateTestsDto,
@@ -46,6 +48,7 @@ import {
   UpdateProductSharedDto,
   updateProductSharedSchema,
   UpdateProgramsDto,
+  updateProgramsSchema,
   UpdateStatusProgramsDto,
   updateStatusProgramsSchema,
   UpdateStatusTestsDto,
@@ -175,37 +178,31 @@ export class AdminController {
   @Post('/programs')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(
-    FileInterceptor('qr_code', {
-      storage: diskStorage({
-        destination: './public/qr',
-        filename(req, file, callback) {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
-      }),
-      fileFilter(req, file, callback) {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-          return callback(
-            new BadRequestException('Hanya gambar yang diperbolehkan'),
-            false,
-          );
-        }
-        callback(null, true);
-      },
-      limits: {
-        fileSize: 2 * 1024 * 1024,
-      },
-    }),
+    FileInterceptor('qr_code'),
+    new InputInterceptor(createProgramsSchema),
   )
   async createPrograms(
     @Body() body: CreateProgramsDto,
-    @UploadedFile() qr_code: Express.Multer.File,
-    @Req() req: Request,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 2 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png|)$/,
+          }),
+        ],
+      }),
+    )
+    qr_code: Express.Multer.File,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.adminService.createProgram(body, qr_code, req.fullurl),
+        data: await this.adminService.createProgram(body, qr_code),
       };
     } catch (error) {
       throw error;
@@ -215,37 +212,32 @@ export class AdminController {
   @Patch('/programs')
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
-    FileInterceptor('qr_code', {
-      storage: diskStorage({
-        destination: './public/qr',
-        filename(req, file, callback) {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
-      }),
-      fileFilter(req, file, callback) {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-          return callback(
-            new BadRequestException('Hanya gambar yang diperbolehkan'),
-            false,
-          );
-        }
-        callback(null, true);
-      },
-      limits: {
-        fileSize: 2 * 1024 * 1024,
-      },
-    }),
+    FileInterceptor('qr_code'),
+    new InputInterceptor(updateProgramsSchema),
   )
   async updatePrograms(
     @Body() body: UpdateProgramsDto,
-    @UploadedFile() qr_code: Express.Multer.File,
-    @Req() req: Request,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 2 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png|)$/,
+          }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    qr_code: Express.Multer.File,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.updateProgram(body, qr_code, req.fullurl),
+        data: await this.adminService.updateProgram(body, qr_code),
       };
     } catch (error) {
       throw error;
@@ -667,42 +659,31 @@ export class AdminController {
   @Post('/mentors')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(
-    FileInterceptor('img_mentor', {
-      storage: diskStorage({
-        destination: './public/mentors',
-        filename(req, file, callback) {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
-      }),
-      fileFilter(req, file, callback) {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-          return callback(
-            new BadRequestException('Hanya gambar yang diperbolehkan'),
-            false,
-          );
-        }
-        callback(null, true);
-      },
-      limits: {
-        fileSize: 2 * 1024 * 1024,
-      },
-    }),
-    new ZodInterceptor(createMentorSchema),
+    FileInterceptor('img_mentor'),
+    new InputInterceptor(createMentorSchema),
   )
   async createMentor(
     @Body() body: CreateMentorDto,
-    @UploadedFile() img_mentor: Express.Multer.File,
-    @Req() req: Request,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 2 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png|)$/,
+          }),
+        ],
+      }),
+    )
+    img_mentor: Express.Multer.File,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.adminService.createMentor(
-          body,
-          img_mentor,
-          req.fullurl,
-        ),
+        data: await this.adminService.createMentor(body, img_mentor),
       };
     } catch (error) {
       throw error;
@@ -712,47 +693,32 @@ export class AdminController {
   @Patch('/mentors')
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
-    FileInterceptor('img_mentor', {
-      storage: diskStorage({
-        destination: './public/mentors',
-        filename(req, file, callback) {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
-      }),
-      fileFilter(req, file, callback) {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-          return callback(
-            new BadRequestException('Hanya gambar yang diperbolehkan'),
-            false,
-          );
-        }
-
-        if (req.body.with_image == 'true') {
-          callback(null, true);
-        } else {
-          callback(null, false);
-        }
-      },
-      limits: {
-        fileSize: 2 * 1024 * 1024,
-      },
-    }),
-    new ZodInterceptor(updateMentorSchema),
+    FileInterceptor('img_mentor'),
+    new InputInterceptor(updateMentorSchema),
   )
   async updateMentor(
     @Body() body: UpdateMentorDto,
-    @UploadedFile() img_mentor: Express.Multer.File,
-    @Req() req: Request,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 2 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png|)$/,
+          }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    img_mentor: Express.Multer.File,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.updateMentor(
-          body,
-          img_mentor,
-          req.fullurl,
-        ),
+        data: await this.adminService.updateMentor(body, img_mentor),
       };
     } catch (error) {
       throw error;
@@ -932,42 +898,31 @@ export class AdminController {
   @Post('/theses')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(
-    FileInterceptor('thumbnail_theses', {
-      storage: diskStorage({
-        destination: './public/theses',
-        filename(req, file, callback) {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
-      }),
-      fileFilter(req, file, callback) {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-          return callback(
-            new BadRequestException('Hanya gambar yang diperbolehkan'),
-            false,
-          );
-        }
-        callback(null, true);
-      },
-      limits: {
-        fileSize: 2 * 1024 * 1024,
-      },
-    }),
-    new ZodInterceptor(createProductSharedSchema),
+    FileInterceptor('thumbnail_theses'),
+    new InputInterceptor(createProductSharedSchema),
   )
   async createTheses(
     @Body() body: CreateProductSharedDto,
-    @UploadedFile() thumbnail_theses: Express.Multer.File,
-    @Req() req: Request,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 2 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png|)$/,
+          }),
+        ],
+      }),
+    )
+    thumbnail_theses: Express.Multer.File,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.adminService.createTheses(
-          body,
-          thumbnail_theses,
-          req.fullurl,
-        ),
+        data: await this.adminService.createTheses(body, thumbnail_theses),
       };
     } catch (error) {
       throw error;
@@ -977,47 +932,32 @@ export class AdminController {
   @Patch('/theses')
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
-    FileInterceptor('thumbnail_theses', {
-      storage: diskStorage({
-        destination: './public/theses',
-        filename(req, file, callback) {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
-      }),
-      fileFilter(req, file, callback) {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-          return callback(
-            new BadRequestException('Hanya gambar yang diperbolehkan'),
-            false,
-          );
-        }
-
-        if (req.body.with_image == 'true') {
-          callback(null, true);
-        } else {
-          callback(null, false);
-        }
-      },
-      limits: {
-        fileSize: 2 * 1024 * 1024,
-      },
-    }),
-    new ZodInterceptor(updateProductSharedSchema),
+    FileInterceptor('thumbnail_theses'),
+    new InputInterceptor(updateProductSharedSchema),
   )
   async updateTheses(
     @Body() body: UpdateProductSharedDto,
-    @UploadedFile() thumbnail_theses: Express.Multer.File,
-    @Req() req: Request,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 2 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png|)$/,
+          }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    thumbnail_theses: Express.Multer.File,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.updateTheses(
-          body,
-          thumbnail_theses,
-          req.fullurl,
-        ),
+        data: await this.adminService.updateTheses(body, thumbnail_theses),
       };
     } catch (error) {
       throw error;
@@ -1081,42 +1021,31 @@ export class AdminController {
   @Post('/research')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(
-    FileInterceptor('thumbnail_research', {
-      storage: diskStorage({
-        destination: './public/research',
-        filename(req, file, callback) {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
-      }),
-      fileFilter(req, file, callback) {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-          return callback(
-            new BadRequestException('Hanya gambar yang diperbolehkan'),
-            false,
-          );
-        }
-        callback(null, true);
-      },
-      limits: {
-        fileSize: 2 * 1024 * 1024,
-      },
-    }),
-    new ZodInterceptor(createProductSharedSchema),
+    FileInterceptor('thumbnail_research'),
+    new InputInterceptor(createProductSharedSchema),
   )
   async createResearch(
     @Body() body: CreateProductSharedDto,
-    @UploadedFile() thumbnail_research: Express.Multer.File,
-    @Req() req: Request,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 2 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png|)$/,
+          }),
+        ],
+      }),
+    )
+    thumbnail_research: Express.Multer.File,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.CREATED,
-        data: await this.adminService.createResearch(
-          body,
-          thumbnail_research,
-          req.fullurl,
-        ),
+        data: await this.adminService.createResearch(body, thumbnail_research),
       };
     } catch (error) {
       throw error;
@@ -1126,47 +1055,32 @@ export class AdminController {
   @Patch('/research')
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
-    FileInterceptor('thumbnail_research', {
-      storage: diskStorage({
-        destination: './public/research',
-        filename(req, file, callback) {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
-      }),
-      fileFilter(req, file, callback) {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-          return callback(
-            new BadRequestException('Hanya gambar yang diperbolehkan'),
-            false,
-          );
-        }
-
-        if (req.body.with_image == 'true') {
-          callback(null, true);
-        } else {
-          callback(null, false);
-        }
-      },
-      limits: {
-        fileSize: 2 * 1024 * 1024,
-      },
-    }),
-    new ZodInterceptor(updateProductSharedSchema),
+    FileInterceptor('thumbnail_research'),
+    new InputInterceptor(updateProductSharedSchema),
   )
   async updateResearch(
     @Body() body: UpdateProductSharedDto,
-    @UploadedFile() thumbnail_research: Express.Multer.File,
-    @Req() req: Request,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 2 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png|)$/,
+          }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    thumbnail_research: Express.Multer.File,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.updateResearch(
-          body,
-          thumbnail_research,
-          req.fullurl,
-        ),
+        data: await this.adminService.updateResearch(body, thumbnail_research),
       };
     } catch (error) {
       throw error;
