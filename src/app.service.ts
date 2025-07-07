@@ -1442,7 +1442,7 @@ export class AppService {
       },
     });
 
-    const has_member = true;
+    const has_member = ['ROUTU2166077'].includes(req.user?.user_id);
 
     const lowest = Math.min(
       ...contents
