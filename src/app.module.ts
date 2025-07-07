@@ -15,7 +15,6 @@ import { AuthModule } from './auth/auth.module';
 import { CardsModule } from './cards/cards.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CoursesModule } from './courses/courses.module';
-import { GeneralModule } from './general/general.module';
 import { MyModule } from './my/my.module';
 import { ProgramsModule } from './programs/programs.module';
 import { QuizzesModule } from './quizzes/quizzes.module';
@@ -60,7 +59,6 @@ import { StorageService } from './utils/services/storage.service';
     ProgramsModule,
     AdminModule,
     AdminsModule,
-    GeneralModule,
     AiModule,
     SubscriptionsModule,
     CategoriesModule,
