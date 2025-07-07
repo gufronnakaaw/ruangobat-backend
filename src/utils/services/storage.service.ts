@@ -24,7 +24,7 @@ export class StorageService {
       endpoint: process.env.STORAGE_ENDPOINT,
     });
 
-    this.bucket = `${process.env.MODE === 'prod' ? 'cdn.ruangobat.id' : 'ruangobatdev'}`;
+    this.bucket = `${process.env.MODE === 'prod' ? 'ruangobat' : 'ruangobatdev'}`;
   }
 
   createFolder(name: string, by: string) {
