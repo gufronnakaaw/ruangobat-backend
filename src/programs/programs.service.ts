@@ -492,12 +492,15 @@ export class ProgramsService {
       );
     }
 
+    const date = new Date();
+
     await this.prisma.$transaction([
       this.prisma.participant.create({
         data: {
           program_id: body.program_id,
           user_id: body.user_id,
           is_approved: true,
+          joined_at: date,
         },
       }),
       this.prisma.socialMediaImage.createMany({

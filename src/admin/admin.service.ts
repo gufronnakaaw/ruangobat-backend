@@ -1082,10 +1082,10 @@ export class AdminService {
         return {
           program_id: body.program_id,
           user_id: user,
-          code: `ROC${random(100000, 999999)}`,
           invited_at: date,
           invited_by: body.by,
-          is_approved: null,
+          is_approved: true,
+          joined_at: date,
         };
       }),
     });
