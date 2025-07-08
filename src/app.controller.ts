@@ -68,7 +68,7 @@ export class AppController {
     return {
       success: true,
       status_code: HttpStatus.OK,
-      message: `Welcome to Ruang Obat ${process.env.MODE === 'prod' ? 'API' : 'Dev API'}`,
+      message: `RuangObat ${process.env.MODE === 'prod' ? 'API' : 'Dev API'}`,
     };
   }
 

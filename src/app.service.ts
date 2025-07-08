@@ -82,7 +82,7 @@ export class AppService {
     const expired_at = new Date();
     expired_at.setMinutes(expired_at.getMinutes() + 5);
 
-    const template = `<p>Dear ${user.fullname},</p><p>Please use the one-time password below to authorize your account. It is valid for 5 minutes.</p><p><strong>${otp_code}</strong></p>---<p>Ruang Obat<br><a href="https://ruangobat.id" target="_blank">https://ruangobat.id</a></p>`;
+    const template = `<p>Dear ${user.fullname},</p><p>Please use the one-time password below to authorize your account. It is valid for 5 minutes.</p><p><strong>${otp_code}</strong></p>---<p>RuangObat<br><a href="https://ruangobat.id" target="_blank">https://ruangobat.id</a></p>`;
 
     await Promise.all([
       this.prisma.otp.create({
@@ -94,7 +94,7 @@ export class AppService {
         },
       }),
       this.mailerService.sendMail({
-        from: `Ruang Obat <${process.env.EMAIL_ALIAS_ONE}>`,
+        from: `RuangObat <${process.env.EMAIL_ALIAS_ONE}>`,
         to: user.email,
         subject: 'Verification Code (OTP)',
         html: template,
@@ -115,7 +115,7 @@ export class AppService {
 
     const user_id = `REGISTER${random(100000, 999999)}`;
 
-    const template = `<p>Please use the one-time password below to authorize your account. It is valid for 5 minutes.</p><p><strong>${otp_code}</strong></p>---<p>Ruang Obat<br><a href="https://ruangobat.id" target="_blank">https://ruangobat.id</a></p>`;
+    const template = `<p>Please use the one-time password below to authorize your account. It is valid for 5 minutes.</p><p><strong>${otp_code}</strong></p>---<p>RuangObat<br><a href="https://ruangobat.id" target="_blank">https://ruangobat.id</a></p>`;
 
     await Promise.all([
       this.prisma.otp.create({
@@ -127,7 +127,7 @@ export class AppService {
         },
       }),
       this.mailerService.sendMail({
-        from: `Ruang Obat <${process.env.EMAIL_ALIAS_ONE}>`,
+        from: `RuangObat <${process.env.EMAIL_ALIAS_ONE}>`,
         to: email,
         subject: 'Verification Code (OTP)',
         html: template,
