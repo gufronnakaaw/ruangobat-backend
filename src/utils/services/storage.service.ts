@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   DeleteObjectsCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   ListObjectsCommand,
   PutObjectCommand,
@@ -61,6 +62,22 @@ export class StorageService {
       });
 
       return getSignedUrl(this.s3Client, command, { expiresIn: 3600 });
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Error pada cloud storage saat mendapatkan signed URL',
+      );
+    }
+  }
+
+  getSingleSignedUrl(key: string) {
+    try {
+      const command = new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ResponseContentDisposition: 'inline',
+      });
+
+      return getSignedUrl(this.s3Client, command, { expiresIn: 60 * 30 });
     } catch (error) {
       throw new InternalServerErrorException(
         'Error pada cloud storage saat mendapatkan signed URL',
