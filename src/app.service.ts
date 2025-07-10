@@ -1609,7 +1609,13 @@ export class AppService {
       throw new NotFoundException('Konten tidak ditemukan');
     }
 
-    return content;
+    const url = new URL(content.video_url);
+
+    return {
+      video_url: await this.storage.getSingleSignedUrl(
+        decodeURIComponent(url.pathname.slice(1)),
+      ),
+    };
   }
 
   async getContentNotes(content_id: string, token: string) {
