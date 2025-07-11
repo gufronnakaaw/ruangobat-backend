@@ -1,3 +1,4 @@
+import { MailerService } from '@nestjs-modules/mailer';
 import { HttpService } from '@nestjs/axios';
 import {
   BadRequestException,
@@ -14,6 +15,7 @@ import { decryptString, encryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import { StorageService } from '../utils/services/storage.service';
 import {
+  generateEmailTemplate,
   maskEmail,
   maskPhoneNumber,
   scoreCategory,
@@ -45,6 +47,7 @@ export class AdminService {
     private prisma: PrismaService,
     private readonly http: HttpService,
     private readonly storage: StorageService,
+    private mailerService: MailerService,
   ) {}
 
   async getDashboard() {
@@ -1067,28 +1070,71 @@ export class AdminService {
   }
 
   async inviteUsers(body: InviteUsersDto) {
-    if (
-      !(await this.prisma.program.count({
-        where: { program_id: body.program_id },
-      }))
-    ) {
+    const program = await this.prisma.program.findUnique({
+      where: { program_id: body.program_id },
+      select: {
+        program_id: true,
+        title: true,
+      },
+    });
+
+    if (!program) {
       throw new NotFoundException('Program tidak ditemukan');
     }
 
     const date = new Date();
 
-    await this.prisma.participant.createMany({
-      data: body.users.map((user) => {
-        return {
-          program_id: body.program_id,
-          user_id: user,
-          invited_at: date,
-          invited_by: body.by,
-          is_approved: true,
-          joined_at: date,
-        };
+    const [, users] = await this.prisma.$transaction([
+      this.prisma.participant.createMany({
+        data: body.users.map((user) => {
+          return {
+            program_id: body.program_id,
+            user_id: user,
+            invited_at: date,
+            invited_by: body.by,
+            is_approved: true,
+            joined_at: date,
+          };
+        }),
       }),
-    });
+      this.prisma.user.findMany({
+        where: {
+          user_id: {
+            in: body.users,
+          },
+        },
+        select: {
+          fullname: true,
+          email: true,
+        },
+      }),
+    ]);
+
+    if (process.env.EMAIL_ACTIVE === 'true') {
+      const from = `RuangObat <${process.env.EMAIL_ALIAS_TWO}>`;
+      const subject = `🎉 Selamat! Kamu sudah bisa mengakses ${program.title}!`;
+
+      const promises = [];
+
+      for (const user of users) {
+        promises.push(
+          this.mailerService.sendMail({
+            from,
+            subject,
+            to: decryptString(user.email, process.env.ENCRYPT_KEY),
+            html: generateEmailTemplate({
+              env: process.env.NODE_ENV,
+              fullname: user.fullname,
+              type: ['program'],
+              program_name: program.title,
+              path: `/programs/${program.program_id}`,
+            }),
+          }),
+        );
+      }
+
+      await Promise.all(promises);
+    }
 
     delete body.by;
 
