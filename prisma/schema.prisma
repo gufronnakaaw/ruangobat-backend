@@ -62,6 +62,11 @@ enum VariantResult {
   post
 }
 
+enum LogLoginType {
+  admin
+  user
+}
+
 model Admin {
   id               Int              @id               @default(autoincrement())
   admin_id         String           @unique
@@ -71,6 +76,8 @@ model Admin {
 
   created_at       DateTime         @default(now())
   updated_at       DateTime         @updatedAt
+
+  loglogin         LogLogin[]
 
   @@map("admin")
 }
@@ -96,6 +103,7 @@ model User {
   socmedimg        SocialMediaImage[]
   chats            AiChat[]  
   progress         UserContentProgress[]
+  loglogin         LogLogin[]
 
   userlimit       UserAiLimit?      
 
@@ -918,4 +926,21 @@ model AssessmentResultDetail {
   question         AssessmentQuestion @relation(fields: [assq_id], references: [assq_id], onDelete: Cascade)
 
   @@map("assessment_result_detail")
+}
+
+model LogLogin {
+  id                String           @id @default(uuid())
+  user_id           String?
+  admin_id          String?
+  timestamp         DateTime         @default(now())
+  ip_address        String?
+  user_agent        String?          @db.Text
+  os                String?
+  type              LogLoginType
+
+  user              User?             @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  admin             Admin?            @relation(fields: [admin_id], references: [admin_id], onDelete: Cascade)
+
+  @@index([timestamp])
+  @@map("log_login")
 }
