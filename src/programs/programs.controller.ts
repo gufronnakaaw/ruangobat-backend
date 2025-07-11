@@ -19,6 +19,7 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { SuccessResponse } from '../utils/global/global.response';
+import { PublicGuard } from '../utils/guards/public.guard';
 import { UserGuard } from '../utils/guards/user.guard';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
 import {
@@ -28,11 +29,11 @@ import {
 } from './programs.dto';
 import { ProgramsService } from './programs.service';
 
-@UseGuards(UserGuard)
 @Controller('programs')
 export class ProgramsController {
   constructor(private readonly programsService: ProgramsService) {}
 
+  @UseGuards(PublicGuard)
   @Get()
   @HttpCode(HttpStatus.OK)
   async getPrograms(
@@ -40,38 +41,17 @@ export class ProgramsController {
     @Query() query: ProgramsQuery,
   ): Promise<SuccessResponse> {
     try {
-      if (query.q) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.programsService.getProgramsBySearch(
-            req.user.user_id,
-            query,
-          ),
-        };
-      }
-
-      if (query.type) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.programsService.getProgramsByType(
-            req.user.user_id,
-            query,
-          ),
-        };
-      }
-
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.programsService.getPrograms(req.user.user_id, query),
+        data: await this.programsService.getProgramsFiltered(req, query),
       };
     } catch (error) {
       throw error;
     }
   }
 
+  @UseGuards(PublicGuard)
   @Get(':program_id')
   @HttpCode(HttpStatus.OK)
   async getProgram(
@@ -82,16 +62,14 @@ export class ProgramsController {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.programsService.getProgram(
-          req.user.user_id,
-          program_id,
-        ),
+        data: await this.programsService.getProgram(req, program_id),
       };
     } catch (error) {
       throw error;
     }
   }
 
+  @UseGuards(UserGuard)
   @Post('/follow/paid')
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(followPaidProgramsSchema))
@@ -113,6 +91,7 @@ export class ProgramsController {
     }
   }
 
+  @UseGuards(UserGuard)
   @Post('/follow/free')
   @UseInterceptors(FilesInterceptor('files'))
   async uploadFile(
