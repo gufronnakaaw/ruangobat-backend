@@ -228,47 +228,22 @@ export class MyService {
     };
   }
 
-  async getPrograms(user_id: string) {
-    const programs = await this.prisma.participant.findMany({
-      select: {
-        program: {
-          select: {
-            program_id: true,
-            title: true,
-            type: true,
-            price: true,
-            participants: {
-              where: {
-                joined_at: {
-                  not: null,
-                },
-                is_approved: true,
-              },
-              select: {
-                user_id: true,
-              },
-            },
+  getPrograms(user_id: string) {
+    return this.prisma.program.findMany({
+      where: {
+        participants: {
+          some: {
+            user_id,
+            is_approved: true,
           },
         },
       },
-      where: {
-        user_id,
-        joined_at: {
-          not: null,
-        },
-        is_approved: true,
+      select: {
+        program_id: true,
+        title: true,
+        type: true,
+        price: true,
       },
-      orderBy: {
-        joined_at: 'desc',
-      },
-    });
-
-    return programs.map((program) => {
-      const { participants, ...all } = program.program;
-      return {
-        ...all,
-        total_users: participants.length,
-      };
     });
   }
 
