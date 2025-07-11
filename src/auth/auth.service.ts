@@ -1,3 +1,4 @@
+import { MailerService } from '@nestjs-modules/mailer';
 import {
   BadRequestException,
   ForbiddenException,
@@ -6,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { random } from 'lodash';
+import { UAParser } from 'ua-parser-js';
 import { hashPassword, verifyPassword } from '../utils/bcrypt.util';
 import { decryptString, encryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
@@ -22,6 +24,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private mailerService: MailerService,
   ) {}
 
   async adminRegister(body: AdminRegisterDto) {
@@ -74,6 +77,17 @@ export class AuthService {
     const expired = new Date();
     expired.setHours(date.getHours() + 6);
 
+    const ua_parser = UAParser(body.user_agent);
+
+    await this.prisma.logLogin.create({
+      data: {
+        admin_id: admin.admin_id,
+        user_agent: body.user_agent,
+        os: `${ua_parser.os.name} ${ua_parser.os.version}`,
+        type: 'admin',
+      },
+    });
+
     return {
       admin_id: admin.admin_id,
       fullname: admin.fullname,
@@ -113,7 +127,7 @@ export class AuthService {
 
     const fullname = capitalize(body.fullname.toLowerCase());
 
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         user_id: `ROU${getInitials(fullname)}${random(100000, 999999)}`,
         email: encryptString(body.email, process.env.ENCRYPT_KEY),
@@ -131,9 +145,22 @@ export class AuthService {
         university: true,
       },
     });
+
+    if (process.env.EMAIL_ACTIVE === 'true') {
+      const template = `<p>Hi <strong>${fullname}</strong>! 🎉</p><br/>`;
+
+      await this.mailerService.sendMail({
+        from: `RuangObat <${process.env.EMAIL_ALIAS_TWO}>`,
+        to: body.email,
+        subject: 'Yeay! Kamu berhasil daftar! 🎉',
+        html: template,
+      });
+    }
+
+    return user;
   }
 
-  async userLogin(body: UserLoginDto, user_agent: string) {
+  async userLogin(body: UserLoginDto) {
     const users = await this.prisma.user.findMany({
       select: {
         email: true,
@@ -145,14 +172,14 @@ export class AuthService {
       },
     });
 
-    const decrypts = users.map((user) => {
-      return {
-        ...user,
-        email: decryptString(user.email, process.env.ENCRYPT_KEY),
-      };
-    });
-
-    const user = decrypts.find((user) => user.email == body.email);
+    const user = users
+      .map((user) => {
+        return {
+          ...user,
+          email: decryptString(user.email, process.env.ENCRYPT_KEY),
+        };
+      })
+      .find((user) => user.email == body.email);
 
     if (!user) {
       throw new BadRequestException('Email atau password salah');
@@ -170,17 +197,16 @@ export class AuthService {
     const expired = new Date();
     expired.setHours(date.getHours() + 12);
 
-    // const ua_parser = UAParser(user_agent);
+    const ua_parser = UAParser(body.user_agent);
 
-    // await this.prisma.session.create({
-    //   data: {
-    //     user_id: user.user_id,
-    //     browser: ua_parser.browser.name,
-    //     os: `${ua_parser.os.name} ${ua_parser.os.version}`,
-    //     expired,
-    //     created_at: date,
-    //   },
-    // });
+    await this.prisma.logLogin.create({
+      data: {
+        user_id: user.user_id,
+        user_agent: body.user_agent,
+        os: `${ua_parser.os.name} ${ua_parser.os.version}`,
+        type: 'user',
+      },
+    });
 
     return {
       user_id: user.user_id,
@@ -201,7 +227,7 @@ export class AuthService {
   }
 
   async checkSession(user_id: string) {
-    const session = await this.prisma.session.findUnique({
+    const session = await this.prisma.session.findFirst({
       where: { user_id },
       select: { session_id: true },
     });
@@ -221,9 +247,8 @@ export class AuthService {
       throw new NotFoundException('Sesi tidak ditemukan');
     }
 
-    return this.prisma.session.delete({
+    return this.prisma.session.deleteMany({
       where: { user_id },
-      select: { user_id: true },
     });
   }
 }
