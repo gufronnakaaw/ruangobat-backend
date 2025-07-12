@@ -130,6 +130,7 @@ export class AdminService {
           phone_number: true,
           email: true,
           is_verified: true,
+          created_at: true,
         },
         orderBy: {
           created_at: 'desc',
@@ -185,6 +186,7 @@ export class AdminService {
         gender: true,
         university: true,
         created_at: true,
+        is_verified: true,
       },
     });
 
