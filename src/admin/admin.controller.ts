@@ -96,18 +96,10 @@ export class AdminController {
         };
       }
 
-      if (query.q) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.adminService.getUsersBySearch(query, req.admin.role),
-        };
-      }
-
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getUsers(query, req.admin.role),
+        data: await this.adminService.getUsersFiltered(query, req.admin.role),
       };
     } catch (error) {
       throw error;
@@ -135,18 +127,10 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async getSessions(@Query() query: AdminQuery): Promise<SuccessResponse> {
     try {
-      if (query.q) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.adminService.getSessionsBySearch(query),
-        };
-      }
-
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getSessions(query),
+        data: await this.adminService.getSessionsFiltered(query),
       };
     } catch (error) {
       throw error;
@@ -155,20 +139,15 @@ export class AdminController {
 
   @Get('/programs')
   @HttpCode(HttpStatus.OK)
-  async getPrograms(@Query() query: AdminQuery): Promise<SuccessResponse> {
+  async getPrograms(
+    @Query() query: AdminQuery,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
     try {
-      if (query.q) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.adminService.getProgramsBySearch(query),
-        };
-      }
-
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getPrograms(query),
+        data: await this.adminService.getProgramsFiltered(query, req),
       };
     } catch (error) {
       throw error;
@@ -268,21 +247,10 @@ export class AdminController {
     @Query() query: AdminQuery,
   ): Promise<SuccessResponse> {
     try {
-      if (query.q) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.adminService.getProgramParticipantsBySearch(
-            program_id,
-            query,
-          ),
-        };
-      }
-
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getProgram(program_id, query),
+        data: await this.adminService.getProgramFiltered(program_id, query),
       };
     } catch (error) {
       throw error;
@@ -387,7 +355,10 @@ export class AdminController {
 
   @Get('/tests')
   @HttpCode(HttpStatus.OK)
-  async getTests(@Query() query: AdminQuery): Promise<SuccessResponse> {
+  async getTests(
+    @Query() query: AdminQuery,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
     try {
       if (query.page == 'all') {
         return {
@@ -397,18 +368,10 @@ export class AdminController {
         };
       }
 
-      if (query.q) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.adminService.getTestsBySearch(query),
-        };
-      }
-
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getTests(query),
+        data: await this.adminService.getTestsFiltered(query, req),
       };
     } catch (error) {
       throw error;
@@ -487,18 +450,10 @@ export class AdminController {
     @Query() query: AdminQuery,
   ) {
     try {
-      if (query.q) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.adminService.getResultsTestBySearch(test_id, query),
-        };
-      }
-
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getResultsTest(test_id, query),
+        data: await this.adminService.getResultsTestFiltered(test_id, query),
       };
     } catch (error) {
       throw error;
@@ -509,18 +464,10 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async getFeedback(@Query() query: AdminQuery): Promise<SuccessResponse> {
     try {
-      if (query.q) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.adminService.getFeedbacksBySearch(query),
-        };
-      }
-
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getFeedbacks(query),
+        data: await this.adminService.getFeedbacksFiltered(query),
       };
     } catch (error) {
       throw error;
@@ -622,18 +569,10 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async getMentors(@Query() query: AdminQuery): Promise<SuccessResponse> {
     try {
-      if (query.q) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.adminService.getMentorsBySearch(query),
-        };
-      }
-
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getMentors(query),
+        data: await this.adminService.getMentorsFiltered(query),
       };
     } catch (error) {
       throw error;
@@ -764,18 +703,10 @@ export class AdminController {
     @Query() query: AdminQuery,
   ): Promise<SuccessResponse> {
     try {
-      if (query.q) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.adminService.getSubjectPrivateBySearch(query),
-        };
-      }
-
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getSubjectPrivate(query),
+        data: await this.adminService.getSubjectPrivateFiltered(query),
       };
     } catch (error) {
       throw error;
@@ -861,18 +792,10 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async getTheses(@Query() query: AdminQuery): Promise<SuccessResponse> {
     try {
-      if (query.q) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.adminService.getThesesBySearch(query),
-        };
-      }
-
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getTheses(query),
+        data: await this.adminService.getThesesFiltered(query),
       };
     } catch (error) {
       throw error;
@@ -984,18 +907,10 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async getResearch(@Query() query: AdminQuery): Promise<SuccessResponse> {
     try {
-      if (query.q) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.adminService.getResearchBySearch(query),
-        };
-      }
-
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getResearch(query),
+        data: await this.adminService.getResearchFiltered(query),
       };
     } catch (error) {
       throw error;

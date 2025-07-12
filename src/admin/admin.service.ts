@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ClassMentorType } from '@prisma/client';
 import { AxiosResponse } from 'axios';
+import { Request } from 'express';
 import { random } from 'lodash';
 import { firstValueFrom, Observable } from 'rxjs';
 import ShortUniqueId from 'short-unique-id';
@@ -93,17 +94,35 @@ export class AdminService {
     };
   }
 
-  async getUsers(query: AdminQuery, role: string) {
+  async getUsersFiltered(query: AdminQuery, role: string) {
     const default_page = 1;
     const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
+    const where: any = {};
+
+    if (query.q) {
+      where.OR = [
+        {
+          user_id: {
+            contains: query.q,
+          },
+        },
+        {
+          fullname: {
+            contains: query.q,
+          },
+        },
+      ];
+    }
+
     const [total_users, users] = await this.prisma.$transaction([
-      this.prisma.user.count(),
+      this.prisma.user.count({
+        where,
+      }),
       this.prisma.user.findMany({
+        where,
         select: {
           user_id: true,
           fullname: true,
@@ -184,175 +203,35 @@ export class AdminService {
     };
   }
 
-  async getUsersBySearch(query: AdminQuery, role: string) {
-    const default_page = 1;
-    const take = 8;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_users, users] = await this.prisma.$transaction([
-      this.prisma.user.count({
-        where: {
-          OR: [
-            {
-              user_id: {
-                contains: query.q,
-              },
-            },
-            {
-              fullname: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-      }),
-      this.prisma.user.findMany({
-        where: {
-          OR: [
-            {
-              user_id: {
-                contains: query.q,
-              },
-            },
-            {
-              fullname: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-        select: {
-          user_id: true,
-          fullname: true,
-          university: true,
-          phone_number: true,
-          email: true,
-          is_verified: true,
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
-        take,
-        skip,
-      }),
-    ]);
-
-    return {
-      users: users.map((user) => {
-        return {
-          ...user,
-          email:
-            role === 'superadmin'
-              ? decryptString(user.email, process.env.ENCRYPT_KEY)
-              : maskEmail(decryptString(user.email, process.env.ENCRYPT_KEY)),
-          phone_number:
-            role === 'superadmin'
-              ? decryptString(user.phone_number, process.env.ENCRYPT_KEY)
-              : maskPhoneNumber(
-                  decryptString(user.phone_number, process.env.ENCRYPT_KEY),
-                ),
-        };
-      }),
-      page: parseInt(query.page),
-      total_users,
-      total_pages: Math.ceil(total_users / take),
-    };
-  }
-
-  async getSessions(query: AdminQuery) {
+  async getSessionsFiltered(query: AdminQuery) {
     const default_page = 1;
     const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_sessions, sessions] = await this.prisma.$transaction([
-      this.prisma.session.count(),
-      this.prisma.session.findMany({
-        select: {
+    const where: any = {};
+
+    if (query.q) {
+      where.OR = [
+        {
+          user_id: {
+            contains: query.q,
+          },
+        },
+        {
           user: {
-            select: {
-              user_id: true,
-              fullname: true,
-              university: true,
+            fullname: {
+              contains: query.q,
             },
           },
-          browser: true,
-          os: true,
-          created_at: true,
-          expired: true,
         },
-        take,
-        skip,
-        orderBy: {
-          created_at: 'desc',
-        },
-      }),
-    ]);
-
-    return {
-      sessions: sessions.map((session) => {
-        const { user, ...all } = session;
-
-        return {
-          ...user,
-          ...all,
-        };
-      }),
-      page: parseInt(query.page),
-      total_sessions,
-      total_pages: Math.ceil(total_sessions / take),
-    };
-  }
-
-  async getSessionsBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
+      ];
+    }
 
     const [total_sessions, sessions] = await this.prisma.$transaction([
-      this.prisma.session.count({
-        where: {
-          OR: [
-            {
-              user_id: {
-                contains: query.q,
-              },
-            },
-            {
-              user: {
-                fullname: {
-                  contains: query.q,
-                },
-              },
-            },
-          ],
-        },
-      }),
+      this.prisma.session.count({ where }),
       this.prisma.session.findMany({
-        where: {
-          OR: [
-            {
-              user_id: {
-                contains: query.q,
-              },
-            },
-            {
-              user: {
-                fullname: {
-                  contains: query.q,
-                },
-              },
-            },
-          ],
-        },
+        where,
         select: {
           user: {
             select: {
@@ -422,17 +301,37 @@ export class AdminService {
     return { program_id, user_id };
   }
 
-  async getPrograms(query: AdminQuery) {
+  async getProgramsFiltered(query: AdminQuery, req: Request) {
     const default_page = 1;
     const take = 6;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
+    const where: any = {};
+
+    if (req.admin.admin_id !== process.env.DEFAULT_ADMIN_ID) {
+      where.is_active = true;
+    }
+
+    if (query.q) {
+      where.OR = [
+        {
+          program_id: {
+            contains: query.q,
+          },
+        },
+        {
+          title: {
+            contains: query.q,
+          },
+        },
+      ];
+    }
+
     const [total_programs, programs] = await this.prisma.$transaction([
-      this.prisma.program.count(),
+      this.prisma.program.count({ where }),
       this.prisma.program.findMany({
+        where,
         select: {
           program_id: true,
           title: true,
@@ -466,6 +365,109 @@ export class AdminService {
       page: parseInt(query.page),
       total_programs,
       total_pages: Math.ceil(total_programs / take),
+    };
+  }
+
+  async getProgramFiltered(program_id: string, query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+    const page = Number(query.page) || default_page;
+    const skip = (page - 1) * take;
+
+    const participant_where: any = { is_approved: true };
+
+    if (query.q) {
+      participant_where.OR = [
+        { user: { user_id: { contains: query.q } } },
+        { user: { fullname: { contains: query.q } } },
+      ];
+    }
+
+    const program = await this.prisma.program.findUnique({
+      where: {
+        program_id,
+      },
+      select: {
+        program_id: true,
+        title: true,
+        type: true,
+        price: true,
+        is_active: true,
+        qr_code: true,
+        url_qr_code: true,
+        details: {
+          select: {
+            test: {
+              select: {
+                test_id: true,
+                title: true,
+                start: true,
+                end: true,
+                duration: true,
+                is_active: true,
+              },
+            },
+          },
+        },
+        participants: {
+          where: participant_where,
+          select: {
+            user: {
+              select: {
+                user_id: true,
+                fullname: true,
+                university: true,
+              },
+            },
+            joined_at: true,
+            is_approved: true,
+          },
+          take,
+          skip,
+          orderBy: {
+            joined_at: 'asc',
+          },
+        },
+      },
+    });
+
+    const { details, participants, ...all } = program;
+
+    return {
+      ...all,
+      page,
+      total_tests: details.length,
+      total_participants: participants.length,
+      total_pages: Math.ceil(participants.length / take),
+      tests: details.map((detail) => {
+        const now = new Date();
+
+        const start = new Date(detail.test.start);
+        const end = new Date(detail.test.end);
+
+        let status = '';
+
+        if (now < start) {
+          status += 'Belum dimulai';
+        } else if (now >= start && now <= end) {
+          status += 'Berlangsung';
+        } else {
+          status += 'Berakhir';
+        }
+
+        return {
+          ...detail.test,
+          status,
+        };
+      }),
+      participants: participants.map((participant) => {
+        const { user, ...rest } = participant;
+
+        return {
+          ...user,
+          ...rest,
+        };
+      }),
     };
   }
 
@@ -644,356 +646,6 @@ export class AdminService {
     return body;
   }
 
-  async getProgramsBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 6;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_programs, programs] = await this.prisma.$transaction([
-      this.prisma.program.count({
-        where: {
-          OR: [
-            {
-              program_id: {
-                contains: query.q,
-              },
-            },
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-      }),
-      this.prisma.program.findMany({
-        where: {
-          OR: [
-            {
-              program_id: {
-                contains: query.q,
-              },
-            },
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-        select: {
-          program_id: true,
-          title: true,
-          type: true,
-          price: true,
-          created_at: true,
-          is_active: true,
-          details: {
-            select: {
-              test_id: true,
-            },
-          },
-        },
-        take,
-        skip,
-        orderBy: {
-          created_at: 'desc',
-        },
-      }),
-    ]);
-
-    return {
-      programs: programs.map((program) => {
-        const { details, ...all } = program;
-
-        return {
-          ...all,
-          total_tests: details.length,
-        };
-      }),
-      page: parseInt(query.page),
-      total_programs,
-      total_pages: Math.ceil(total_programs / take),
-    };
-  }
-
-  async getProgram(program_id: string, query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [program, total_participants, total_users, total_approved_users] =
-      await this.prisma.$transaction([
-        this.prisma.program.findUnique({
-          where: {
-            program_id,
-          },
-          select: {
-            program_id: true,
-            title: true,
-            type: true,
-            price: true,
-            is_active: true,
-            qr_code: true,
-            url_qr_code: true,
-            details: {
-              select: {
-                test: {
-                  select: {
-                    test_id: true,
-                    title: true,
-                    start: true,
-                    end: true,
-                    duration: true,
-                    is_active: true,
-                  },
-                },
-              },
-            },
-            participants: {
-              select: {
-                user: {
-                  select: {
-                    user_id: true,
-                    fullname: true,
-                    university: true,
-                  },
-                },
-                code: true,
-                joined_at: true,
-                is_approved: true,
-              },
-              take,
-              skip,
-              orderBy: {
-                joined_at: 'asc',
-              },
-            },
-          },
-        }),
-        this.prisma.participant.count({
-          where: {
-            program_id,
-          },
-        }),
-        this.prisma.participant.count({
-          where: {
-            program_id,
-          },
-        }),
-        this.prisma.participant.count({
-          where: {
-            program_id,
-            joined_at: {
-              not: null,
-            },
-            is_approved: true,
-          },
-        }),
-      ]);
-
-    const { details, participants, ...all } = program;
-
-    return {
-      ...all,
-      page: parseInt(query.page),
-      total_tests: details.length,
-      total_users,
-      total_participants,
-      total_approved_users,
-      total_pages: Math.ceil(total_users / take),
-      tests: details.map((detail) => {
-        const now = new Date();
-
-        const start = new Date(detail.test.start);
-        const end = new Date(detail.test.end);
-
-        let status = '';
-
-        if (now < start) {
-          status += 'Belum dimulai';
-        } else if (now >= start && now <= end) {
-          status += 'Berlangsung';
-        } else {
-          status += 'Berakhir';
-        }
-
-        return {
-          ...detail.test,
-          status,
-        };
-      }),
-      participants: participants.map((participant) => {
-        const { user, ...all } = participant;
-
-        return {
-          ...user,
-          ...all,
-        };
-      }),
-    };
-  }
-
-  async getProgramParticipantsBySearch(program_id: string, query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [program, total_participants, total_users, total_approved_users] =
-      await this.prisma.$transaction([
-        this.prisma.program.findUnique({
-          where: {
-            program_id,
-          },
-          select: {
-            program_id: true,
-            title: true,
-            type: true,
-            price: true,
-            is_active: true,
-            qr_code: true,
-            url_qr_code: true,
-            details: {
-              select: {
-                test: {
-                  select: {
-                    test_id: true,
-                    title: true,
-                    start: true,
-                    end: true,
-                    duration: true,
-                    is_active: true,
-                  },
-                },
-              },
-            },
-            participants: {
-              where: {
-                OR: [
-                  {
-                    user: {
-                      user_id: {
-                        contains: query.q,
-                      },
-                    },
-                  },
-                  {
-                    user: {
-                      fullname: {
-                        contains: query.q,
-                      },
-                    },
-                  },
-                ],
-              },
-              select: {
-                user: {
-                  select: {
-                    user_id: true,
-                    fullname: true,
-                    university: true,
-                  },
-                },
-                code: true,
-                joined_at: true,
-                is_approved: true,
-              },
-              take,
-              skip,
-              orderBy: {
-                joined_at: 'asc',
-              },
-            },
-          },
-        }),
-        this.prisma.participant.count({
-          where: {
-            program_id,
-            OR: [
-              {
-                user: {
-                  user_id: {
-                    contains: query.q,
-                  },
-                },
-              },
-              {
-                user: {
-                  fullname: {
-                    contains: query.q,
-                  },
-                },
-              },
-            ],
-          },
-        }),
-        this.prisma.participant.count({
-          where: {
-            program_id,
-          },
-        }),
-        this.prisma.participant.count({
-          where: {
-            program_id,
-            joined_at: {
-              not: null,
-            },
-            is_approved: true,
-          },
-        }),
-      ]);
-
-    const { details, participants, ...all } = program;
-
-    return {
-      ...all,
-      page: parseInt(query.page),
-      total_tests: details.length,
-      total_users,
-      total_participants,
-      total_approved_users,
-      total_pages: Math.ceil(total_participants / take),
-      tests: details.map((detail) => {
-        const now = new Date();
-
-        const start = new Date(detail.test.start);
-        const end = new Date(detail.test.end);
-
-        let status = '';
-
-        if (now < start) {
-          status += 'Belum dimulai';
-        } else if (now >= start && now <= end) {
-          status += 'Berlangsung';
-        } else {
-          status += 'Berakhir';
-        }
-
-        return {
-          ...detail.test,
-          status,
-        };
-      }),
-      participants: participants.map((participant) => {
-        const { user, ...all } = participant;
-
-        return {
-          ...user,
-          ...all,
-        };
-      }),
-    };
-  }
-
   async deleteProgram(program_id: string) {
     if (!(await this.prisma.program.count({ where: { program_id } }))) {
       throw new NotFoundException('Program tidak ditemukan');
@@ -1141,17 +793,39 @@ export class AdminService {
     return body;
   }
 
-  async getTests(query: AdminQuery) {
+  async getTestsFiltered(query: AdminQuery, req: Request) {
     const default_page = 1;
     const take = 6;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
+    const where: any = {};
+
+    if (req.admin.admin_id !== process.env.DEFAULT_ADMIN_ID) {
+      where.is_active = true;
+    }
+
+    if (query.q) {
+      where.OR = [
+        {
+          test_id: {
+            contains: query.q,
+          },
+        },
+        {
+          title: {
+            contains: query.q,
+          },
+        },
+      ];
+    }
+
     const [total_tests, tests] = await this.prisma.$transaction([
-      this.prisma.test.count(),
+      this.prisma.test.count({
+        where,
+      }),
       this.prisma.test.findMany({
+        where,
         select: {
           test_id: true,
           title: true,
@@ -1195,6 +869,44 @@ export class AdminService {
       total_tests,
       total_pages: Math.ceil(total_tests / take),
     };
+  }
+
+  async getAllTests() {
+    const tests = await this.prisma.test.findMany({
+      select: {
+        test_id: true,
+        title: true,
+        start: true,
+        end: true,
+        is_active: true,
+        duration: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    return tests.map((test) => {
+      const now = new Date();
+
+      const start = new Date(test.start);
+      const end = new Date(test.end);
+
+      let status = '';
+
+      if (now < start) {
+        status += 'Belum dimulai';
+      } else if (now >= start && now <= end) {
+        status += 'Berlangsung';
+      } else {
+        status += 'Berakhir';
+      }
+
+      return {
+        ...test,
+        status,
+      };
+    });
   }
 
   async getTest(test_id: string, query: AdminQuery) {
@@ -1260,129 +972,6 @@ export class AdminService {
       page: parseInt(query.page),
       total_questions,
       total_pages: Math.ceil(total_questions / take),
-    };
-  }
-
-  async getAllTests() {
-    const tests = await this.prisma.test.findMany({
-      select: {
-        test_id: true,
-        title: true,
-        start: true,
-        end: true,
-        is_active: true,
-        duration: true,
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
-
-    return tests.map((test) => {
-      const now = new Date();
-
-      const start = new Date(test.start);
-      const end = new Date(test.end);
-
-      let status = '';
-
-      if (now < start) {
-        status += 'Belum dimulai';
-      } else if (now >= start && now <= end) {
-        status += 'Berlangsung';
-      } else {
-        status += 'Berakhir';
-      }
-
-      return {
-        ...test,
-        status,
-      };
-    });
-  }
-
-  async getTestsBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 6;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_tests, tests] = await this.prisma.$transaction([
-      this.prisma.test.count({
-        where: {
-          OR: [
-            {
-              test_id: {
-                contains: query.q,
-              },
-            },
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-      }),
-      this.prisma.test.findMany({
-        where: {
-          OR: [
-            {
-              test_id: {
-                contains: query.q,
-              },
-            },
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-        select: {
-          test_id: true,
-          title: true,
-          start: true,
-          end: true,
-          is_active: true,
-          duration: true,
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
-        take,
-        skip,
-      }),
-    ]);
-
-    return {
-      tests: tests.map((test) => {
-        const now = new Date();
-
-        const start = new Date(test.start);
-        const end = new Date(test.end);
-
-        let status = '';
-
-        if (now < start) {
-          status += 'Belum dimulai';
-        } else if (now >= start && now <= end) {
-          status += 'Berlangsung';
-        } else {
-          status += 'Berakhir';
-        }
-
-        return {
-          ...test,
-          status,
-        };
-      }),
-
-      page: parseInt(query.page),
-      total_tests,
-      total_pages: Math.ceil(total_tests / take),
     };
   }
 
@@ -1555,20 +1144,38 @@ export class AdminService {
     return params;
   }
 
-  async getResultsTest(test_id: string, query: AdminQuery) {
+  async getResultsTestFiltered(test_id: string, query: AdminQuery) {
     const default_page = 1;
     const take = 15;
 
-    const page = query.page ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_results, results, test] = await this.prisma.$transaction([
-      this.prisma.result.count({ where: { test_id } }),
-      this.prisma.result.findMany({
-        where: {
-          test_id,
+    const where: any = { test_id };
+
+    if (query.q) {
+      where.OR = [
+        {
+          user: {
+            user_id: {
+              contains: query.q,
+            },
+          },
         },
+        {
+          user: {
+            fullname: {
+              contains: query.q,
+            },
+          },
+        },
+      ];
+    }
+
+    const [total_results, results, test] = await this.prisma.$transaction([
+      this.prisma.result.count({ where }),
+      this.prisma.result.findMany({
+        where,
         select: {
           result_id: true,
           user: {
@@ -1623,118 +1230,6 @@ export class AdminService {
           ...user,
           score,
           score_category: scoreCategory(score),
-        };
-      }),
-      page,
-      total_results,
-      total_participants,
-      total_pages: Math.ceil(total_results / take),
-    };
-  }
-
-  async getResultsTestBySearch(test_id: string, query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = query.page ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_results, results, test] = await this.prisma.$transaction([
-      this.prisma.result.count({
-        where: {
-          test_id,
-          OR: [
-            {
-              user: {
-                user_id: {
-                  contains: query.q,
-                },
-              },
-            },
-            {
-              user: {
-                fullname: {
-                  contains: query.q,
-                },
-              },
-            },
-          ],
-        },
-      }),
-      this.prisma.result.findMany({
-        where: {
-          test_id,
-          OR: [
-            {
-              user: {
-                user_id: {
-                  contains: query.q,
-                },
-              },
-            },
-            {
-              user: {
-                fullname: {
-                  contains: query.q,
-                },
-              },
-            },
-          ],
-        },
-        select: {
-          result_id: true,
-          user: {
-            select: {
-              user_id: true,
-              fullname: true,
-              university: true,
-            },
-          },
-          score: true,
-        },
-        skip,
-        take,
-        orderBy: {
-          score: 'desc',
-        },
-      }),
-      this.prisma.test.findUnique({
-        where: { test_id },
-        select: {
-          test_id: true,
-          title: true,
-        },
-      }),
-    ]);
-
-    const program_detail = await this.prisma.programDetail.findMany({
-      where: { test_id },
-      orderBy: {
-        program: {
-          created_at: 'desc',
-        },
-      },
-    });
-
-    const total_participants = await this.prisma.participant.count({
-      where: {
-        program_id: program_detail[0].program_id,
-        joined_at: {
-          not: null,
-        },
-        is_approved: true,
-      },
-    });
-
-    return {
-      ...test,
-      results: results.map((result) => {
-        const { score, user, result_id } = result;
-        return {
-          result_id,
-          ...user,
-          score,
         };
       }),
       page,
@@ -1858,80 +1353,35 @@ export class AdminService {
     });
   }
 
-  async getFeedbacks(query: AdminQuery) {
+  async getFeedbacksFiltered(query: AdminQuery) {
     const default_page = 1;
     const take = 8;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_feedback, feedback] = await this.prisma.$transaction([
-      this.prisma.feedback.count(),
-      this.prisma.feedback.findMany({
-        select: {
-          user_id: true,
-          fullname: true,
-          rating: true,
-          text: true,
-          created_at: true,
+    const where: any = {};
+
+    if (query.q) {
+      where.OR = [
+        {
+          user_id: {
+            contains: query.q,
+          },
         },
-        take,
-        skip,
-        orderBy: {
-          created_at: 'desc',
+        {
+          fullname: {
+            contains: query.q,
+          },
         },
-      }),
-    ]);
-
-    return {
-      feedback,
-      page,
-      total_feedback,
-      total_pages: Math.ceil(total_feedback / take),
-    };
-  }
-
-  async getFeedbacksBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 8;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
+      ];
+    }
 
     const [total_feedback, feedback] = await this.prisma.$transaction([
       this.prisma.feedback.count({
-        where: {
-          OR: [
-            {
-              user_id: {
-                contains: query.q,
-              },
-            },
-            {
-              fullname: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
+        where,
       }),
       this.prisma.feedback.findMany({
-        where: {
-          OR: [
-            {
-              user_id: {
-                contains: query.q,
-              },
-            },
-            {
-              fullname: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
+        where,
         select: {
           user_id: true,
           fullname: true,
@@ -2108,17 +1558,45 @@ export class AdminService {
     }
   }
 
-  async getMentors(query: AdminQuery) {
+  async getMentorsFiltered(query: AdminQuery) {
     const default_page = 1;
     const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
+    const where: any = {};
+
+    if (query.q) {
+      where.OR = [
+        {
+          mentor_id: {
+            contains: query.q,
+          },
+        },
+        {
+          fullname: {
+            contains: query.q,
+          },
+        },
+        {
+          nickname: {
+            contains: query.q,
+          },
+        },
+        {
+          mentor_title: {
+            contains: query.q,
+          },
+        },
+      ];
+    }
+
     const [total_mentors, mentors] = await this.prisma.$transaction([
-      this.prisma.mentor.count(),
+      this.prisma.mentor.count({
+        where,
+      }),
       this.prisma.mentor.findMany({
+        where,
         select: {
           mentor_id: true,
           fullname: true,
@@ -2161,92 +1639,6 @@ export class AdminService {
         is_show: true,
       },
     });
-  }
-
-  async getMentorsBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_mentors, mentors] = await this.prisma.$transaction([
-      this.prisma.mentor.count({
-        where: {
-          OR: [
-            {
-              mentor_id: {
-                contains: query.q,
-              },
-            },
-            {
-              fullname: {
-                contains: query.q,
-              },
-            },
-            {
-              nickname: {
-                contains: query.q,
-              },
-            },
-            {
-              mentor_title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-      }),
-      this.prisma.mentor.findMany({
-        where: {
-          OR: [
-            {
-              mentor_id: {
-                contains: query.q,
-              },
-            },
-            {
-              fullname: {
-                contains: query.q,
-              },
-            },
-            {
-              nickname: {
-                contains: query.q,
-              },
-            },
-            {
-              mentor_title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-        select: {
-          mentor_id: true,
-          fullname: true,
-          nickname: true,
-          mentor_title: true,
-          description: true,
-          img_url: true,
-          created_at: true,
-          is_show: true,
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
-        take,
-        skip,
-      }),
-    ]);
-
-    return {
-      mentors,
-      page: parseInt(query.page),
-      total_mentors,
-      total_pages: Math.ceil(total_mentors / take),
-    };
   }
 
   async createMentor(body: CreateMentorDto, file: Express.Multer.File) {
@@ -2460,100 +1852,33 @@ export class AdminService {
     });
   }
 
-  async getSubjectPrivate(query: AdminQuery) {
+  async getSubjectPrivateFiltered(query: AdminQuery) {
     const default_page = 1;
     const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_private_classes, private_classes] =
-      await this.prisma.$transaction([
-        this.prisma.subject.count({
-          where: {
-            subject_type: 'private',
-          },
-        }),
-        this.prisma.subject.findMany({
-          where: {
-            subject_type: 'private',
-          },
-          select: {
-            subject_id: true,
-            title: true,
-            description: true,
-            slug: true,
-            is_active: true,
-            created_at: true,
-            subject_part: {
-              select: {
-                subject_part_id: true,
-                price: true,
-                description: true,
-                link_order: true,
-              },
-              orderBy: {
-                price: 'asc',
-              },
-            },
-          },
-          orderBy: {
-            created_at: 'desc',
-          },
-          take,
-          skip,
-        }),
-      ]);
-
-    return {
-      private_classes: private_classes.map((private_class) => {
-        const { subject_part, ...all } = private_class;
-
-        return {
-          ...all,
-          private_sub_classes: subject_part,
-        };
-      }),
-      page: parseInt(query.page),
-      total_private_classes,
-      total_pages: Math.ceil(total_private_classes / take),
+    const where: any = {
+      subject_type: 'private',
     };
-  }
 
-  async getSubjectPrivateBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
+    if (query.q) {
+      where.OR = [
+        {
+          title: {
+            contains: query.q,
+          },
+        },
+      ];
+    }
 
     const [total_private_classes, private_classes] =
       await this.prisma.$transaction([
         this.prisma.subject.count({
-          where: {
-            subject_type: 'private',
-            OR: [
-              {
-                title: {
-                  contains: query.q,
-                },
-              },
-            ],
-          },
+          where,
         }),
         this.prisma.subject.findMany({
-          where: {
-            subject_type: 'private',
-            OR: [
-              {
-                title: {
-                  contains: query.q,
-                },
-              },
-            ],
-          },
+          where,
           select: {
             subject_id: true,
             title: true,
@@ -2680,75 +2005,30 @@ export class AdminService {
     });
   }
 
-  async getTheses(query: AdminQuery) {
+  async getThesesFiltered(query: AdminQuery) {
     const default_page = 1;
     const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_theses, theses] = await this.prisma.$transaction([
-      this.prisma.thesis.count(),
-      this.prisma.thesis.findMany({
-        select: {
-          thesis_id: true,
-          title: true,
-          description: true,
-          slug: true,
-          price: true,
-          link_order: true,
-          thumbnail_url: true,
-          thumbnail_type: true,
-          is_active: true,
-          created_at: true,
+    const where: any = {};
+
+    if (query.q) {
+      where.OR = [
+        {
+          title: {
+            contains: query.q,
+          },
         },
-        orderBy: {
-          created_at: 'desc',
-        },
-        take,
-        skip,
-      }),
-    ]);
-
-    return {
-      theses,
-      page: parseInt(query.page),
-      total_theses,
-      total_pages: Math.ceil(total_theses / take),
-    };
-  }
-
-  async getThesesBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
+      ];
+    }
 
     const [total_theses, theses] = await this.prisma.$transaction([
       this.prisma.thesis.count({
-        where: {
-          OR: [
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
+        where,
       }),
       this.prisma.thesis.findMany({
-        where: {
-          OR: [
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
+        where,
         select: {
           thesis_id: true,
           title: true,
@@ -2953,75 +2233,30 @@ export class AdminService {
     });
   }
 
-  async getResearch(query: AdminQuery) {
+  async getResearchFiltered(query: AdminQuery) {
     const default_page = 1;
     const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_research, research] = await this.prisma.$transaction([
-      this.prisma.research.count(),
-      this.prisma.research.findMany({
-        select: {
-          research_id: true,
-          title: true,
-          description: true,
-          slug: true,
-          price: true,
-          link_order: true,
-          thumbnail_url: true,
-          thumbnail_type: true,
-          is_active: true,
-          created_at: true,
+    const where: any = {};
+
+    if (query.q) {
+      where.OR = [
+        {
+          title: {
+            contains: query.q,
+          },
         },
-        orderBy: {
-          created_at: 'desc',
-        },
-        take,
-        skip,
-      }),
-    ]);
-
-    return {
-      research,
-      page: parseInt(query.page),
-      total_research,
-      total_pages: Math.ceil(total_research / take),
-    };
-  }
-
-  async getResearchBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
+      ];
+    }
 
     const [total_research, research] = await this.prisma.$transaction([
       this.prisma.research.count({
-        where: {
-          OR: [
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
+        where,
       }),
       this.prisma.research.findMany({
-        where: {
-          OR: [
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
+        where,
         select: {
           research_id: true,
           title: true,
