@@ -201,17 +201,33 @@ export class AiService {
     });
   }
 
-  async getContexts(query: AiQuery) {
+  async getContextsFiltered(query: AiQuery) {
     const default_page = 1;
     const take = 10;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
+    const where: any = {};
+
+    if (query.q) {
+      where.OR = [
+        {
+          title: {
+            contains: query.q,
+          },
+        },
+        {
+          content: {
+            contains: query.q,
+          },
+        },
+      ];
+    }
+
     const [total_contexts, contexts] = await this.prisma.$transaction([
-      this.prisma.aiContext.count(),
+      this.prisma.aiContext.count({ where }),
       this.prisma.aiContext.findMany({
+        where,
         take,
         skip,
         orderBy: {
@@ -262,73 +278,6 @@ export class AiService {
 
         return context;
       });
-  }
-
-  async getContextsBySearch(query: AiQuery) {
-    const default_page = 1;
-    const take = 10;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_contexts, contexts] = await this.prisma.$transaction([
-      this.prisma.aiContext.count({
-        where: {
-          OR: [
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-            {
-              content: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-      }),
-      this.prisma.aiContext.findMany({
-        where: {
-          OR: [
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-            {
-              content: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-        take,
-        skip,
-        orderBy: {
-          created_at: 'desc',
-        },
-        select: {
-          context_id: true,
-          title: true,
-          content: true,
-          type: true,
-          is_active: true,
-          created_at: true,
-          updated_at: true,
-          created_by: true,
-          updated_by: true,
-        },
-      }),
-    ]);
-
-    return {
-      contexts,
-      page: parseInt(query.page),
-      total_contexts,
-      total_pages: Math.ceil(total_contexts / take),
-    };
   }
 
   createContext(body: CreateContextDto) {
@@ -777,105 +726,39 @@ export class AiService {
     });
   }
 
-  async getChatLogs(query: AiQuery) {
+  async getChatLogsFiltered(query: AiQuery) {
     const default_page = 1;
     const take = 10;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_logs, logs] = await this.prisma.$transaction([
-      this.prisma.aiChat.count(),
-      this.prisma.aiChat.findMany({
-        take,
-        skip,
-        orderBy: {
-          created_at: 'desc',
-        },
-        select: {
-          chat_id: true,
+    const where: any = {};
+
+    if (query.q) {
+      where.OR = [
+        {
           user: {
-            select: {
-              user_id: true,
-              fullname: true,
+            user_id: {
+              contains: query.q,
             },
           },
-          model: true,
-          source: true,
-          question: true,
-          answer: true,
-          total_cost: true,
-          total_tokens: true,
-          created_at: true,
         },
-      }),
-    ]);
-
-    return {
-      logs: logs.map((log) => {
-        const { user, ...all } = log;
-
-        return {
-          ...user,
-          ...all,
-          total_cost: Number(all.total_cost),
-        };
-      }),
-      page: parseInt(query.page),
-      total_logs,
-      total_pages: Math.ceil(total_logs / take),
-    };
-  }
-
-  async getChatLogsBySearch(query: AiQuery) {
-    const default_page = 1;
-    const take = 10;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
+        {
+          user: {
+            fullname: {
+              contains: query.q,
+            },
+          },
+        },
+      ];
+    }
 
     const [total_logs, logs] = await this.prisma.$transaction([
       this.prisma.aiChat.count({
-        where: {
-          OR: [
-            {
-              user: {
-                user_id: {
-                  contains: query.q,
-                },
-              },
-            },
-            {
-              user: {
-                fullname: {
-                  contains: query.q,
-                },
-              },
-            },
-          ],
-        },
+        where,
       }),
       this.prisma.aiChat.findMany({
-        where: {
-          OR: [
-            {
-              user: {
-                user_id: {
-                  contains: query.q,
-                },
-              },
-            },
-            {
-              user: {
-                fullname: {
-                  contains: query.q,
-                },
-              },
-            },
-          ],
-        },
+        where,
         take,
         skip,
         orderBy: {
@@ -1033,98 +916,35 @@ export class AiService {
     });
   }
 
-  async getAiLimitUsers(query: AiQuery) {
+  async getAiLimitUsersFiltered(query: AiQuery) {
     const default_page = 1;
     const take = 10;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_users, users] = await this.prisma.$transaction([
-      this.prisma.userAiLimit.count(),
-      this.prisma.userAiLimit.findMany({
-        take,
-        skip,
-        orderBy: {
-          created_at: 'desc',
-        },
-        select: {
-          user: {
-            select: {
-              user_id: true,
-              fullname: true,
+    const where: any = {};
+
+    if (query.q) {
+      where.user = {
+        OR: [
+          {
+            user_id: {
+              contains: query.q,
             },
           },
-          total: true,
-          expired_at: true,
-          created_at: true,
-          updated_at: true,
-          created_by: true,
-          updated_by: true,
-        },
-      }),
-    ]);
-
-    return {
-      users: users.map((user) => {
-        const { user: user_data, ...all } = user;
-
-        return {
-          ...user_data,
-          ...all,
-        };
-      }),
-      page: parseInt(query.page),
-      total_users,
-      total_pages: Math.ceil(total_users / take),
-    };
-  }
-
-  async getAiLimitUsersBySearch(query: AiQuery) {
-    const default_page = 1;
-    const take = 10;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
+          {
+            fullname: {
+              contains: query.q,
+            },
+          },
+        ],
+      };
+    }
 
     const [total_users, users] = await this.prisma.$transaction([
-      this.prisma.userAiLimit.count({
-        where: {
-          user: {
-            OR: [
-              {
-                user_id: {
-                  contains: query.q,
-                },
-              },
-              {
-                fullname: {
-                  contains: query.q,
-                },
-              },
-            ],
-          },
-        },
-      }),
+      this.prisma.userAiLimit.count({ where }),
       this.prisma.userAiLimit.findMany({
-        where: {
-          user: {
-            OR: [
-              {
-                user_id: {
-                  contains: query.q,
-                },
-              },
-              {
-                fullname: {
-                  contains: query.q,
-                },
-              },
-            ],
-          },
-        },
+        where,
         take,
         skip,
         orderBy: {

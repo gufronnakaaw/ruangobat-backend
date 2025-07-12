@@ -165,9 +165,7 @@ export class AiController {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.aiService[
-          query.q ? 'getContextsBySearch' : 'getContexts'
-        ](query),
+        data: await this.aiService.getContextsFiltered(query),
       };
     } catch (error) {
       throw error;
@@ -446,9 +444,7 @@ export class AiController {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.aiService[
-          query.q ? 'getChatLogsBySearch' : 'getChatLogs'
-        ](query),
+        data: await this.aiService.getChatLogsFiltered(query),
       };
     } catch (error) {
       throw error;
@@ -546,9 +542,7 @@ export class AiController {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.aiService[
-          query.q ? 'getAiLimitUsersBySearch' : 'getAiLimitUsers'
-        ](query),
+        data: await this.aiService.getAiLimitUsersFiltered(query),
       };
     } catch (error) {
       throw error;
