@@ -23,6 +23,7 @@ import { TestsModule } from './tests/tests.module';
 import { GlobalMiddleware } from './utils/global/global.middleware';
 import { PrismaService } from './utils/services/prisma.service';
 import { StorageService } from './utils/services/storage.service';
+import { BatchesModule } from './batches/batches.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { StorageService } from './utils/services/storage.service';
     CardsModule,
     CoursesModule,
     QuizzesModule,
+    BatchesModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, StorageService],
