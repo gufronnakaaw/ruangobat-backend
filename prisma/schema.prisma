@@ -67,6 +67,18 @@ enum LogLoginType {
   user
 }
 
+enum TestimonialType {
+  videocourse 
+  apotekerclass 
+  videoukmppai 
+  theses 
+  research 
+  tryout 
+  book 
+  rosa
+  general
+}
+
 model Admin {
   id               Int              @id               @default(autoincrement())
   admin_id         String           @unique
@@ -104,6 +116,7 @@ model User {
   chats            AiChat[]  
   progress         UserContentProgress[]
   loglogin         LogLogin[]
+  testimonial      Testimonial[]
 
   userlimit       UserAiLimit?      
 
@@ -943,4 +956,21 @@ model LogLogin {
 
   @@index([timestamp])
   @@map("log_login")
+}
+
+model Testimonial {
+  id                Int              @id               @default(autoincrement())
+  testimonial_id    String           @unique           @default(uuid())
+  user_id           String?
+  content           String?          @db.Text
+  img_url           String?          @db.Text
+  is_active         Boolean          @default(true)
+  type              TestimonialType
+
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+
+  user              User?            @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@map("testimonial")
 }
