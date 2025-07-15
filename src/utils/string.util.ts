@@ -292,3 +292,22 @@ export function generateEmailTemplate({
 `;
   }
 }
+
+export function maskingFileUrl(file_url: string, mode: string) {
+  if (!file_url) return null;
+
+  const url = new URL(file_url);
+  const storage_hosts = [
+    'ruangobat.is3.cloudhost.id',
+    'ruangobatdev.is3.cloudhost.id',
+    'is3.cloudhost.id',
+  ];
+
+  if (!storage_hosts.includes(url.host)) {
+    const host = `https://${mode === 'prod' ? 'ruangobat' : 'ruangobatdev'}.is3.cloudhost.id`;
+    const clean_path = url.pathname.replace('/public', '');
+    return host + clean_path;
+  }
+
+  return file_url;
+}
