@@ -436,6 +436,21 @@ export class AiController {
     }
   }
 
+  @UseGuards(UserGuard)
+  @Delete('/chat/images')
+  @HttpCode(HttpStatus.OK)
+  async deleteChatImage(@Query('key') key: string): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.aiService.deleteChatImage(key),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @UseGuards(AdminGuard)
   @Get('/chat/logs')
   @HttpCode(HttpStatus.OK)

@@ -1043,4 +1043,8 @@ export class AiService {
       },
     });
   }
+
+  async deleteChatImage(key: string) {
+    return this.storage.deleteFile(key);
+  }
 }
