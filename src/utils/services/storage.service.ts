@@ -130,7 +130,7 @@ export class StorageService {
         }),
       );
 
-      return `${process.env.STORAGE_ENDPOINT}/${this.bucket}/${params.key}`;
+      return `https://${this.bucket}.${process.env.STORAGE_HOST}/${params.key}`;
     } catch (error) {
       console.log(error);
       throw new InternalServerErrorException(
