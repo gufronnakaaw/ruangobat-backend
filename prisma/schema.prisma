@@ -79,6 +79,12 @@ enum TestimonialType {
   general
 }
 
+enum PromptType {
+  INSTRUCTION
+  CONTEXT
+  ANSWER_FORMAT
+}
+
 model Admin {
   id               Int              @id               @default(autoincrement())
   admin_id         String           @unique
@@ -973,4 +979,20 @@ model Testimonial {
   user              User?            @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
 
   @@map("testimonial")
+}
+
+model Prompt {
+  id                Int              @id               @default(autoincrement())
+  prompt_id         String           @unique           @default(uuid())
+  type              PromptType       @unique
+  content           String           @db.Text
+  is_active         Boolean          @default(true)
+
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+
+  created_by        String
+  updated_by        String
+
+  @@map("prompt")
 }
