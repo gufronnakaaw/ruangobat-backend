@@ -146,3 +146,12 @@ export type Message = {
         };
       }[];
 };
+
+export const upsertPromptSchema = z.object({
+  prompt_id: z.string(),
+  content: z.string(),
+  type: z.enum(['INSTRUCTION', 'ANSWER_FORMAT', 'CONTEXT']),
+  by: z.string(),
+});
+
+export type UpsertPromptDto = z.infer<typeof upsertPromptSchema>;

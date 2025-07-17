@@ -1,9 +1,12 @@
 import { HttpService } from '@nestjs/axios';
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prompt } from '@prisma/client';
 import { AxiosResponse } from 'axios';
 import { DateTime } from 'luxon';
 import { firstValueFrom } from 'rxjs';
@@ -12,7 +15,7 @@ import { fetch } from 'undici';
 import { decryptString, encryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import { StorageService } from '../utils/services/storage.service';
-import { buildPrompt } from '../utils/string.util';
+import { buildContext, buildPrompt } from '../utils/string.util';
 import {
   AiQuery,
   AiResponse,
@@ -26,6 +29,7 @@ import {
   UpdateProviderDto,
   UpdateProviderStatusDto,
   UpdateUserAiLimitDto,
+  UpsertPromptDto,
   UserChatCompletionDto,
 } from './ai.dto';
 
@@ -35,6 +39,7 @@ export class AiService {
     private prisma: PrismaService,
     private readonly http: HttpService,
     private storage: StorageService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   getProviders() {
@@ -584,15 +589,57 @@ export class AiService {
         return `event: error\ndata: Maaf ya fitur chat untuk sementara tidak tersedia 😫\n\n` as string;
       }
 
-      const prompt = buildPrompt(
-        contexts.map((context) => context.content),
-        Array.isArray(body.img_url) && body.img_url.length,
-      );
+      const system_prompt: {
+        type: 'text' | 'image_url';
+        text?: string;
+        image_url?: {
+          url: string;
+        };
+      }[] = [];
+
+      const cache = (await this.cacheManager.get('system_prompt')) as Pick<
+        Prompt,
+        'type' | 'content'
+      >[];
+
+      let instruction;
+      let answer_format;
+
+      if (cache) {
+        instruction = cache.find((item) => item.type === 'INSTRUCTION');
+        answer_format = cache.find((item) => item.type === 'ANSWER_FORMAT');
+      } else {
+        const prompts = await this.prisma.prompt.findMany({
+          select: { type: true, content: true },
+        });
+
+        await this.cacheManager.set('system_prompt', prompts, 60 * 1000 * 5);
+
+        instruction = prompts.find((item) => item.type === 'INSTRUCTION');
+        answer_format = prompts.find((item) => item.type === 'ANSWER_FORMAT');
+      }
+
+      system_prompt.push({
+        type: 'text',
+        text: instruction ? instruction.content : '',
+      });
+
+      if (contexts.length) {
+        system_prompt.push({
+          type: 'text',
+          text: buildContext(contexts.map((context) => context.content)),
+        });
+      }
+
+      system_prompt.push({
+        type: 'text',
+        text: answer_format ? answer_format.content : '',
+      });
 
       const messages: Message[] = [
         {
           role: 'system',
-          content: prompt,
+          content: system_prompt,
         },
       ];
 
@@ -1046,5 +1093,42 @@ export class AiService {
 
   async deleteChatImage(key: string) {
     return this.storage.deleteFile(key);
+  }
+
+  getPrompts() {
+    return this.prisma.prompt.findMany({
+      select: {
+        prompt_id: true,
+        content: true,
+        type: true,
+        created_at: true,
+        updated_at: true,
+        created_by: true,
+        updated_by: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+  }
+
+  upsertPrompt(body: UpsertPromptDto) {
+    return this.prisma.prompt.upsert({
+      where: { prompt_id: body.prompt_id },
+      create: {
+        content: body.content,
+        type: body.type,
+        created_by: body.by,
+        updated_by: body.by,
+      },
+      update: {
+        content: body.content,
+        type: body.type,
+        updated_by: body.by,
+      },
+      select: {
+        prompt_id: true,
+      },
+    });
   }
 }

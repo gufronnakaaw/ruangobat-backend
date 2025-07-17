@@ -45,6 +45,8 @@ import {
   updateProviderStatusSchema,
   updateUserAiLimit,
   UpdateUserAiLimitDto,
+  UpsertPromptDto,
+  upsertPromptSchema,
   UserChatCompletionDto,
   userChatCompletionSchema,
 } from './ai.dto';
@@ -611,6 +613,37 @@ export class AiController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.aiService.deleteUserAiLimit(user_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Get('/prompts')
+  @HttpCode(HttpStatus.OK)
+  async getPrompts(): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.aiService.getPrompts(),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('/prompts/upsert')
+  @UsePipes(new ZodValidationPipe(upsertPromptSchema))
+  @HttpCode(HttpStatus.CREATED)
+  async upsertPrompt(@Body() body: UpsertPromptDto): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.aiService.upsertPrompt(body),
       };
     } catch (error) {
       throw error;
