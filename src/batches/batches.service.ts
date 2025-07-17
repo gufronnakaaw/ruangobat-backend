@@ -34,7 +34,9 @@ export class BatchesService {
         phone_number: encryptString(user.phone_number, process.env.ENCRYPT_KEY),
         fullname: capitalize(user.fullname.toLowerCase()),
         gender: user.gender,
-        password: await hashPassword(process.env.DEFAULT_PASSWORD_USER),
+        password: await hashPassword(
+          user.password ? user.password : process.env.DEFAULT_PASSWORD_USER,
+        ),
         university: capitalize(user.university.toLowerCase()),
         is_verified: true,
       });
