@@ -1,5 +1,20 @@
 import { prompts } from './prompts.util';
 
+export function buildContext(context: string | string[]) {
+  let contextText = '';
+
+  if (Array.isArray(context)) {
+    contextText = context
+      .map((ctx, i) => `\tContext #${i + 1}:\n\t${ctx}`)
+      .join('\n\n');
+  } else if (typeof context === 'string') {
+    contextText = context;
+  }
+
+  return `[CONTEXT]
+${contextText}`;
+}
+
 export function buildPrompt(
   context?: string | string[],
   has_image?: boolean | number,
