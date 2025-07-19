@@ -126,6 +126,7 @@ model User {
 
   userlimit       UserAiLimit?      
 
+  @@index([fullname, email, phone_number, created_at])
   @@map("user")
 }
 
