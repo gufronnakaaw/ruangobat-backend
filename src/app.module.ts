@@ -19,12 +19,12 @@ import { CoursesModule } from './courses/courses.module';
 import { MyModule } from './my/my.module';
 import { ProgramsModule } from './programs/programs.module';
 import { QuizzesModule } from './quizzes/quizzes.module';
+import { StatisticsModule } from './statistics/statistics.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TestsModule } from './tests/tests.module';
 import { GlobalMiddleware } from './utils/global/global.middleware';
 import { PrismaService } from './utils/services/prisma.service';
 import { StorageService } from './utils/services/storage.service';
-import { StatisticsModule } from './statistics/statistics.module';
 
 @Module({
   imports: [

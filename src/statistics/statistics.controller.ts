@@ -1,8 +1,16 @@
-import { Controller, Get, HttpCode, HttpStatus, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { SuccessResponse } from '../utils/global/global.response';
+import { AdminGuard } from '../utils/guards/admin.guard';
 import { StatisticsService } from './statistics.service';
 
-// @UseGuards(AdminGuard)
+@UseGuards(AdminGuard)
 @Controller('statistics')
 export class StatisticsController {
   constructor(private readonly statisticsService: StatisticsService) {}
