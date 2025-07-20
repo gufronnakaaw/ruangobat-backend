@@ -13,14 +13,13 @@ export class CardsService {
 
   async getCards(
     cat_or_sub: string,
-    role: string,
     type: 'videocourse' | 'apotekerclass' | 'videoukmppai',
   ) {
     if (!['videocourse', 'apotekerclass', 'videoukmppai'].includes(type)) {
       return [];
     }
 
-    const where: any = {};
+    const where: any = { type };
 
     const OR: {
       category_id?: string;
@@ -40,10 +39,6 @@ export class CardsService {
 
     where.OR = OR;
 
-    if (role !== process.env.DEFAULT_ADMIN_ID) {
-      where.is_active = true;
-    }
-
     return this.prisma[model]
       .findFirst({
         where,
@@ -61,7 +56,6 @@ export class CardsService {
               text: true,
               type: true,
               url: true,
-              is_active: true,
             },
           },
         },
@@ -182,6 +176,26 @@ export class CardsService {
         is_active: parseIsActive(body.is_active),
         updated_by: body.by,
       },
+    });
+  }
+
+  async deleteCard(card_id: string) {
+    const card = await this.prisma.card.findUnique({
+      where: { card_id },
+      select: { key: true },
+    });
+
+    if (!card) {
+      throw new BadRequestException('Flashcard tidak ditemukan');
+    }
+
+    if (card.key) {
+      await this.storage.deleteFile(card.key);
+    }
+
+    return this.prisma.card.delete({
+      where: { card_id },
+      select: { card_id: true },
     });
   }
 }
