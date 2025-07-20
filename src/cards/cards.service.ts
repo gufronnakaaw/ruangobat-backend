@@ -20,6 +20,8 @@ export class CardsService {
       return [];
     }
 
+    const where: any = {};
+
     const OR: {
       category_id?: string;
       sub_category_id?: string;
@@ -36,14 +38,19 @@ export class CardsService {
       OR.push({ sub_category_id: cat_or_sub }, { slug: cat_or_sub });
     }
 
+    where.OR = OR;
+
+    if (role !== process.env.DEFAULT_ADMIN_ID) {
+      where.is_active = true;
+    }
+
     return this.prisma[model]
       .findFirst({
-        where: {
-          OR,
-          type,
-          ...(role === 'admin' ? { is_active: true } : {}),
-        },
+        where,
         select: {
+          ...(type === 'apotekerclass'
+            ? { category_id: true }
+            : { sub_category_id: true }),
           name: true,
           slug: true,
           img_url: true,
