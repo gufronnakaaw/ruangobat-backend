@@ -349,8 +349,6 @@ export class StatisticsService {
       cursor_month = cursor_month.plus({ months: 1 });
     }
 
-    console.log(month_stats);
-
     return {
       today: {
         day: today.setLocale('id').toFormat('dd MMMM yyyy'),
