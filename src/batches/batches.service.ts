@@ -4,8 +4,12 @@ import { removeKeys } from '../utils/array.util';
 import { hashPassword } from '../utils/bcrypt.util';
 import { encryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
-import { capitalize, getInitials } from '../utils/string.util';
-import { CreateBatchUsersDto } from './batches.dto';
+import { capitalize, getInitials, slug } from '../utils/string.util';
+import {
+  CreateBatchCategoriesDto,
+  CreateBatchSubCategoriesDto,
+  CreateBatchUsersDto,
+} from './batches.dto';
 
 @Injectable()
 export class BatchesService {
@@ -49,5 +53,50 @@ export class BatchesService {
     return users_data.map((user) => {
       return removeKeys(user, ['password']);
     });
+  }
+
+  async createBulkCategories(body: CreateBatchCategoriesDto) {
+    const categories = body.categories.map((category) => {
+      const url = new URL(category.url);
+
+      return {
+        slug: slug(category.name),
+        name: category.name,
+        type: body.type,
+        img_url: category.url,
+        img_key: url.pathname.substring(1),
+        created_by: body.by,
+        updated_by: body.by,
+      };
+    });
+
+    await this.prisma.category.createMany({
+      data: categories,
+    });
+
+    return categories;
+  }
+
+  async createBulkSubCategories(body: CreateBatchSubCategoriesDto) {
+    const subcategories = body.subcategories.map((subcategory) => {
+      const url = new URL(subcategory.url);
+
+      return {
+        category_id: body.category_id,
+        slug: slug(subcategory.name),
+        name: subcategory.name,
+        type: body.type,
+        img_url: subcategory.url,
+        img_key: url.pathname.substring(1),
+        created_by: body.by,
+        updated_by: body.by,
+      };
+    });
+
+    await this.prisma.subCategory.createMany({
+      data: subcategories,
+    });
+
+    return subcategories;
   }
 }

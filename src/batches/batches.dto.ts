@@ -33,3 +33,35 @@ export const createBatchUsersSchema = z.object({
 });
 
 export type CreateBatchUsersDto = z.infer<typeof createBatchUsersSchema>;
+
+export const createBatchCategoriesSchema = z.object({
+  name: z.string(),
+  categories: z.array(
+    z.object({
+      name: z.string(),
+      url: z.string(),
+    }),
+  ),
+  type: z.enum(['videocourse', 'apotekerclass', 'videoukmppai']),
+  by: z.string(),
+});
+
+export type CreateBatchCategoriesDto = z.infer<
+  typeof createBatchCategoriesSchema
+>;
+
+export const createBatchSubCategoriesSchema = z.object({
+  category_id: z.string().uuid(),
+  subcategories: z.array(
+    z.object({
+      name: z.string(),
+      url: z.string(),
+    }),
+  ),
+  type: z.enum(['videocourse', 'apotekerclass', 'videoukmppai']),
+  by: z.string(),
+});
+
+export type CreateBatchSubCategoriesDto = z.infer<
+  typeof createBatchSubCategoriesSchema
+>;
