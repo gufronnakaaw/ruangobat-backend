@@ -67,11 +67,12 @@ export class CardsController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({
-            maxSize: 5 * 1024 * 1024,
+            maxSize: 25 * 1024 * 1024,
             message: 'Ukuran file terlalu besar',
           }),
           new FileTypeValidator({
-            fileType: /\/(jpeg|jpg|png|ppt|pptx|doc|docx)$/,
+            fileType:
+              /^(image\/jpeg|image\/jpg|image\/png|application\/pdf|application\/msword|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document)$/i,
           }),
         ],
         fileIsRequired: false,
@@ -103,11 +104,12 @@ export class CardsController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({
-            maxSize: 5 * 1024 * 1024,
+            maxSize: 25 * 1024 * 1024,
             message: 'Ukuran file terlalu besar',
           }),
           new FileTypeValidator({
-            fileType: /\/(jpeg|jpg|png|ppt|pptx|doc|docx)$/,
+            fileType:
+              /^(image\/jpeg|image\/jpg|image\/png|application\/pdf|application\/msword|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document)$/i,
           }),
         ],
         fileIsRequired: false,

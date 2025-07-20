@@ -98,7 +98,7 @@ export class CardsService {
     const promises = [];
 
     for (const file of files) {
-      const key = `cards/${Date.now()}-${file.originalname}`;
+      const key = `cards/${file.originalname}`;
       const url = await this.storage.uploadFile({
         buffer: file.buffer,
         key,
@@ -153,7 +153,7 @@ export class CardsService {
       return;
     }
 
-    const key = `cards/${Date.now()}-${file.originalname}`;
+    const key = `cards/${file.originalname}`;
 
     if (card.key) {
       await this.storage.deleteFile(card.key);
