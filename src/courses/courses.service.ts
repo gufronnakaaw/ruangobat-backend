@@ -2,8 +2,9 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import ShortUniqueId from 'short-unique-id';
 import { PrismaService } from '../utils/services/prisma.service';
 import { StorageService } from '../utils/services/storage.service';
-import { parseIsActive, slug } from '../utils/string.util';
+import { parseIsActive, parseSortQuery, slug } from '../utils/string.util';
 import {
+  CoursesQuery,
   CreateContentDto,
   CreateCourseDto,
   CreateSegmentDto,
@@ -22,12 +23,14 @@ export class CoursesService {
 
   async getCourses(
     cat_or_sub: string,
-    role: string,
     type: 'videocourse' | 'apotekerclass' | 'videoukmppai',
+    query: CoursesQuery,
   ) {
     if (!['videocourse', 'apotekerclass', 'videoukmppai'].includes(type)) {
       return [];
     }
+
+    const where: any = { type };
 
     const OR: {
       category_id?: string;
@@ -45,13 +48,11 @@ export class CoursesService {
       OR.push({ sub_category_id: cat_or_sub }, { slug: cat_or_sub });
     }
 
+    where.OR = OR;
+
     return this.prisma[model]
       .findFirst({
-        where: {
-          OR,
-          type,
-          ...(role === 'admin' ? { is_active: true } : {}),
-        },
+        where,
         select: {
           name: true,
           slug: true,
@@ -59,7 +60,7 @@ export class CoursesService {
           type: true,
           course: {
             where: {
-              ...(role === 'admin' ? { is_active: true } : {}),
+              is_active: query.filter === 'inactive' ? false : true,
             },
             select: {
               course_id: true,
@@ -77,6 +78,9 @@ export class CoursesService {
                 },
               },
             },
+            orderBy: query.sort
+              ? parseSortQuery(query.sort, ['created_at', 'title'])
+              : { created_at: 'desc' },
           },
         },
       })
@@ -265,23 +269,41 @@ export class CoursesService {
       });
     }
 
-    return this.prisma.course.update({
-      where: { course_id: body.course_id },
-      data: {
-        slug: body.title ? slug(body.title) : undefined,
-        title: body.title,
-        description: body.description,
-        thumbnail_url: url ? url : undefined,
-        thumbnail_key: key ? key : undefined,
-        preview_url: body.preview_url,
-        created_by: body.by,
-        updated_by: body.by,
-        is_active: parseIsActive(body.is_active),
-      },
-      select: {
-        course_id: true,
-      },
-    });
+    const [updated_course] = await this.prisma.$transaction([
+      this.prisma.course.update({
+        where: { course_id: body.course_id },
+        data: {
+          slug: body.title ? slug(body.title) : undefined,
+          title: body.title,
+          description: body.description,
+          thumbnail_url: url ? url : undefined,
+          thumbnail_key: key ? key : undefined,
+          preview_url: body.preview_url,
+          created_by: body.by,
+          updated_by: body.by,
+          is_active: parseIsActive(body.is_active),
+        },
+        select: {
+          course_id: true,
+        },
+      }),
+      this.prisma.segment.updateMany({
+        where: { course_id: body.course_id },
+        data: {
+          is_active: parseIsActive(body.is_active),
+          updated_by: body.by,
+        },
+      }),
+      this.prisma.content.updateMany({
+        where: { segment: { course_id: body.course_id } },
+        data: {
+          is_active: parseIsActive(body.is_active),
+          updated_by: body.by,
+        },
+      }),
+    ]);
+
+    return updated_course;
   }
 
   async createSegment(body: CreateSegmentDto) {

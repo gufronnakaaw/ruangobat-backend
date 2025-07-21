@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+export type CoursesQuery = {
+  q?: string;
+  page: string;
+  filter?: string;
+  sort?: string;
+};
+
 export const createCourseSchema = z.object({
   category_id: z.string().uuid().optional(),
   sub_category_id: z.string().uuid().optional(),

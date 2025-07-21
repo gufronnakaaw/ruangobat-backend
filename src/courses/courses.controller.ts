@@ -10,6 +10,7 @@ import {
   ParseFilePipe,
   Patch,
   Post,
+  Query,
   Req,
   UploadedFile,
   UseGuards,
@@ -23,6 +24,7 @@ import { AdminGuard } from '../utils/guards/admin.guard';
 import { InputInterceptor } from '../utils/interceptors/input.interceptor';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
 import {
+  CoursesQuery,
   CreateContentDto,
   createContentSchema,
   CreateCourseDto,
@@ -49,17 +51,13 @@ export class CoursesController {
   async getCourses(
     @Param('cat_or_sub') cat_or_sub: string,
     @Param('type') type: 'videocourse' | 'apotekerclass' | 'videoukmppai',
-    @Req() req: Request,
+    @Query() query: CoursesQuery,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.coursesService.getCourses(
-          cat_or_sub,
-          req.admin.role,
-          type,
-        ),
+        data: await this.coursesService.getCourses(cat_or_sub, type, query),
       };
     } catch (error) {
       throw error;
