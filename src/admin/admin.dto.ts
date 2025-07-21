@@ -3,7 +3,7 @@ import { z } from 'zod';
 export type AdminQuery = {
   q?: string;
   page: string;
-  type?: string;
+  filter?: string;
   sort?: string;
 };
 

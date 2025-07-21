@@ -310,21 +310,11 @@ export class AdminService {
     const skip = (page - 1) * take;
 
     const where: any = {};
-    let order: any;
 
-    if (!query.type || query.type !== 'inactive') {
-      where.is_active = true;
-    }
+    where.is_active = query.filter === 'inactive' ? false : true;
 
-    if (query.type !== 'inactive') {
-      switch (query.type) {
-        case 'free':
-          where.type = 'free';
-          break;
-        case 'paid':
-          where.type = 'paid';
-          break;
-      }
+    if (query.filter === 'free' || query.filter === 'paid') {
+      where.type = query.filter;
     }
 
     if (query.q) {
@@ -340,12 +330,6 @@ export class AdminService {
           },
         },
       ];
-    }
-
-    if (query.sort) {
-      order = parseSortQuery(query.sort, ['created_at', 'title']);
-    } else {
-      order = { created_at: 'desc' };
     }
 
     const [total_programs, programs] = await this.prisma.$transaction([
@@ -367,7 +351,9 @@ export class AdminService {
         },
         take,
         skip,
-        orderBy: order,
+        orderBy: query.sort
+          ? parseSortQuery(query.sort, ['created_at', 'title'])
+          : { created_at: 'desc' },
       }),
     ]);
 
@@ -818,21 +804,11 @@ export class AdminService {
     const skip = (page - 1) * take;
 
     const where: any = {};
-    let order: any;
 
-    if (!query.type || query.type !== 'inactive') {
-      where.is_active = true;
-    }
+    where.is_active = query.filter === 'inactive' ? false : true;
 
-    if (query.type !== 'inactive') {
-      switch (query.type) {
-        case 'free':
-          where.type = 'free';
-          break;
-        case 'paid':
-          where.type = 'paid';
-          break;
-      }
+    if (query.filter === 'free' || query.filter === 'paid') {
+      where.type = query.filter;
     }
 
     if (query.q) {
@@ -850,12 +826,6 @@ export class AdminService {
       ];
     }
 
-    if (query.sort) {
-      order = parseSortQuery(query.sort, ['created_at', 'title']);
-    } else {
-      order = { created_at: 'desc' };
-    }
-
     const [total_tests, tests] = await this.prisma.$transaction([
       this.prisma.test.count({
         where,
@@ -870,7 +840,9 @@ export class AdminService {
           is_active: true,
           duration: true,
         },
-        orderBy: order,
+        orderBy: query.sort
+          ? parseSortQuery(query.sort, ['created_at', 'title'])
+          : { created_at: 'desc' },
         take,
         skip,
       }),
