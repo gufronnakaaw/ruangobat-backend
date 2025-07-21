@@ -139,15 +139,12 @@ export class AdminController {
 
   @Get('/programs')
   @HttpCode(HttpStatus.OK)
-  async getPrograms(
-    @Query() query: AdminQuery,
-    @Req() req: Request,
-  ): Promise<SuccessResponse> {
+  async getPrograms(@Query() query: AdminQuery): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getProgramsFiltered(query, req),
+        data: await this.adminService.getProgramsFiltered(query),
       };
     } catch (error) {
       throw error;
@@ -355,10 +352,7 @@ export class AdminController {
 
   @Get('/tests')
   @HttpCode(HttpStatus.OK)
-  async getTests(
-    @Query() query: AdminQuery,
-    @Req() req: Request,
-  ): Promise<SuccessResponse> {
+  async getTests(@Query() query: AdminQuery): Promise<SuccessResponse> {
     try {
       if (query.page == 'all') {
         return {
@@ -371,7 +365,7 @@ export class AdminController {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.adminService.getTestsFiltered(query, req),
+        data: await this.adminService.getTestsFiltered(query),
       };
     } catch (error) {
       throw error;

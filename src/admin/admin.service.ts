@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { ClassMentorType } from '@prisma/client';
 import { AxiosResponse } from 'axios';
-import { Request } from 'express';
 import { random } from 'lodash';
 import { firstValueFrom, Observable } from 'rxjs';
 import ShortUniqueId from 'short-unique-id';
@@ -19,6 +18,7 @@ import {
   generateEmailTemplate,
   maskEmail,
   maskPhoneNumber,
+  parseSortQuery,
   scoreCategory,
   slug,
 } from '../utils/string.util';
@@ -156,7 +156,7 @@ export class AdminService {
                 ),
         };
       }),
-      page: parseInt(query.page),
+      page,
       total_users,
       total_pages: Math.ceil(total_users / take),
     };
@@ -264,7 +264,7 @@ export class AdminService {
           ...all,
         };
       }),
-      page: parseInt(query.page),
+      page,
       total_sessions,
       total_pages: Math.ceil(total_sessions / take),
     };
@@ -303,16 +303,28 @@ export class AdminService {
     return { program_id, user_id };
   }
 
-  async getProgramsFiltered(query: AdminQuery, req: Request) {
+  async getProgramsFiltered(query: AdminQuery) {
     const default_page = 1;
-    const take = 6;
+    const take = 9;
     const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
     const where: any = {};
+    let order: any;
 
-    if (req.admin.admin_id !== process.env.DEFAULT_ADMIN_ID) {
+    if (!query.type || query.type !== 'inactive') {
       where.is_active = true;
+    }
+
+    if (query.type !== 'inactive') {
+      switch (query.type) {
+        case 'free':
+          where.type = 'free';
+          break;
+        case 'paid':
+          where.type = 'paid';
+          break;
+      }
     }
 
     if (query.q) {
@@ -330,6 +342,12 @@ export class AdminService {
       ];
     }
 
+    if (query.sort) {
+      order = parseSortQuery(query.sort, ['created_at', 'title']);
+    } else {
+      order = { created_at: 'desc' };
+    }
+
     const [total_programs, programs] = await this.prisma.$transaction([
       this.prisma.program.count({ where }),
       this.prisma.program.findMany({
@@ -341,30 +359,28 @@ export class AdminService {
           price: true,
           created_at: true,
           is_active: true,
-          details: {
+          _count: {
             select: {
-              test_id: true,
+              details: true,
             },
           },
         },
         take,
         skip,
-        orderBy: {
-          created_at: 'desc',
-        },
+        orderBy: order,
       }),
     ]);
 
     return {
       programs: programs.map((program) => {
-        const { details, ...all } = program;
+        const { _count, ...rest } = program;
 
         return {
-          ...all,
-          total_tests: details.length,
+          ...rest,
+          total_tests: _count.details,
         };
       }),
-      page: parseInt(query.page),
+      page,
       total_programs,
       total_pages: Math.ceil(total_programs / take),
     };
@@ -795,16 +811,28 @@ export class AdminService {
     return body;
   }
 
-  async getTestsFiltered(query: AdminQuery, req: Request) {
+  async getTestsFiltered(query: AdminQuery) {
     const default_page = 1;
-    const take = 6;
+    const take = 9;
     const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
     const where: any = {};
+    let order: any;
 
-    if (req.admin.admin_id !== process.env.DEFAULT_ADMIN_ID) {
+    if (!query.type || query.type !== 'inactive') {
       where.is_active = true;
+    }
+
+    if (query.type !== 'inactive') {
+      switch (query.type) {
+        case 'free':
+          where.type = 'free';
+          break;
+        case 'paid':
+          where.type = 'paid';
+          break;
+      }
     }
 
     if (query.q) {
@@ -822,6 +850,12 @@ export class AdminService {
       ];
     }
 
+    if (query.sort) {
+      order = parseSortQuery(query.sort, ['created_at', 'title']);
+    } else {
+      order = { created_at: 'desc' };
+    }
+
     const [total_tests, tests] = await this.prisma.$transaction([
       this.prisma.test.count({
         where,
@@ -836,9 +870,7 @@ export class AdminService {
           is_active: true,
           duration: true,
         },
-        orderBy: {
-          created_at: 'desc',
-        },
+        orderBy: order,
         take,
         skip,
       }),
@@ -867,7 +899,7 @@ export class AdminService {
         };
       }),
 
-      page: parseInt(query.page),
+      page,
       total_tests,
       total_pages: Math.ceil(total_tests / take),
     };
@@ -914,9 +946,7 @@ export class AdminService {
   async getTest(test_id: string, query: AdminQuery) {
     const default_page = 1;
     const take = 20;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
     const [total_questions, test] = await this.prisma.$transaction([
@@ -971,7 +1001,7 @@ export class AdminService {
     return {
       status,
       ...test,
-      page: parseInt(query.page),
+      page,
       total_questions,
       total_pages: Math.ceil(total_questions / take),
     };
@@ -1619,7 +1649,7 @@ export class AdminService {
 
     return {
       mentors,
-      page: parseInt(query.page),
+      page,
       total_mentors,
       total_pages: Math.ceil(total_mentors / take),
     };
@@ -1917,7 +1947,7 @@ export class AdminService {
           private_sub_classes: subject_part,
         };
       }),
-      page: parseInt(query.page),
+      page,
       total_private_classes,
       total_pages: Math.ceil(total_private_classes / take),
     };
@@ -2053,7 +2083,7 @@ export class AdminService {
 
     return {
       theses,
-      page: parseInt(query.page),
+      page,
       total_theses,
       total_pages: Math.ceil(total_theses / take),
     };
@@ -2281,7 +2311,7 @@ export class AdminService {
 
     return {
       research,
-      page: parseInt(query.page),
+      page,
       total_research,
       total_pages: Math.ceil(total_research / take),
     };
