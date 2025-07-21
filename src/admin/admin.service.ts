@@ -811,6 +811,17 @@ export class AdminService {
       where.type = query.filter;
     }
 
+    const now = new Date();
+
+    if (query.filter === 'upcoming') {
+      where.start = { gt: now };
+    } else if (query.filter === 'ongoing') {
+      where.start = { lte: now };
+      where.end = { gte: now };
+    } else if (query.filter === 'ended') {
+      where.end = { lt: now };
+    }
+
     if (query.q) {
       where.OR = [
         {
