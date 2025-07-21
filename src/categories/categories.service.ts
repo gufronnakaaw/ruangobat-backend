@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../utils/services/prisma.service';
 import { StorageService } from '../utils/services/storage.service';
-import { parseIsActive, slug } from '../utils/string.util';
+import { parseIsActive, parseSortQuery, slug } from '../utils/string.util';
 import {
   CategoriesQuery,
   CreateCategoryDto,
@@ -17,18 +17,23 @@ export class CategoriesService {
     private storage: StorageService,
   ) {}
 
-  async getCategories(query: CategoriesQuery, role: string) {
+  async getCategories(query: CategoriesQuery) {
     if (
       !['videocourse', 'apotekerclass', 'videoukmppai'].includes(query.type)
     ) {
       return [];
     }
 
+    const where: any = { type: query.type };
+
+    if (query.filter === 'inactive') {
+      where.is_active = false;
+    } else {
+      where.is_active = true;
+    }
+
     const categories = await this.prisma.category.findMany({
-      where: {
-        ...(role === 'admin' ? { is_active: true } : {}),
-        type: query.type,
-      },
+      where,
       select: {
         category_id: true,
         name: true,
@@ -43,6 +48,9 @@ export class CategoriesService {
           },
         },
       },
+      orderBy: query.sort
+        ? parseSortQuery(query.sort, ['name'])
+        : { name: 'asc' },
     });
 
     return categories.map((category) => {
@@ -57,11 +65,19 @@ export class CategoriesService {
 
   async getCategory(
     id_or_slug: string,
-    role: string,
     type: 'videocourse' | 'apotekerclass' | 'videoukmppai',
+    query: CategoriesQuery,
   ) {
     if (!['videocourse', 'apotekerclass', 'videoukmppai'].includes(type)) {
       return {};
+    }
+
+    const where_subcategories: any = {};
+
+    if (query.filter === 'inactive') {
+      where_subcategories.is_active = false;
+    } else {
+      where_subcategories.is_active = true;
     }
 
     const category = await this.prisma.category.findFirst({
@@ -74,7 +90,6 @@ export class CategoriesService {
             slug: id_or_slug,
           },
         ],
-        ...(role === 'admin' ? { is_active: true } : {}),
         type,
       },
       select: {
@@ -84,23 +99,27 @@ export class CategoriesService {
         img_url: true,
         type: true,
         subcategory: {
-          where: { ...(role === 'admin' ? { is_active: true } : {}) },
+          where: where_subcategories,
           select: {
             sub_category_id: true,
             name: true,
             slug: true,
             img_url: true,
+            is_active: true,
           },
+          orderBy: query.sort
+            ? parseSortQuery(query.sort, ['name'])
+            : { name: 'asc' },
         },
       },
     });
 
     if (!category) return {};
 
-    const { subcategory, ...all } = category;
+    const { subcategory, ...rest } = category;
 
     return {
-      ...all,
+      ...rest,
       sub_categories: subcategory,
     };
   }
@@ -159,26 +178,34 @@ export class CategoriesService {
       url += uploaded_url;
     }
 
-    return this.prisma.category.update({
-      where: { category_id: body.category_id },
-      data: {
-        name: body.name,
-        slug: body.name ? slug(body.name) : undefined,
-        img_key: key ? key : undefined,
-        img_url: url ? url : undefined,
-        is_active: parseIsActive(body.is_active),
-        updated_by: body.by,
-      },
-      select: {
-        category_id: true,
-      },
-    });
+    const [updated_category] = await this.prisma.$transaction([
+      this.prisma.category.update({
+        where: { category_id: body.category_id },
+        data: {
+          name: body.name,
+          slug: body.name ? slug(body.name) : undefined,
+          img_key: key ? key : undefined,
+          img_url: url ? url : undefined,
+          is_active: parseIsActive(body.is_active),
+          updated_by: body.by,
+        },
+        select: {
+          category_id: true,
+        },
+      }),
+      this.prisma.subCategory.updateMany({
+        where: { category_id: body.category_id },
+        data: { is_active: parseIsActive(body.is_active), updated_by: body.by },
+      }),
+    ]);
+
+    return updated_category;
   }
 
   async getSubCategory(
     id_or_slug: string,
-    role: string,
     type: 'videocourse' | 'videoukmppai',
+    query: CategoriesQuery,
   ) {
     if (!['videocourse', 'videoukmppai'].includes(type)) {
       return {
@@ -192,16 +219,18 @@ export class CategoriesService {
       const subcategories = await this.prisma.subCategory.findMany({
         where: {
           type,
-          ...(role === 'admin' ? { is_active: true } : {}),
+          is_active: true,
         },
         select: {
           sub_category_id: true,
           name: true,
           slug: true,
           img_url: true,
-          created_at: true,
-          created_by: true,
+          is_active: true,
         },
+        orderBy: query.sort
+          ? parseSortQuery(query.sort, ['name'])
+          : { name: 'asc' },
       });
 
       return {
@@ -209,6 +238,14 @@ export class CategoriesService {
         img_url: null,
         sub_categories: subcategories,
       };
+    }
+
+    const where_subcategories: any = {};
+
+    if (query.filter === 'inactive') {
+      where_subcategories.is_active = false;
+    } else {
+      where_subcategories.is_active = true;
     }
 
     const category = await this.prisma.category.findFirst({
@@ -221,20 +258,23 @@ export class CategoriesService {
             slug: id_or_slug,
           },
         ],
-        ...(role === 'admin' ? { is_active: true } : {}),
         type,
       },
       select: {
         name: true,
         img_url: true,
         subcategory: {
-          where: { ...(role === 'admin' ? { is_active: true } : {}) },
+          where: where_subcategories,
           select: {
             sub_category_id: true,
             name: true,
             slug: true,
             img_url: true,
+            is_active: true,
           },
+          orderBy: query.sort
+            ? parseSortQuery(query.sort, ['name'])
+            : { name: 'asc' },
         },
       },
     });

@@ -11,13 +11,11 @@ import {
   Patch,
   Post,
   Query,
-  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Request } from 'express';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
 import { InputInterceptor } from '../utils/interceptors/input.interceptor';
@@ -41,13 +39,12 @@ export class CategoriesController {
   @HttpCode(HttpStatus.OK)
   async getCategories(
     @Query() query: CategoriesQuery,
-    @Req() req: Request,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.categoriesService.getCategories(query, req.admin.role),
+        data: await this.categoriesService.getCategories(query),
       };
     } catch (error) {
       throw error;
@@ -59,17 +56,13 @@ export class CategoriesController {
   async getCategory(
     @Param('id_or_slug') id_or_slug: string,
     @Param('type') type: 'videocourse' | 'apotekerclass' | 'videoukmppai',
-    @Req() req: Request,
+    @Query() query: CategoriesQuery,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.categoriesService.getCategory(
-          id_or_slug,
-          req.admin.role,
-          type,
-        ),
+        data: await this.categoriesService.getCategory(id_or_slug, type, query),
       };
     } catch (error) {
       throw error;
@@ -150,7 +143,7 @@ export class CategoriesController {
   async getSubCategory(
     @Param('id_or_slug') id_or_slug: string,
     @Param('type') type: 'videocourse' | 'videoukmppai',
-    @Req() req: Request,
+    @Query() query: CategoriesQuery,
   ): Promise<SuccessResponse> {
     try {
       return {
@@ -158,8 +151,8 @@ export class CategoriesController {
         status_code: HttpStatus.OK,
         data: await this.categoriesService.getSubCategory(
           id_or_slug,
-          req.admin.role,
           type,
+          query,
         ),
       };
     } catch (error) {

@@ -4,6 +4,8 @@ export type CategoriesQuery = {
   q?: string;
   page: string;
   type?: 'videocourse' | 'apotekerclass' | 'videoukmppai';
+  filter?: string;
+  sort?: string;
 };
 
 export const createCategorySchema = z.object({
