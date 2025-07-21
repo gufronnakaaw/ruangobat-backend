@@ -326,3 +326,19 @@ export function maskingFileUrl(file_url: string, mode: string) {
 
   return file_url;
 }
+
+export function parseSortQuery(
+  query: string,
+  fields: string[],
+): Record<string, 'asc' | 'desc'> {
+  const [field, direction] = query.split('.');
+
+  const is_valid_field = fields.includes(field);
+  const is_valid_direction = direction === 'asc' || direction === 'desc';
+
+  if (is_valid_field && is_valid_direction) {
+    return { [field]: direction };
+  }
+
+  return {};
+}
