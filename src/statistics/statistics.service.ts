@@ -1,10 +1,16 @@
+import { HttpService } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
+import { AxiosResponse } from 'axios';
 import { DateTime } from 'luxon';
+import { firstValueFrom, Observable } from 'rxjs';
 import { PrismaService } from '../utils/services/prisma.service';
 
 @Injectable()
 export class StatisticsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private http: HttpService,
+  ) {}
 
   async getLoginStatistics(timezone = 'Asia/Jakarta') {
     const today = DateTime.now().setZone(timezone).startOf('day');
@@ -349,7 +355,21 @@ export class StatisticsService {
       cursor_month = cursor_month.plus({ months: 1 });
     }
 
+    const credits = await firstValueFrom(
+      this.http.get(`${process.env.PROVIDER_URL}/api/v1/credits`, {
+        headers: {
+          Authorization: `Bearer ${process.env.PROVIDER_CREDIT_KEY}`,
+        },
+      }) as Observable<
+        AxiosResponse<{
+          data: { total_credits: number; total_usage: number };
+        }>
+      >,
+    );
+
     return {
+      remaining_credits:
+        credits.data.data.total_credits - credits.data.data.total_usage,
       today: {
         day: today.setLocale('id').toFormat('dd MMMM yyyy'),
         total_chat: Number(today_stats[0].total_chat),
