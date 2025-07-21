@@ -49,7 +49,7 @@ export class CategoriesService {
         },
       },
       orderBy: query.sort
-        ? parseSortQuery(query.sort, ['name'])
+        ? parseSortQuery(query.sort, ['name', 'created_at'])
         : { name: 'asc' },
     });
 
@@ -108,7 +108,7 @@ export class CategoriesService {
             is_active: true,
           },
           orderBy: query.sort
-            ? parseSortQuery(query.sort, ['name'])
+            ? parseSortQuery(query.sort, ['name', 'created_at'])
             : { name: 'asc' },
         },
       },
@@ -229,7 +229,7 @@ export class CategoriesService {
           is_active: true,
         },
         orderBy: query.sort
-          ? parseSortQuery(query.sort, ['name'])
+          ? parseSortQuery(query.sort, ['name', 'created_at'])
           : { name: 'asc' },
       });
 
@@ -273,7 +273,7 @@ export class CategoriesService {
             is_active: true,
           },
           orderBy: query.sort
-            ? parseSortQuery(query.sort, ['name'])
+            ? parseSortQuery(query.sort, ['name', 'created_at'])
             : { name: 'asc' },
         },
       },
