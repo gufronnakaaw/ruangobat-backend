@@ -26,9 +26,7 @@ export class QuizzesService {
     let model: 'category' | 'sub_category' | '' = '';
     const default_page = 1;
     const take = 10;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
     if (type === 'apotekerclass') {
@@ -100,7 +98,7 @@ export class QuizzesService {
             };
           })
         : [],
-      page: parseInt(query.page),
+      page,
       total_quizzes,
       total_pages: Math.ceil(total_quizzes / take),
     };
@@ -109,9 +107,7 @@ export class QuizzesService {
   async getQuiz(ass_id: string, query: QuizzesQuery) {
     const default_page = 1;
     const take = 20;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
     const [total_questions, quiz] = await this.prisma.$transaction([
@@ -147,7 +143,7 @@ export class QuizzesService {
 
     return {
       ...quiz,
-      page: parseInt(query.page),
+      page,
       total_questions,
       total_pages: Math.ceil(total_questions / take),
     };

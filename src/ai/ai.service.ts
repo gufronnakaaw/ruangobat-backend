@@ -254,7 +254,7 @@ export class AiService {
 
     return {
       contexts,
-      page: parseInt(query.page),
+      page,
       total_contexts,
       total_pages: Math.ceil(total_contexts / take),
     };
@@ -840,7 +840,7 @@ export class AiService {
           total_cost: Number(all.total_cost),
         };
       }),
-      page: parseInt(query.page),
+      page,
       total_logs,
       total_pages: Math.ceil(total_logs / take),
     };
@@ -1023,7 +1023,7 @@ export class AiService {
           ...all,
         };
       }),
-      page: parseInt(query.page),
+      page,
       total_users,
       total_pages: Math.ceil(total_users / take),
     };

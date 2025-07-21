@@ -13,9 +13,7 @@ export class SubscriptionsService {
   async getPackages(query: SubscriptionsQuery) {
     const default_page = 1;
     const take = 10;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
     const [total_packages, packages] = await this.prisma.$transaction([
@@ -48,7 +46,7 @@ export class SubscriptionsService {
 
     return {
       packages,
-      page: parseInt(query.page),
+      page,
       total_packages,
       total_pages: Math.ceil(total_packages / take),
     };
