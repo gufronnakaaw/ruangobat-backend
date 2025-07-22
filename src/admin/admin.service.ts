@@ -446,40 +446,33 @@ export class AdminService {
       ];
     }
 
-    const [total_participants, program] = await this.prisma.$transaction([
-      this.prisma.participant.count({
-        where: {
-          program_id,
-        },
-      }),
-      this.prisma.program.findUnique({
-        where: { program_id },
-        select: {
-          program_id: true,
-          title: true,
-          type: true,
-          participants: {
-            where: participant_where,
-            select: {
-              user: {
-                select: {
-                  user_id: true,
-                  fullname: true,
-                  university: true,
-                },
+    const program = await this.prisma.program.findUnique({
+      where: { program_id },
+      select: {
+        program_id: true,
+        title: true,
+        type: true,
+        participants: {
+          where: participant_where,
+          select: {
+            user: {
+              select: {
+                user_id: true,
+                fullname: true,
+                university: true,
               },
-              joined_at: true,
-              is_approved: true,
             },
-            take,
-            skip,
-            orderBy: query.sort
-              ? parseSortQuery(query.sort, ['joined_at'])
-              : { joined_at: 'desc' },
+            joined_at: true,
+            is_approved: true,
           },
+          take,
+          skip,
+          orderBy: query.sort
+            ? parseSortQuery(query.sort, ['joined_at'])
+            : { joined_at: 'desc' },
         },
-      }),
-    ]);
+      },
+    });
 
     if (!program) {
       return {};
@@ -494,8 +487,8 @@ export class AdminService {
         ...rest,
       })),
       page,
-      total_participants,
-      total_pages: Math.ceil(total_participants / take),
+      total_participants: participants.length,
+      total_pages: Math.ceil(participants.length / take),
     };
   }
 
