@@ -28,6 +28,10 @@ export class StorageService {
     this.bucket = `${process.env.MODE === 'prod' ? 'ruangobat' : 'ruangobatdev'}`;
   }
 
+  generatePublicUrl(key: string) {
+    return `https://${this.bucket}.${process.env.STORAGE_HOST}/${key}`;
+  }
+
   createFolder(name: string, by: string) {
     try {
       return this.s3Client.send(
