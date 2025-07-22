@@ -15,6 +15,8 @@ import {
   createBatchCategoriesSchema,
   CreateBatchSubCategoriesDto,
   createBatchSubCategoriesSchema,
+  CreateBatchTestimonialsDto,
+  createBatchTestimonialsSchema,
   CreateBatchUsersDto,
   createBatchUsersSchema,
 } from './batches.dto';
@@ -72,6 +74,24 @@ export class BatchesController {
         success: true,
         status_code: HttpStatus.CREATED,
         data: await this.batchesService.createBulkSubCategories(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('/testimonials')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(createBatchTestimonialsSchema))
+  async createBulkTestimonials(
+    @Body() body: CreateBatchTestimonialsDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.batchesService.createBulkTestimonials(body),
       };
     } catch (error) {
       throw error;

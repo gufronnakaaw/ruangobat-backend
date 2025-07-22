@@ -4,16 +4,21 @@ import { removeKeys } from '../utils/array.util';
 import { hashPassword } from '../utils/bcrypt.util';
 import { encryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
+import { StorageService } from '../utils/services/storage.service';
 import { capitalize, getInitials, slug } from '../utils/string.util';
 import {
   CreateBatchCategoriesDto,
   CreateBatchSubCategoriesDto,
+  CreateBatchTestimonialsDto,
   CreateBatchUsersDto,
 } from './batches.dto';
 
 @Injectable()
 export class BatchesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: StorageService,
+  ) {}
 
   async createBulkUsers(body: CreateBatchUsersDto) {
     if (body.access_key !== process.env.ACCESS_KEY) {
@@ -98,5 +103,16 @@ export class BatchesService {
     });
 
     return subcategories;
+  }
+
+  createBulkTestimonials(body: CreateBatchTestimonialsDto) {
+    return this.prisma.testimonial.createMany({
+      data: body.keys.map((key) => {
+        return {
+          img_url: this.storage.generatePublicUrl(key),
+          type: body.type,
+        };
+      }),
+    });
   }
 }

@@ -65,3 +65,21 @@ export const createBatchSubCategoriesSchema = z.object({
 export type CreateBatchSubCategoriesDto = z.infer<
   typeof createBatchSubCategoriesSchema
 >;
+
+export const createBatchTestimonialsSchema = z.object({
+  type: z.enum([
+    'videocourse',
+    'apotekerclass',
+    'videoukmppai',
+    'theses',
+    'research',
+    'tryout',
+    'book',
+    'rosa',
+  ]),
+  keys: z.array(z.string()),
+});
+
+export type CreateBatchTestimonialsDto = z.infer<
+  typeof createBatchTestimonialsSchema
+>;

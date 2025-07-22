@@ -23,10 +23,13 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import {
+  AppQuery,
   CreateFeedbackDto,
   createFeedbackSchema,
   CreateFolderDto,
   createFolderSchema,
+  CreateGeneralTestimonialDto,
+  createGeneralTestimonialSchema,
   CreateProgressDto,
   createProgressSchema,
   CreateUniversityDto,
@@ -733,6 +736,42 @@ export class AppController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.storage.createFolder(body.folder + body.name, body.by),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/testimonials')
+  @HttpCode(HttpStatus.OK)
+  async getTestimonials(@Query() query: AppQuery): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getTestimonials(query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(UserGuard)
+  @Post('/testimonials/general')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(createGeneralTestimonialSchema))
+  async createGeneralTestimonial(
+    @Body() body: CreateGeneralTestimonialDto,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.appService.createGeneralTestimonial(
+          body,
+          req.user.user_id,
+        ),
       };
     } catch (error) {
       throw error;

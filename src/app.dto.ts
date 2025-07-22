@@ -1,5 +1,13 @@
 import { z } from 'zod';
 
+export type AppQuery = {
+  q?: string;
+  page?: number;
+  filter?: string;
+  sort?: string;
+  type?: string;
+};
+
 export const createFeedbackSchema = z.object({
   user_id: z.string(),
   fullname: z.string(),
@@ -109,3 +117,11 @@ export const createFolderSchema = z.object({
 });
 
 export type CreateFolderDto = z.infer<typeof createFolderSchema>;
+
+export const createGeneralTestimonialSchema = z.object({
+  content: z.string(),
+});
+
+export type CreateGeneralTestimonialDto = z.infer<
+  typeof createGeneralTestimonialSchema
+>;

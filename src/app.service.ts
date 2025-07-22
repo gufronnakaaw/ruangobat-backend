@@ -12,7 +12,9 @@ import { Request } from 'express';
 import { random } from 'lodash';
 import ShortUniqueId from 'short-unique-id';
 import {
+  AppQuery,
   CreateFeedbackDto,
+  CreateGeneralTestimonialDto,
   CreateProgressDto,
   CreateUniversityDto,
   FinishAssessmentDto,
@@ -26,7 +28,12 @@ import { hashPassword } from './utils/bcrypt.util';
 import { decryptString, generateToken, verifyToken } from './utils/crypto.util';
 import { PrismaService } from './utils/services/prisma.service';
 import { StorageService } from './utils/services/storage.service';
-import { parseIsActive, scoreCategory, slug } from './utils/string.util';
+import {
+  parseIsActive,
+  parseSortQuery,
+  scoreCategory,
+  slug,
+} from './utils/string.util';
 
 @Injectable()
 export class AppService {
@@ -1730,5 +1737,82 @@ export class AppService {
       histories: histories.length ? histories : [],
       is_login: req.is_login,
     };
+  }
+
+  async getTestimonials(query: AppQuery) {
+    const default_page = 1;
+    const take = 10;
+    const page = Number(query.page) || default_page;
+    const skip = (page - 1) * take;
+
+    const where: any = {};
+
+    if (query.type) {
+      where.type = query.type;
+    }
+
+    const [total_testimonials, testimonials] = await this.prisma.$transaction([
+      this.prisma.testimonial.count({
+        where,
+      }),
+      this.prisma.testimonial.findMany({
+        where,
+        select: {
+          testimonial_id: true,
+          user: {
+            select: {
+              fullname: true,
+              university: true,
+            },
+          },
+          type: true,
+          content: true,
+          img_url: true,
+          created_at: true,
+        },
+        orderBy: query.sort
+          ? parseSortQuery(query.sort, ['created_at'])
+          : { created_at: 'desc' },
+        take,
+        skip,
+      }),
+    ]);
+
+    return {
+      testimonials: testimonials.map((testimonial) => {
+        if (testimonial.type === 'general') {
+          return {
+            testimonial_id: testimonial.testimonial_id,
+            fullname: testimonial.user.fullname,
+            university: testimonial.user.university,
+            type: testimonial.type,
+            content: testimonial.content,
+            created_at: testimonial.created_at,
+          };
+        }
+        return {
+          testimonial_id: testimonial.testimonial_id,
+          img_url: testimonial.img_url,
+          type: testimonial.type,
+          created_at: testimonial.created_at,
+        };
+      }),
+      page,
+      total_testimonials,
+      total_pages: Math.ceil(total_testimonials / take),
+    };
+  }
+
+  createGeneralTestimonial(body: CreateGeneralTestimonialDto, user_id: string) {
+    return this.prisma.testimonial.create({
+      data: {
+        user_id,
+        type: 'general',
+        content: body.content,
+      },
+      select: {
+        testimonial_id: true,
+      },
+    });
   }
 }
