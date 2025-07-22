@@ -9,11 +9,9 @@ import {
   Patch,
   Post,
   Query,
-  Req,
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
-import { Request } from 'express';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
@@ -37,7 +35,6 @@ export class QuizzesController {
     @Param('cat_or_sub') cat_or_sub: string,
     @Param('type') type: 'apotekerclass' | 'videocourse' | 'videoukmppai',
     @Param('variant') variant: 'quiz' | 'tryout',
-    @Req() req: Request,
     @Query() query: QuizzesQuery,
   ): Promise<SuccessResponse> {
     try {
@@ -48,7 +45,6 @@ export class QuizzesController {
           cat_or_sub,
           type,
           variant,
-          req.admin.role,
           query,
         ),
       };

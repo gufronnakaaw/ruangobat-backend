@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { random } from 'lodash';
 import ShortUniqueId from 'short-unique-id';
 import { PrismaService } from '../utils/services/prisma.service';
-import { parseIsActive } from '../utils/string.util';
+import { parseIsActive, parseSortQuery } from '../utils/string.util';
 import { CreateQuizDto, QuizzesQuery, UpdateQuizDto } from './quizzes.dto';
 
 @Injectable()
@@ -13,7 +13,6 @@ export class QuizzesService {
     cat_or_sub: string,
     type: 'apotekerclass' | 'videocourse' | 'videoukmppai',
     variant: 'quiz' | 'tryout',
-    role: string,
     query: QuizzesQuery,
   ) {
     if (
@@ -23,83 +22,100 @@ export class QuizzesService {
       return [];
     }
 
-    let model: 'category' | 'sub_category' | '' = '';
     const default_page = 1;
     const take = 10;
     const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
+    const where_main: any = {};
+
+    let model: 'category' | 'subCategory' | '' = '';
+    let field: 'category' | 'sub_category' | '' = '';
+
     if (type === 'apotekerclass') {
       model += 'category';
+      field = 'category';
+      where_main.OR = [{ category_id: cat_or_sub }, { slug: cat_or_sub }];
     } else {
-      model += 'sub_category';
+      model += 'subCategory';
+      field = 'sub_category';
+      where_main.OR = [{ sub_category_id: cat_or_sub }, { slug: cat_or_sub }];
+    }
+
+    const where_quiz: any = {
+      ass_type: type,
+      variant,
+    };
+
+    if (query.filter === 'inactive') {
+      where_quiz.is_active = false;
+    } else {
+      where_quiz.is_active = true;
+    }
+
+    if (query.q) {
+      where_quiz.OR = [
+        { title: { contains: query.q } },
+        { ass_id: { contains: query.q } },
+      ];
     }
 
     const [total_quizzes, quizzes] = await this.prisma.$transaction([
       this.prisma.assessment.count({
         where: {
-          ass_type: type,
-          variant,
-          [model]: {
-            OR: [{ [model + '_id']: cat_or_sub }, { slug: cat_or_sub }],
+          ...where_quiz,
+          [field]: {
+            OR: [{ [field + '_id']: cat_or_sub }, { slug: cat_or_sub }],
           },
-          ...(role === 'admin' ? { is_active: true } : {}),
-          ...(query.q
-            ? {
-                OR: [
-                  { title: { contains: query.q } },
-                  { ass_id: { contains: query.q } },
-                ],
-              }
-            : {}),
         },
       }),
-      this.prisma.assessment.findMany({
-        where: {
-          ass_type: type,
-          variant,
-          [model]: {
-            OR: [{ [model + '_id']: cat_or_sub }, { slug: cat_or_sub }],
-          },
-          ...(role === 'admin' ? { is_active: true } : {}),
-          ...(query.q
-            ? {
-                OR: [
-                  { title: { contains: query.q } },
-                  { ass_id: { contains: query.q } },
-                ],
-              }
-            : {}),
-        },
+      this.prisma[model].findFirst({
+        where: where_main,
         select: {
-          ass_id: true,
-          description: true,
-          title: true,
-          variant: true,
-          _count: {
+          ...(type === 'apotekerclass'
+            ? { category_id: true }
+            : { sub_category_id: true }),
+          name: true,
+          slug: true,
+          img_url: true,
+          type: true,
+          assessment: {
+            where: where_quiz,
             select: {
-              question: true,
+              ass_id: true,
+              description: true,
+              title: true,
+              variant: true,
+              _count: {
+                select: {
+                  question: true,
+                },
+              },
             },
+            orderBy: query.sort
+              ? parseSortQuery(query.sort, ['created_at', 'title'])
+              : { created_at: 'desc' },
+            take,
+            skip,
           },
         },
-        take,
-        skip,
       }),
     ]);
 
-    return {
-      quizzes: quizzes.length
-        ? quizzes.map((item) => {
-            const { _count, ...rest } = item;
+    if (!quizzes) return {};
 
-            return {
-              ...rest,
-              total_questions: _count.question,
-            };
-          })
+    const { assessment, ...rest } = quizzes;
+
+    return {
+      ...rest,
+      quizzes: assessment.length
+        ? assessment.map(({ _count, ...rest }) => ({
+            ...rest,
+            total_questions: _count.question,
+          }))
         : [],
       page,
-      total_quizzes,
+      total_quizzes: total_quizzes,
       total_pages: Math.ceil(total_quizzes / take),
     };
   }

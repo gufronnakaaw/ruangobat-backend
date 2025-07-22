@@ -3,6 +3,8 @@ import { z } from 'zod';
 export type QuizzesQuery = {
   q?: string;
   page: string;
+  filter?: string;
+  sort?: string;
 };
 
 export const createQuizSchema = z.object({
