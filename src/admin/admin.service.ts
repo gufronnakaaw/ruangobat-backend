@@ -372,21 +372,7 @@ export class AdminService {
     };
   }
 
-  async getProgramFiltered(program_id: string, query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-    const page = Number(query.page) || default_page;
-    const skip = (page - 1) * take;
-
-    const participant_where: any = { is_approved: true };
-
-    if (query.q) {
-      participant_where.OR = [
-        { user: { user_id: { contains: query.q } } },
-        { user: { fullname: { contains: query.q } } },
-      ];
-    }
-
+  async getProgram(program_id: string) {
     const program = await this.prisma.program.findUnique({
       where: {
         program_id,
@@ -413,36 +399,14 @@ export class AdminService {
             },
           },
         },
-        participants: {
-          where: participant_where,
-          select: {
-            user: {
-              select: {
-                user_id: true,
-                fullname: true,
-                university: true,
-              },
-            },
-            joined_at: true,
-            is_approved: true,
-          },
-          take,
-          skip,
-          orderBy: {
-            joined_at: 'asc',
-          },
-        },
       },
     });
 
-    const { details, participants, ...all } = program;
+    const { details, ...rest } = program;
 
     return {
-      ...all,
-      page,
+      ...rest,
       total_tests: details.length,
-      total_participants: participants.length,
-      total_pages: Math.ceil(participants.length / take),
       tests: details.map((detail) => {
         const now = new Date();
 
@@ -464,14 +428,73 @@ export class AdminService {
           status,
         };
       }),
-      participants: participants.map((participant) => {
-        const { user, ...rest } = participant;
+    };
+  }
 
-        return {
-          ...user,
-          ...rest,
-        };
+  async getProgramParticipants(program_id: string, query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+    const page = Number(query.page) || default_page;
+    const skip = (page - 1) * take;
+
+    const participant_where: any = { is_approved: true };
+
+    if (query.q) {
+      participant_where.OR = [
+        { user: { user_id: { contains: query.q } } },
+        { user: { fullname: { contains: query.q } } },
+      ];
+    }
+
+    const [total_participants, program] = await this.prisma.$transaction([
+      this.prisma.participant.count({
+        where: {
+          program_id,
+        },
       }),
+      this.prisma.program.findUnique({
+        where: { program_id },
+        select: {
+          program_id: true,
+          title: true,
+          participants: {
+            where: participant_where,
+            select: {
+              user: {
+                select: {
+                  user_id: true,
+                  fullname: true,
+                  university: true,
+                },
+              },
+              joined_at: true,
+              is_approved: true,
+            },
+            take,
+            skip,
+            orderBy: query.sort
+              ? parseSortQuery(query.sort, ['joined_at'])
+              : { joined_at: 'desc' },
+          },
+        },
+      }),
+    ]);
+
+    if (!program) {
+      return {};
+    }
+
+    const { participants, ...rest } = program;
+
+    return {
+      ...rest,
+      participants: participants.map(({ user, ...rest }) => ({
+        ...user,
+        ...rest,
+      })),
+      page,
+      total_participants,
+      total_pages: Math.ceil(total_participants / take),
     };
   }
 
