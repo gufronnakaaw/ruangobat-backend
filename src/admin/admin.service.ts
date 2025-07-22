@@ -457,6 +457,7 @@ export class AdminService {
         select: {
           program_id: true,
           title: true,
+          type: true,
           participants: {
             where: participant_where,
             select: {
