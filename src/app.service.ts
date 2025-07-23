@@ -23,7 +23,7 @@ import {
   UpdateUniversityDto,
   VerifyOtpDto,
 } from './app.dto';
-import { shuffle } from './utils/array.util';
+import { removeKeys, shuffle } from './utils/array.util';
 import { hashPassword } from './utils/bcrypt.util';
 import { decryptString, generateToken, verifyToken } from './utils/crypto.util';
 import { PrismaService } from './utils/services/prisma.service';
@@ -1179,7 +1179,7 @@ export class AppService {
       }
     }
 
-    return this.prisma.assessmentResult.create({
+    const result = await this.prisma.assessmentResult.create({
       data: {
         assr_id: `ROAR${uid.rnd().toUpperCase()}`,
         ...(body.field_id === 'ass_id' ? { ass_id: body.value_id } : {}),
@@ -1210,6 +1210,18 @@ export class AppService {
         assr_id: true,
       },
     });
+
+    if (body.field_id === 'content_id') {
+      await this.prisma.userContentProgress.create({
+        data: {
+          user_id,
+          content_id: body.value_id,
+          progress_type: 'test',
+        },
+      });
+    }
+
+    return result;
   }
 
   async getAssessmentResult({
@@ -1437,6 +1449,18 @@ export class AppService {
         duration: true,
         video_note: true,
         video_note_url: true,
+        result: {
+          where: {
+            user_id: req.is_login ? req.user.user_id : '',
+          },
+          select: {
+            assr_id: true,
+            score: true,
+          },
+          orderBy: {
+            created_at: 'desc',
+          },
+        },
         _count: {
           select: {
             question: true,
@@ -1504,18 +1528,39 @@ export class AppService {
       delete rest.video_note;
       delete rest.video_note_url;
 
+      if (content.content_type === 'test') {
+        const { result, ...mapping } = removeKeys(rest, [
+          'video_note',
+          'video_note_url',
+          'duration',
+        ]);
+
+        return {
+          ...mapping,
+          is_locked,
+          is_completed: Boolean(result.length),
+          result_id: result.length ? result[0].assr_id : null,
+          score: result.length ? result[0].score : 0,
+          total_questions: _count.question,
+        };
+      }
+
+      const mapping = removeKeys(rest, ['test_type', 'result']);
+
       return {
-        ...rest,
+        ...mapping,
         is_locked,
         is_completed: Boolean(_count.progress),
         has_note,
         token,
-        total_questions: _count.question,
       };
     });
 
     const pre = contents_mapping.find(
-      (item) => item.content_type === 'test' && item.test_type === 'pre',
+      (item) =>
+        item.content_type === 'test' &&
+        'test_type' in item &&
+        item.test_type === 'pre',
     );
 
     const videos = contents_mapping.filter(
@@ -1523,7 +1568,10 @@ export class AppService {
     );
 
     const post = contents_mapping.find(
-      (item) => item.content_type === 'test' && item.test_type === 'post',
+      (item) =>
+        item.content_type === 'test' &&
+        'test_type' in item &&
+        item.test_type === 'post',
     );
 
     return [...(pre ? [pre] : []), ...videos, ...(post ? [post] : [])];
