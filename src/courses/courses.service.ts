@@ -113,31 +113,18 @@ export class CoursesService {
       });
   }
 
-  async getCourse(
-    cat_or_sub: string,
-    role: string,
-    type: 'videocourse' | 'apotekerclass' | 'videoukmppai',
-  ) {
-    if (!['videocourse', 'apotekerclass', 'videoukmppai'].includes(type)) {
-      return {};
-    }
-
-    let model: 'category' | 'sub_category' | '' = '';
-
-    if (type === 'apotekerclass') {
-      model += 'category';
-    } else {
-      model += 'sub_category';
-    }
-
+  async getCourse(id_or_slug: string) {
     return this.prisma.course
       .findFirst({
         where: {
-          [model]: {
-            OR: [{ [model + '_id']: cat_or_sub }, { slug: cat_or_sub }],
-          },
-          type,
-          ...(role === 'admin' ? { is_active: true } : {}),
+          OR: [
+            {
+              course_id: id_or_slug,
+            },
+            {
+              slug: id_or_slug,
+            },
+          ],
         },
         select: {
           course_id: true,

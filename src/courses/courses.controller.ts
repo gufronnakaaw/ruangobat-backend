@@ -11,14 +11,12 @@ import {
   Patch,
   Post,
   Query,
-  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Request } from 'express';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
 import { InputInterceptor } from '../utils/interceptors/input.interceptor';
@@ -46,6 +44,22 @@ import { CoursesService } from './courses.service';
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
+  @Get(':id_or_slug/detail')
+  @HttpCode(HttpStatus.OK)
+  async getCourse(
+    @Param('id_or_slug') id_or_slug: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.coursesService.getCourse(id_or_slug),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Get(':cat_or_sub/:type')
   @HttpCode(HttpStatus.OK)
   async getCourses(
@@ -58,28 +72,6 @@ export class CoursesController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.coursesService.getCourses(cat_or_sub, type, query),
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  @Get(':cat_or_sub/:type/detail')
-  @HttpCode(HttpStatus.OK)
-  async getCourse(
-    @Param('cat_or_sub') cat_or_sub: string,
-    @Param('type') type: 'videocourse' | 'apotekerclass' | 'videoukmppai',
-    @Req() req: Request,
-  ): Promise<SuccessResponse> {
-    try {
-      return {
-        success: true,
-        status_code: HttpStatus.OK,
-        data: await this.coursesService.getCourse(
-          cat_or_sub,
-          req.admin.role,
-          type,
-        ),
       };
     } catch (error) {
       throw error;
