@@ -1079,11 +1079,15 @@ export class AppService {
   async finishAssessment(body: FinishAssessmentDto, user_id: string) {
     const [assessment, content] = await this.prisma.$transaction([
       this.prisma.assessment.findFirst({
-        where: { ass_id: body.ass_id },
+        where: {
+          ass_id: body.value_id,
+        },
         select: { variant: true },
       }),
       this.prisma.content.findFirst({
-        where: { content_id: body.ass_id },
+        where: {
+          content_id: body.value_id,
+        },
         select: { test_type: true },
       }),
     ]);
@@ -1096,10 +1100,10 @@ export class AppService {
       where: {
         OR: [
           {
-            ass_id: body.ass_id,
+            ass_id: body.value_id,
           },
           {
-            content_id: body.ass_id,
+            content_id: body.value_id,
           },
         ],
       },
@@ -1178,7 +1182,10 @@ export class AppService {
     return this.prisma.assessmentResult.create({
       data: {
         assr_id: `ROAR${uid.rnd().toUpperCase()}`,
-        ass_id: body.ass_id,
+        ...(body.field_id === 'ass_id' ? { ass_id: body.value_id } : {}),
+        ...(body.field_id === 'content_id'
+          ? { content_id: body.value_id }
+          : {}),
         user_id,
         total_correct,
         total_incorrect,
@@ -1309,6 +1316,9 @@ export class AppService {
             name: true,
             slug: true,
             img_url: true,
+          },
+          orderBy: {
+            name: 'asc',
           },
         },
       },

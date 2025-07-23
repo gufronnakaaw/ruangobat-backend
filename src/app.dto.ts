@@ -75,7 +75,8 @@ export type StartAssessmentQuestion = {
 };
 
 export const finishAssessmentSchema = z.object({
-  ass_id: z.string(),
+  field_id: z.enum(['ass_id', 'content_id']),
+  value_id: z.string(),
   questions: z
     .array(
       z.object({
