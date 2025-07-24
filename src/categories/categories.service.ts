@@ -42,6 +42,7 @@ export class CategoriesService {
         type: true,
         created_at: true,
         created_by: true,
+        is_active: true,
         _count: {
           select: {
             subcategory: true,
