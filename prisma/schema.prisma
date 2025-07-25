@@ -75,7 +75,7 @@ enum TestimonialType {
   research 
   tryout 
   book 
-  rosa
+  ai
   general
 }
 
@@ -83,6 +83,78 @@ enum PromptType {
   INSTRUCTION
   CONTEXT
   ANSWER_FORMAT
+}
+
+enum ClassMentorType {
+  preparation
+  private
+  thesis
+  research
+  pharmacist_admission
+}
+
+enum ThumbnailType {
+  video
+  image
+}
+
+enum SubjectType {
+  preparation
+  private
+}
+
+enum AiPlanType {
+  free
+  paid
+}
+
+enum AccessType {
+  videocourse 
+  apotekerclass
+  videoukmppai
+  book
+  ai
+}
+
+enum AccessStatus {
+  active 
+  scheduled 
+  expired 
+  revoked
+}
+
+enum OrderStatus {
+  pending
+  paid
+  failed
+  expired
+  cancelled
+  replaced
+}
+
+enum OrderItemType {
+  videocourse 
+  apotekerclass 
+  videoukmppai 
+  theses 
+  research 
+  tryout 
+  book 
+  ai
+}
+
+enum NormalizedMethod {
+  va
+  qris
+  ewallet
+  manual
+}
+
+enum TransactionStatus {
+  pending
+  success
+  failed
+  expired
 }
 
 model Admin {
@@ -124,7 +196,11 @@ model User {
   loglogin         LogLogin[]
   testimonial      Testimonial[]
 
-  userlimit       UserAiLimit?      
+  userlimit        UserAiLimit?
+
+  order            Order[]
+  access           Access[] 
+  accestest        AccessTest[]     
 
   @@index([fullname, email, phone_number, created_at])
   @@map("user")
@@ -367,16 +443,6 @@ model Mentor {
   @@map("mentor")    
 }
 
-enum ThumbnailType {
-  video
-  image
-}
-
-enum SubjectType {
-  preparation
-  private
-}
-
 model Subject {
   id               Int              @id               @default(autoincrement())
   subject_id       String           @unique 
@@ -462,14 +528,6 @@ model Research {
   @@map("research")
 }
 
-enum ClassMentorType {
-  preparation
-  private
-  thesis
-  research
-  pharmacist_admission
-}
-
 model ClassMentor {
   id               Int              @id               @default(autoincrement())
   class_mentor_id  String           @unique
@@ -485,11 +543,6 @@ model ClassMentor {
   updated_by       String
 
   @@map("class_mentor")
-}
-
-enum AiPlanType {
-  free
-  paid
 }
 
 model AiProvider {
@@ -823,6 +876,7 @@ model University {
   updated_by       String
   
   univdetail       UniversityDetail[]
+  accesstest       AccessTest[]
 
   @@map("university")
 }
@@ -996,4 +1050,161 @@ model Prompt {
   updated_by        String
 
   @@map("prompt")
+}
+
+model Access {
+  id                Int              @id               @default(autoincrement())
+  access_id         String           @unique           @default(uuid())
+  user_id           String
+  order_id          String
+  type              AccessType
+  duration          Int              @db.UnsignedInt
+  is_active         Boolean          
+  status            AccessStatus
+  extended_from     String?
+  started_at        DateTime
+  expired_at        DateTime
+  update_reason     String?          @db.Text
+  user_timezone     String           @default("Asia/Jakarta")
+
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+  
+  created_by        String
+  updated_by        String
+
+  revokelog         AccessRevokeLog[]
+  accesstest        AccessTest[]
+
+  user              User             @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  order             Order            @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+
+  @@map("access")
+}
+
+model AccessRevokeLog {
+  id                Int              @id               @default(autoincrement())
+  revoke_id         String           @unique           @default(uuid())
+  access_id         String
+  reason            String           @db.Text
+  created_at        DateTime         @default(now())
+  created_by        String
+
+  access            Access           @relation(fields: [access_id], references: [access_id], onDelete: Cascade)
+
+  @@map("access_revoke_log")
+}
+
+model AccessTest {
+  id                Int              @id               @default(autoincrement())
+  access_test_id    String           @unique           @default(uuid())
+  access_id         String
+  user_id           String
+  univ_id           String
+  granted_at        DateTime         @default(now())
+  granted_by        String?
+
+  updated_at        DateTime         @updatedAt
+  updated_by        String?
+
+  access            Access           @relation(fields: [access_id], references: [access_id], onDelete: Cascade)
+  user              User             @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  university        University       @relation(fields: [univ_id], references: [univ_id], onDelete: Cascade)
+
+  @@index([access_id, user_id, univ_id])
+  @@map("access_test")
+}
+
+model Order {
+  id                Int              @id               @default(autoincrement())
+  order_id          String           @unique           
+  invoice_number    String           @unique
+  idempotency_key   String?          @unique
+  user_id           String
+  total_amount      Int              @db.UnsignedInt
+  final_amount      Int              @db.UnsignedInt
+  paid_amount       Int?             @db.UnsignedInt
+  discount_amount   Int?             @db.UnsignedInt
+  discount_code     String?
+  status            OrderStatus      
+  
+  paid_at           DateTime?
+  expired_at        DateTime?
+  updated_at        DateTime         @updatedAt
+  created_at        DateTime         @default(now())
+  
+  created_by        String?
+  updated_by        String?
+
+  user              User             @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  items             OrderItem[]
+  transactions      Transaction[]
+  access            Access[]
+
+  @@map("order")
+}
+
+model OrderItem {
+  id                Int              @id               @default(autoincrement())
+  item_id           String           @unique           @default(uuid())
+  order_id          String
+  product_id        String
+  product_name      String
+  product_type      OrderItemType
+  product_price     Int              @db.UnsignedInt
+
+  created_at        DateTime         @default(now())
+  created_by        String
+
+  updated_at        DateTime         @updatedAt
+  updated_by        String
+
+  order             Order            @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+
+  @@map("order_item")
+}
+
+model Transaction {
+  id                Int              @id               @default(autoincrement())
+  transaction_id    String           @unique  
+  request_id        String?          @unique         
+  order_id          String
+  external_id       String?          @unique
+  raw_payload       String?          @db.Text
+  paid_amount       Int              @db.UnsignedInt
+
+  gateway           String
+  gateway_fee       Int?             @db.UnsignedInt
+  gateway_ref       String? 
+  channel_code      String?
+  
+  payment_method    String
+  normalized_method NormalizedMethod
+  failure_reason    String?          @db.Text
+  status            TransactionStatus
+  
+  paid_at           DateTime?
+  expired_at        DateTime?
+
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+  
+  created_by        String?
+  updated_by        String?
+
+  order             Order            @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+
+  @@map("transaction")
+}
+
+model PaymentGateway {
+  id                Int             @id               @default(autoincrement())
+  gateway_id        String          @unique           @default(uuid())
+  name              String   
+  is_active         Boolean         @default(true)
+  config_json       String?         @db.Text 
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+
+  @@map("payment_gateway")
 }
