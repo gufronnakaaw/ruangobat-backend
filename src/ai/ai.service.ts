@@ -850,7 +850,7 @@ export class AiService {
     const today = DateTime.now().setZone(timezone).startOf('day');
     const until = today.plus({ days: 1 });
 
-    const [user_limit, total_user_chats, global_limits] =
+    const [user_limit, total_user_chats, global_limits, access] =
       await this.prisma.$transaction([
         this.prisma.userAiLimit.findUnique({
           where: { user_id },
@@ -868,33 +868,43 @@ export class AiService {
             },
           },
         }),
-        this.prisma.aiLimit.findFirst({
-          select: { total: true },
-          where: { type: 'paid' },
+        this.prisma.aiLimit.findMany({
+          select: { total: true, type: true },
+        }),
+        this.prisma.access.count({
+          where: {
+            user_id,
+            status: 'active',
+            OR: [
+              { type: 'apotekerclass' },
+              { type: 'videocourse' },
+              { type: 'videoukmppai' },
+            ],
+          },
         }),
       ]);
+
+    const paid =
+      global_limits.find((limit) => limit.type === 'paid')?.total ?? 0;
+    const free =
+      global_limits.find((limit) => limit.type === 'free')?.total ?? 0;
+
+    const getResult = (total: number) => ({
+      total,
+      remaining: Math.max(0, total - total_user_chats),
+    });
 
     if (user_limit) {
       const now = new Date();
       const expired = new Date(user_limit.expired_at);
 
       if (now > expired) {
-        return {
-          total: global_limits.total,
-          remaining: Math.max(0, global_limits.total - total_user_chats),
-        };
+        return access ? getResult(paid) : getResult(free);
       }
-
-      return {
-        total: user_limit.total,
-        remaining: Math.max(0, user_limit.total - total_user_chats),
-      };
+      return getResult(user_limit.total);
     }
 
-    return {
-      total: global_limits.total,
-      remaining: Math.max(0, global_limits.total - total_user_chats),
-    };
+    return access ? getResult(paid) : getResult(free);
   }
 
   getAiLimits() {

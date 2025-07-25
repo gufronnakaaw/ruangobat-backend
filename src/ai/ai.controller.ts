@@ -295,7 +295,10 @@ export class AiController {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
-    const limit = await this.aiService.checkLimitUser(req.user.user_id);
+    const limit = await this.aiService.checkLimitUser(
+      req.user.user_id,
+      body.timezone,
+    );
 
     if (!limit.remaining) {
       res.write(
