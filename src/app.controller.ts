@@ -284,12 +284,12 @@ export class AppController {
   @UseGuards(AdminGuard)
   @Get('/universities')
   @HttpCode(HttpStatus.OK)
-  async getUniversities(@Req() req: Request): Promise<SuccessResponse> {
+  async getUniversities(@Query() query: AppQuery): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.appService.getUniversities(req.admin.role),
+        data: await this.appService.getUniversities(query),
       };
     } catch (error) {
       throw error;
@@ -566,9 +566,10 @@ export class AppController {
   }
 
   @UseGuards(PublicGuard)
-  @Get('/segments/:segment_id')
+  @Get('/segments/:course_id/:segment_id')
   @HttpCode(HttpStatus.OK)
   async getSegmentContents(
+    @Param('course_id') course_id: string,
     @Param('segment_id') segment_id: string,
     @Req() req: Request,
   ): Promise<SuccessResponse> {
@@ -576,7 +577,11 @@ export class AppController {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.appService.getSegmentContents(segment_id, req),
+        data: await this.appService.getSegmentContents(
+          course_id,
+          segment_id,
+          req,
+        ),
       };
     } catch (error) {
       throw error;

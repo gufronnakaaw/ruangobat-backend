@@ -451,23 +451,32 @@ export class AppService {
     };
   }
 
-  async getUniversities(role: string) {
+  async getUniversities(query: AppQuery) {
+    const where: any = {};
+
+    if (query.filter === 'inactive') {
+      where.is_active = false;
+    } else {
+      where.is_active = true;
+    }
+
     const universities = await this.prisma.university.findMany({
-      where: {
-        ...(role === 'admin' || role === 'public' ? { is_active: true } : {}),
-      },
+      where,
       select: {
         univ_id: true,
         slug: true,
         title: true,
         thumbnail_url: true,
-        ...(role === 'public'
-          ? {}
-          : { created_at: true, is_active: true, description: true }),
+        created_at: true,
+        is_active: true,
+        description: true,
         _count: {
           select: { univdetail: true },
         },
       },
+      orderBy: query.sort
+        ? parseSortQuery(query.sort, ['created_at', 'title'])
+        : { created_at: 'desc' },
     });
 
     return universities.map((university) => {
@@ -480,7 +489,7 @@ export class AppService {
     });
   }
 
-  async getUniversity(id_or_slug: string) {
+  getUniversity(id_or_slug: string) {
     return this.prisma.university
       .findFirst({
         where: {
@@ -630,9 +639,9 @@ export class AppService {
   }
 
   async getApotekerClass(req: Request) {
-    const subscriptions_promise = req.is_login
-      ? Promise.resolve([])
-      : this.prisma.subscriptionPackage.findMany({
+    const [data_subscriptions, categories, universities] =
+      await this.prisma.$transaction([
+        this.prisma.subscriptionPackage.findMany({
           where: {
             is_active: true,
             type: 'apotekerclass',
@@ -654,33 +663,64 @@ export class AppService {
           orderBy: {
             price: 'asc',
           },
-        });
+        }),
+        this.prisma.category.findMany({
+          where: {
+            is_active: true,
+            type: 'apotekerclass',
+          },
+          select: {
+            category_id: true,
+            name: true,
+            slug: true,
+            img_url: true,
+          },
+          orderBy: {
+            name: 'asc',
+          },
+        }),
+        this.prisma.university.findMany({
+          where: {
+            is_active: true,
+          },
+          select: {
+            univ_id: true,
+            slug: true,
+            title: true,
+            thumbnail_url: true,
+            _count: {
+              select: { univdetail: true },
+            },
+          },
+        }),
+      ]);
 
-    const [categories, subscriptions, universities] = await Promise.all([
-      this.prisma.category.findMany({
+    let show_subscriptions = true;
+
+    if (req.is_login) {
+      const access = await this.prisma.access.count({
         where: {
+          user_id: req.user.user_id,
           is_active: true,
           type: 'apotekerclass',
         },
-        select: {
-          category_id: true,
-          name: true,
-          slug: true,
-          img_url: true,
-        },
-        orderBy: {
-          name: 'asc',
-        },
-      }),
-      subscriptions_promise,
-      this.getUniversities('public'),
-    ]);
+      });
+
+      show_subscriptions = !access;
+    }
 
     return {
       categories,
-      universities,
-      subscriptions: subscriptions.length
-        ? subscriptions.map((subscription) => {
+      universities: universities.map((university) => {
+        const { _count, ...rest } = university;
+
+        return {
+          ...rest,
+          total_tests: _count?.univdetail ?? 0,
+        };
+      }),
+      subscriptions: show_subscriptions
+        ? data_subscriptions.map((subscription) => {
             const { benefit: benefits, ...rest } = subscription;
 
             return {
@@ -690,37 +730,35 @@ export class AppService {
           })
         : [],
       is_login: req.is_login,
+      has_subscription: !show_subscriptions,
     };
   }
 
   async getVideoCourse(req: Request) {
-    const subscriptions_promise = req.is_login
-      ? Promise.resolve([])
-      : this.prisma.subscriptionPackage.findMany({
-          where: {
-            is_active: true,
-            type: 'videocourse',
-          },
-          select: {
-            package_id: true,
-            name: true,
-            price: true,
-            duration: true,
-            type: true,
-            link_order: true,
-            benefit: {
-              select: {
-                benefit_id: true,
-                description: true,
-              },
+    const [data_subscriptions, categories] = await this.prisma.$transaction([
+      this.prisma.subscriptionPackage.findMany({
+        where: {
+          is_active: true,
+          type: 'videocourse',
+        },
+        select: {
+          package_id: true,
+          name: true,
+          price: true,
+          duration: true,
+          type: true,
+          link_order: true,
+          benefit: {
+            select: {
+              benefit_id: true,
+              description: true,
             },
           },
-          orderBy: {
-            price: 'asc',
-          },
-        });
-
-    const [categories, subscriptions] = await Promise.all([
+        },
+        orderBy: {
+          price: 'asc',
+        },
+      }),
       this.prisma.category.findMany({
         where: {
           is_active: true,
@@ -736,13 +774,26 @@ export class AppService {
           name: 'asc',
         },
       }),
-      subscriptions_promise,
     ]);
+
+    let show_subscriptions = true;
+
+    if (req.is_login) {
+      const access = await this.prisma.access.count({
+        where: {
+          user_id: req.user.user_id,
+          is_active: true,
+          type: 'videocourse',
+        },
+      });
+
+      show_subscriptions = !access;
+    }
 
     return {
       categories,
-      subscriptions: subscriptions.length
-        ? subscriptions.map((subscription) => {
+      subscriptions: show_subscriptions
+        ? data_subscriptions.map((subscription) => {
             const { benefit: benefits, ...rest } = subscription;
 
             return {
@@ -752,6 +803,7 @@ export class AppService {
           })
         : [],
       is_login: req.is_login,
+      has_subscription: !show_subscriptions,
     };
   }
 
@@ -806,55 +858,68 @@ export class AppService {
       }[];
     }[] = [];
 
+    const data_subscriptions = await this.prisma.subscriptionPackage.findMany({
+      where: {
+        is_active: true,
+        type,
+      },
+      select: {
+        package_id: true,
+        name: true,
+        price: true,
+        duration: true,
+        type: true,
+        link_order: true,
+        benefit: {
+          select: {
+            benefit_id: true,
+            description: true,
+          },
+        },
+      },
+      orderBy: {
+        price: 'asc',
+      },
+    });
+
     if (req.is_login) {
-      const result = await this.prisma.assessmentResult.findMany({
-        where: {
-          user_id: req.user.user_id,
-          variant: 'quiz',
-        },
-        select: {
-          assr_id: true,
-          score: true,
-          created_at: true,
-          assessment: {
-            select: {
-              ass_id: true,
-              title: true,
+      const [access, assessment_histories] = await this.prisma.$transaction([
+        this.prisma.access.count({
+          where: {
+            user_id: req.user.user_id,
+            is_active: true,
+            type,
+          },
+        }),
+        this.prisma.assessmentResult.findMany({
+          where: {
+            user_id: req.user.user_id,
+            variant: 'quiz',
+          },
+          select: {
+            assr_id: true,
+            score: true,
+            created_at: true,
+            assessment: {
+              select: {
+                ass_id: true,
+                title: true,
+              },
             },
           },
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
-      });
+          orderBy: {
+            created_at: 'desc',
+          },
+        }),
+      ]);
 
-      histories.push(...result);
+      if (!access) {
+        subscriptions.push(...data_subscriptions);
+      }
+
+      histories.push(...assessment_histories);
     } else {
-      const results = await this.prisma.subscriptionPackage.findMany({
-        where: {
-          is_active: true,
-          type,
-        },
-        select: {
-          package_id: true,
-          name: true,
-          price: true,
-          duration: true,
-          type: true,
-          link_order: true,
-          benefit: {
-            select: {
-              benefit_id: true,
-              description: true,
-            },
-          },
-        },
-        orderBy: {
-          price: 'asc',
-        },
-      });
-
-      subscriptions.push(...results);
+      subscriptions.push(...data_subscriptions);
     }
 
     const [category, quizzes, cards] = await this.prisma.$transaction([
@@ -989,6 +1054,7 @@ export class AppService {
           })
         : [],
       is_login: req.is_login,
+      has_subscription: !subscriptions.length,
     };
   }
 
@@ -1435,55 +1501,81 @@ export class AppService {
     };
   }
 
-  async getSegmentContents(segment_id: string, req: Request) {
-    const contents = await this.prisma.content.findMany({
-      where: {
-        segment_id,
-        is_active: true,
-      },
-      select: {
-        content_id: true,
-        content_type: true,
-        title: true,
-        test_type: true,
-        duration: true,
-        video_note: true,
-        video_note_url: true,
-        result: {
-          where: {
-            user_id: req.is_login ? req.user.user_id : '',
-          },
-          select: {
-            assr_id: true,
-            score: true,
-          },
-          orderBy: {
-            created_at: 'desc',
-          },
+  async getSegmentContents(
+    course_id: string,
+    segment_id: string,
+    req: Request,
+  ) {
+    const [course, contents] = await this.prisma.$transaction([
+      this.prisma.course.findUnique({
+        where: {
+          course_id,
         },
-        _count: {
-          select: {
-            question: true,
-            progress: {
-              where: {
-                user_id: req.is_login ? req.user.user_id : '',
+        select: {
+          type: true,
+        },
+      }),
+      this.prisma.content.findMany({
+        where: {
+          segment_id,
+          is_active: true,
+        },
+        select: {
+          content_id: true,
+          content_type: true,
+          title: true,
+          test_type: true,
+          duration: true,
+          video_note: true,
+          video_note_url: true,
+          result: {
+            where: {
+              user_id: req.is_login ? req.user.user_id : '',
+            },
+            select: {
+              assr_id: true,
+              score: true,
+            },
+            orderBy: {
+              created_at: 'desc',
+            },
+          },
+          _count: {
+            select: {
+              question: true,
+              progress: {
+                where: {
+                  user_id: req.is_login ? req.user.user_id : '',
+                },
               },
             },
           },
-        },
-        segment: {
-          select: {
-            number: true,
+          segment: {
+            select: {
+              number: true,
+            },
           },
+          number: true,
         },
-        number: true,
-      },
-      orderBy: {
-        number: 'asc',
-      },
-    });
+        orderBy: {
+          number: 'asc',
+        },
+      }),
+    ]);
 
-    const has_member = ['ROUTU2166077'].includes(req.user?.user_id);
+    let has_subscription: boolean = false;
+
+    if (req.is_login) {
+      const access = await this.prisma.access.count({
+        where: {
+          user_id: req.user.user_id,
+          is_active: true,
+          type: course.type,
+        },
+      });
+
+      has_subscription = Boolean(access);
+    }
 
     const lowest = Math.min(
       ...contents
@@ -1501,7 +1593,7 @@ export class AppService {
       if (!req.is_login) {
         is_locked = true;
       } else {
-        if (has_member) {
+        if (has_subscription) {
           is_locked = false;
           token = generateToken(3600);
         } else {
