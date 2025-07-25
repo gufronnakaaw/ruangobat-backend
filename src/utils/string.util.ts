@@ -342,3 +342,13 @@ export function parseSortQuery(
 
   return {};
 }
+
+export function generateInvoiceNumberCustom(
+  prefix = 'INV',
+  code = 'MAIN',
+  date_string: string,
+  last_number = 0,
+): string {
+  const serial = String(last_number + 1).padStart(5, '0');
+  return `${prefix}-${code}-${date_string}-${serial}`;
+}
