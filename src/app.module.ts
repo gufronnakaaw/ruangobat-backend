@@ -6,6 +6,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { AccessesModule } from './accesses/accesses.module';
 import { AdminModule } from './admin/admin.module';
 import { AdminsModule } from './admins/admins.module';
 import { AiModule } from './ai/ai.module';
@@ -69,6 +70,7 @@ import { StorageService } from './utils/services/storage.service';
     QuizzesModule,
     BatchesModule,
     StatisticsModule,
+    AccessesModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, StorageService],
