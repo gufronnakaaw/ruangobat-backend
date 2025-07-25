@@ -95,6 +95,7 @@ export class AuthService {
       access_token: await this.jwtService.signAsync({
         admin_id: admin.admin_id,
         role: admin.role,
+        fullname: admin.fullname,
       }),
     };
   }
