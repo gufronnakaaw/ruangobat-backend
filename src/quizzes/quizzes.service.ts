@@ -162,7 +162,7 @@ export class QuizzesService {
 
     return {
       ...rest,
-      question: question.map((item) => {
+      questions: question.map((item) => {
         const { _count, ...question_data } = item;
 
         return {
