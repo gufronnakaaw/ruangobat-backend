@@ -15,6 +15,7 @@ import {
 import {
   AccessesQuery,
   CreateAccessDto,
+  RevokeAccessDto,
   UpdatePlanDto,
   UpsertTestsDto,
 } from './accesses.dto';
@@ -569,5 +570,37 @@ export class AccessesService {
         access_test_id: true,
       },
     });
+  }
+
+  async revokeAccess(body: RevokeAccessDto, req: Request) {
+    const access = await this.prisma.access.findUnique({
+      where: { access_id: body.access_id },
+      select: { status: true },
+    });
+    if (!access) throw new NotFoundException('Access not found');
+
+    if (['revoked', 'expired'].includes(access.status)) {
+      throw new ForbiddenException('Access is no longer active');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.access.update({
+        where: { access_id: body.access_id },
+        data: {
+          status: 'revoked',
+          is_active: false,
+          updated_by: req.admin.fullname,
+          update_reason: body.reason,
+          revokelog: {
+            create: {
+              reason: body.reason,
+              created_by: req.admin.fullname,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return { access_id: body.access_id };
   }
 }

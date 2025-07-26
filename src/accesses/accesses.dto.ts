@@ -73,3 +73,10 @@ export const upsertTestsSchema = z.object({
 });
 
 export type UpsertTestsDto = z.infer<typeof upsertTestsSchema>;
+
+export const revokeAccessSchema = z.object({
+  access_id: z.string().uuid('Access ID harus berupa UUID'),
+  reason: z.string().min(1, 'Alasan harus diisi'),
+});
+
+export type RevokeAccessDto = z.infer<typeof revokeAccessSchema>;

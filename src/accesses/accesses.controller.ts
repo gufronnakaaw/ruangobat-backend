@@ -20,6 +20,8 @@ import {
   AccessesQuery,
   CreateAccessDto,
   createAccessSchema,
+  RevokeAccessDto,
+  revokeAccessSchema,
   TypeAccess,
   UpdatePlanDto,
   updatePlanSchema,
@@ -133,6 +135,24 @@ export class AccessesController {
         success: true,
         status_code: HttpStatus.NO_CONTENT,
         data: await this.accessesService.deleteAccessTest(access_test_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('revoke')
+  @HttpCode(HttpStatus.CREATED)
+  async revokeAccess(
+    @Body(new ZodValidationPipe(revokeAccessSchema))
+    body: RevokeAccessDto,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.accessesService.revokeAccess(body, req),
       };
     } catch (error) {
       throw error;
