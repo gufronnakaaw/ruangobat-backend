@@ -32,6 +32,8 @@ import {
   createGeneralTestimonialSchema,
   CreateProgressDto,
   createProgressSchema,
+  CreateTryoutDto,
+  createTryoutSchema,
   CreateUniversityDto,
   createUniversitySchema,
   FinishAssessmentDto,
@@ -41,6 +43,8 @@ import {
   SendEmailDto,
   sendEmailSchema,
   StartAssessmentQuestion,
+  UpdateTryoutDto,
+  updateTryoutSchema,
   UpdateUniversityDto,
   updateUniversitySchema,
   UploadFilesDto,
@@ -275,6 +279,85 @@ export class AppController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.appService.getResearch(),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Get('/universities/tryouts')
+  @HttpCode(HttpStatus.OK)
+  async getTryouts(@Query() query: AppQuery): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getTryouts(query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Get('/universities/tryouts/:ass_id')
+  @HttpCode(HttpStatus.OK)
+  async getTryout(
+    @Param('ass_id') ass_id: string,
+    @Query() query: AppQuery,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getTryout(ass_id, query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('/universities/tryouts')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(createTryoutSchema))
+  async createTryout(@Body() body: CreateTryoutDto): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.appService.createTryout(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Patch('/universities/tryouts')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(updateTryoutSchema))
+  async updateTryout(@Body() body: UpdateTryoutDto): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.updateTryout(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('/universities/tryouts/:ass_id/questions/:assq_id')
+  @HttpCode(HttpStatus.OK)
+  async deleteQuestion(
+    @Param() params: { ass_id: string; assq_id: string },
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.deleteTryoutQuestion(params),
       };
     } catch (error) {
       throw error;

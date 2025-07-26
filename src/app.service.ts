@@ -16,10 +16,12 @@ import {
   CreateFeedbackDto,
   CreateGeneralTestimonialDto,
   CreateProgressDto,
+  CreateTryoutDto,
   CreateUniversityDto,
   FinishAssessmentDto,
   ResetPasswordDto,
   StartAssessmentQuestion,
+  UpdateTryoutDto,
   UpdateUniversityDto,
   VerifyOtpDto,
 } from './app.dto';
@@ -1964,5 +1966,326 @@ export class AppService {
         testimonial_id: true,
       },
     });
+  }
+
+  async getTryouts(query: AppQuery) {
+    const default_page = 1;
+    const take = 10;
+    const page = Number(query.page) || default_page;
+    const skip = (page - 1) * take;
+
+    const where: any = {
+      ass_type: 'apotekerclass',
+      variant: 'tryout',
+    };
+
+    if (query.filter === 'inactive') {
+      where.is_active = false;
+    } else {
+      where.is_active = true;
+    }
+
+    if (query.q) {
+      where.OR = [
+        { title: { contains: query.q } },
+        { ass_id: { contains: query.q } },
+      ];
+    }
+
+    const [total_tryouts, tryouts] = await this.prisma.$transaction([
+      this.prisma.assessment.count({
+        where,
+      }),
+      this.prisma.assessment.findMany({
+        where,
+        select: {
+          ass_id: true,
+          title: true,
+          description: true,
+          variant: true,
+          ass_type: true,
+          _count: {
+            select: {
+              question: true,
+            },
+          },
+        },
+        orderBy: query.sort
+          ? parseSortQuery(query.sort, ['created_at', 'title'])
+          : { created_at: 'desc' },
+        take,
+        skip,
+      }),
+    ]);
+
+    if (!tryouts) return {};
+
+    return {
+      tryouts: tryouts.map(({ _count, ...rest }) => ({
+        ...rest,
+        total_questions: _count.question,
+      })),
+      page,
+      total_tryouts,
+      total_pages: Math.ceil(total_tryouts / take),
+    };
+  }
+
+  async getTryout(ass_id: string, query: AppQuery) {
+    const default_page = 1;
+    const take = 20;
+    const page = Number(query.page) || default_page;
+    const skip = (page - 1) * take;
+
+    const [total_questions, tryouts] = await this.prisma.$transaction([
+      this.prisma.assessmentQuestion.count({ where: { ass_id } }),
+      this.prisma.assessment.findUnique({
+        where: { ass_id },
+        select: {
+          ass_id: true,
+          title: true,
+          description: true,
+          ass_type: true,
+          variant: true,
+          question: {
+            select: {
+              assq_id: true,
+              number: true,
+              text: true,
+              explanation: true,
+              type: true,
+              option: {
+                select: {
+                  asso_id: true,
+                  text: true,
+                  is_correct: true,
+                },
+              },
+              _count: {
+                select: {
+                  resultdetail: true,
+                },
+              },
+            },
+            orderBy: { number: 'asc' },
+            take,
+            skip,
+          },
+        },
+      }),
+    ]);
+
+    const { question, ...rest } = tryouts;
+
+    return {
+      ...rest,
+      questions: question.map((item) => {
+        const { _count, ...question_data } = item;
+
+        return {
+          ...question_data,
+          can_delete: Boolean(!_count.resultdetail),
+        };
+      }),
+      page,
+      total_questions,
+      total_pages: Math.ceil(total_questions / take),
+    };
+  }
+
+  async createTryout(body: CreateTryoutDto) {
+    const ass_id = `ROASS${random(10000000, 99999999)}`;
+    const uid = new ShortUniqueId({ length: 12 });
+
+    const promises = [];
+
+    for (const [index, question] of body.questions.entries()) {
+      promises.push(
+        this.prisma.assessmentQuestion.create({
+          data: {
+            ass_id,
+            assq_id: `ROQ${uid.rnd().toUpperCase()}`,
+            text: question.text,
+            explanation: question.explanation,
+            url: question.url,
+            type: question.type,
+            number: question.number ? question.number : index + 1,
+            created_by: body.by,
+            updated_by: body.by,
+            option: {
+              createMany: {
+                data: question.options.map((option) => ({
+                  asso_id: `ROO${uid.rnd().toUpperCase()}`,
+                  text: option.text,
+                  is_correct: option.is_correct,
+                  created_by: body.by,
+                  updated_by: body.by,
+                })),
+              },
+            },
+          },
+        }),
+      );
+    }
+
+    await this.prisma.assessment.create({
+      data: {
+        ass_id,
+        title: body.title,
+        description: body.description,
+        ass_type: 'apotekerclass',
+        created_by: body.by,
+        updated_by: body.by,
+        variant: 'tryout',
+      },
+    });
+
+    await Promise.all(promises);
+
+    return {
+      ass_id,
+    };
+  }
+
+  async updateTryout(body: UpdateTryoutDto) {
+    const tryout = await this.prisma.assessment.count({
+      where: { ass_id: body.ass_id },
+    });
+
+    if (!tryout) {
+      throw new NotFoundException('Tryout tidak ditemukan');
+    }
+
+    if (body.update_type === 'update_tryout') {
+      return this.prisma.assessment.update({
+        where: {
+          ass_id: body.ass_id,
+        },
+        data: {
+          title: body.title,
+          description: body.description,
+          updated_by: body.by,
+          is_active: parseIsActive(body.is_active),
+        },
+        select: {
+          ass_id: true,
+        },
+      });
+    }
+
+    if (body.update_type == 'update_question') {
+      const promises = [];
+
+      promises.push(
+        this.prisma.assessmentQuestion.update({
+          where: {
+            assq_id: body.questions[0].assq_id,
+          },
+          data: {
+            text: body.questions[0].text,
+            explanation: body.questions[0].explanation,
+            updated_by: body.by,
+          },
+        }),
+      );
+
+      for (const option of body.questions[0].options) {
+        promises.push(
+          this.prisma.assessmentOption.updateMany({
+            where: {
+              assq_id: body.questions[0].assq_id,
+              asso_id: option.asso_id,
+            },
+            data: {
+              text: option.text,
+              is_correct: option.is_correct,
+              updated_by: body.by,
+            },
+          }),
+        );
+      }
+
+      await Promise.all(promises);
+
+      return body.questions[0];
+    }
+
+    if (body.update_type == 'add_question') {
+      const uid = new ShortUniqueId({ length: 12 });
+      const count = await this.prisma.assessmentQuestion.count({
+        where: { ass_id: body.ass_id },
+      });
+
+      const question = body.questions[0];
+
+      return this.prisma.assessmentQuestion.create({
+        data: {
+          assq_id: `ROQ${uid.rnd().toUpperCase()}`,
+          ass_id: body.ass_id,
+          type: question.type,
+          url: question.url,
+          explanation: question.explanation,
+          number: count + 1,
+          text: question.text,
+          created_by: body.by,
+          updated_by: body.by,
+          option: {
+            createMany: {
+              data: question.options.map((option) => {
+                return {
+                  asso_id: `ROO${uid.rnd().toUpperCase()}`,
+                  text: option.text,
+                  is_correct: option.is_correct,
+                  created_by: body.by,
+                  updated_by: body.by,
+                };
+              }),
+            },
+          },
+        },
+      });
+    }
+  }
+
+  async deleteTryoutQuestion(params: { ass_id: string; assq_id: string }) {
+    const tryout = await this.prisma.assessmentQuestion.count({
+      where: { ass_id: params.ass_id, assq_id: params.assq_id },
+    });
+
+    if (!tryout) {
+      throw new NotFoundException('Tryout atau question tidak ditemukan');
+    }
+
+    const [, questions] = await this.prisma.$transaction([
+      this.prisma.assessmentQuestion.delete({
+        where: { ass_id: params.ass_id, assq_id: params.assq_id },
+      }),
+      this.prisma.assessmentQuestion.findMany({
+        where: { ass_id: params.ass_id },
+        select: {
+          assq_id: true,
+        },
+      }),
+    ]);
+
+    const promises = [];
+
+    for (const [index, question] of questions.entries()) {
+      promises.push(
+        this.prisma.assessmentQuestion.update({
+          where: {
+            ass_id: params.ass_id,
+            assq_id: question.assq_id,
+          },
+          data: {
+            number: index + 1,
+          },
+        }),
+      );
+    }
+
+    await Promise.all(promises);
+
+    return params;
   }
 }
