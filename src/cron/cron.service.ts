@@ -6,23 +6,25 @@ import { PrismaService } from '../utils/services/prisma.service';
 export class CronService {
   constructor(private prisma: PrismaService) {}
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
-  async handleDeleteSession() {
-    try {
-      const date = new Date();
-      await this.prisma.session.deleteMany({
-        where: {
-          expired: {
-            lte: date,
-          },
-        },
-      });
-    } catch (error) {
-      console.log(error);
-    }
-  }
+  // @Cron(CronExpression.EVERY_5_MINUTES)
+  // async handleDeleteSession() {
+  //   try {
+  //     const date = new Date();
+  //     await this.prisma.session.deleteMany({
+  //       where: {
+  //         expired: {
+  //           lte: date,
+  //         },
+  //       },
+  //     });
+  //   } catch (error) {
+  //     console.log(error);
+  //   }
+  // }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_5_MINUTES, {
+    timeZone: 'Asia/Jakarta',
+  })
   async handleDeleteOtp() {
     try {
       const date = new Date();
@@ -35,6 +37,32 @@ export class CronService {
       });
     } catch (error) {
       console.log(error);
+    }
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
+    timeZone: 'Asia/Jakarta',
+  })
+  async handleAccessExpiration() {
+    try {
+      const date = new Date();
+      await this.prisma.access.updateMany({
+        where: {
+          expired_at: {
+            lte: date,
+          },
+          status: 'active',
+          is_active: true,
+        },
+        data: {
+          is_active: false,
+          status: 'expired',
+        },
+      });
+      console.log('access expiration executed successfully ✅');
+    } catch (error) {
+      console.log(error);
+      console.log('failed to execute access expiration ❌');
     }
   }
 }
