@@ -12,6 +12,7 @@ import {
   UpdateContentDto,
   UpdateCourseDto,
   UpdateSegmentDto,
+  UpdateTestContentDto,
 } from './courses.dto';
 
 @Injectable()
@@ -407,6 +408,54 @@ export class CoursesService {
     });
   }
 
+  async getTestContent(content_id: string) {
+    const content = await this.prisma.content.findUnique({
+      where: { content_id },
+      select: {
+        content_id: true,
+        title: true,
+        test_type: true,
+        question: {
+          select: {
+            assq_id: true,
+            number: true,
+            text: true,
+            explanation: true,
+            type: true,
+            option: {
+              select: {
+                asso_id: true,
+                text: true,
+                is_correct: true,
+              },
+            },
+            _count: {
+              select: {
+                resultdetail: true,
+              },
+            },
+          },
+          orderBy: { number: 'asc' },
+        },
+      },
+    });
+
+    const { question, ...rest } = content;
+
+    return {
+      ...rest,
+      questions: question.map((item) => {
+        const { option, _count, ...question_data } = item;
+
+        return {
+          ...question_data,
+          options: option,
+          can_delete: Boolean(!_count.resultdetail),
+        };
+      }),
+    };
+  }
+
   async createTest(body: CreateTestDto) {
     const [segment, content] = await this.prisma.$transaction([
       this.prisma.segment.count({
@@ -478,5 +527,148 @@ export class CoursesService {
     await Promise.all(promises);
 
     return create;
+  }
+
+  async updateTest(body: UpdateTestContentDto) {
+    const content = await this.prisma.content.count({
+      where: { content_id: body.content_id },
+    });
+
+    if (!content) {
+      throw new NotFoundException('Konten tidak ditemukan');
+    }
+
+    if (body.update_type === 'update_test') {
+      return this.prisma.content.update({
+        where: {
+          content_id: body.content_id,
+        },
+        data: {
+          title: body.title,
+          updated_by: body.by,
+        },
+        select: {
+          content_id: true,
+        },
+      });
+    }
+
+    if (body.update_type == 'update_question') {
+      const promises = [];
+
+      promises.push(
+        this.prisma.assessmentQuestion.update({
+          where: {
+            assq_id: body.questions[0].assq_id,
+          },
+          data: {
+            text: body.questions[0].text,
+            explanation: body.questions[0].explanation,
+            updated_by: body.by,
+          },
+        }),
+      );
+
+      for (const option of body.questions[0].options) {
+        promises.push(
+          this.prisma.assessmentOption.updateMany({
+            where: {
+              assq_id: body.questions[0].assq_id,
+              asso_id: option.asso_id,
+            },
+            data: {
+              text: option.text,
+              is_correct: option.is_correct,
+              updated_by: body.by,
+            },
+          }),
+        );
+      }
+
+      await Promise.all(promises);
+
+      return body.questions[0];
+    }
+
+    if (body.update_type == 'add_question') {
+      const uid = new ShortUniqueId({ length: 12 });
+      const count = await this.prisma.assessmentQuestion.count({
+        where: { content_id: body.content_id },
+      });
+
+      const question = body.questions[0];
+
+      return this.prisma.assessmentQuestion.create({
+        data: {
+          assq_id: `ROQ${uid.rnd().toUpperCase()}`,
+          content_id: body.content_id,
+          type: question.type,
+          url: question.url,
+          explanation: question.explanation,
+          number: count + 1,
+          text: question.text,
+          created_by: body.by,
+          updated_by: body.by,
+          option: {
+            createMany: {
+              data: question.options.map((option) => {
+                return {
+                  asso_id: `ROO${uid.rnd().toUpperCase()}`,
+                  text: option.text,
+                  is_correct: option.is_correct,
+                  created_by: body.by,
+                  updated_by: body.by,
+                };
+              }),
+            },
+          },
+        },
+      });
+    }
+  }
+
+  async deleteTestQuestion(content_id: string, assq_id: string) {
+    const quiz = await this.prisma.assessmentQuestion.count({
+      where: { content_id, assq_id },
+    });
+
+    if (!quiz) {
+      throw new NotFoundException('Quiz atau question tidak ditemukan');
+    }
+
+    const [, questions] = await this.prisma.$transaction([
+      this.prisma.assessmentQuestion.delete({
+        where: { content_id, assq_id },
+      }),
+      this.prisma.assessmentQuestion.findMany({
+        where: { content_id },
+        select: {
+          assq_id: true,
+        },
+      }),
+    ]);
+
+    const promises = [];
+
+    for (const [index, question] of questions.entries()) {
+      promises.push(
+        this.prisma.assessmentQuestion.update({
+          where: {
+            content_id,
+            assq_id: question.assq_id,
+          },
+          data: {
+            number: index + 1,
+          },
+        }),
+      );
+    }
+
+    await Promise.all(promises);
+
+    return {
+      content_id,
+      assq_id,
+    };
   }
 }

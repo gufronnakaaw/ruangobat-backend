@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   FileTypeValidator,
   Get,
   HttpCode,
@@ -36,6 +37,8 @@ import {
   UpdateCourseDto,
   UpdateSegmentDto,
   updateSegmentSchema,
+  UpdateTestContentDto,
+  updateTestContentSchema,
 } from './courses.dto';
 import { CoursesService } from './courses.service';
 
@@ -215,6 +218,22 @@ export class CoursesController {
     }
   }
 
+  @Get('tests/:content_id')
+  @HttpCode(HttpStatus.OK)
+  async getTestContent(
+    @Param('content_id') content_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.coursesService.getTestContent(content_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Post('tests')
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(createTestSchema))
@@ -224,6 +243,39 @@ export class CoursesController {
         success: true,
         status_code: HttpStatus.CREATED,
         data: await this.coursesService.createTest(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Patch('tests')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(updateTestContentSchema))
+  async updateTest(
+    @Body() body: UpdateTestContentDto,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.coursesService.updateTest(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('tests/:content_id/questions/:assq_id')
+  async deleteTestQuestion(
+    @Param('content_id') content_id: string,
+    @Param('assq_id') assq_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.coursesService.deleteTestQuestion(content_id, assq_id),
       };
     } catch (error) {
       throw error;

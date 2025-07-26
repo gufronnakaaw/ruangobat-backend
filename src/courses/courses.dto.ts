@@ -105,3 +105,40 @@ export const createTestSchema = z.object({
 });
 
 export type CreateTestDto = z.infer<typeof createTestSchema>;
+
+export const updateTestContentSchema = z.object({
+  content_id: z.string(),
+  title: z
+    .string()
+    .trim()
+    .transform((val) => val.replace(/\s+/g, ' '))
+    .optional(),
+  questions: z
+    .array(
+      z.object({
+        assq_id: z.string().optional(),
+        number: z.number().positive().optional(),
+        text: z.string().optional(),
+        explanation: z.string().optional(),
+        url: z.string().optional(),
+        type: z.enum(['text', 'video', 'image']).optional(),
+        options: z
+          .array(
+            z.object({
+              asso_id: z.string().optional(),
+              text: z.string().optional(),
+              is_correct: z.boolean().optional(),
+            }),
+          )
+          .min(5, { message: 'Harus diisi minimal 5 opsi' })
+          .optional(),
+      }),
+    )
+    .min(1, { message: 'Harus diisi minimal 1 soal' })
+    .optional(),
+  by: z.string(),
+  update_type: z.enum(['update_test', 'update_question', 'add_question']),
+  is_active: z.boolean().optional(),
+});
+
+export type UpdateTestContentDto = z.infer<typeof updateTestContentSchema>;
