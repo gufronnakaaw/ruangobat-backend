@@ -8,6 +8,7 @@ import {
 import { ClassMentorType } from '@prisma/client';
 import { AxiosResponse } from 'axios';
 import { random } from 'lodash';
+import { DateTime } from 'luxon';
 import { firstValueFrom, Observable } from 'rxjs';
 import ShortUniqueId from 'short-unique-id';
 import { hashPassword } from '../utils/bcrypt.util';
@@ -16,6 +17,7 @@ import { PrismaService } from '../utils/services/prisma.service';
 import { StorageService } from '../utils/services/storage.service';
 import {
   generateEmailTemplate,
+  generateInvoiceNumberCustom,
   maskEmail,
   maskPhoneNumber,
   parseSortQuery,
@@ -756,6 +758,7 @@ export class AdminService {
       select: {
         program_id: true,
         title: true,
+        price: true,
       },
     });
 
@@ -763,10 +766,19 @@ export class AdminService {
       throw new NotFoundException('Program tidak ditemukan');
     }
 
+    const today = DateTime.now().setZone('Asia/Jakarta').startOf('day');
+    const until = today.plus({ days: 1 });
+
+    const year_format = DateTime.now()
+      .setZone('Asia/Jakarta')
+      .toFormat('yyyyMMdd');
+
+    const uid = new ShortUniqueId();
+
     const date = new Date();
 
-    const [, users] = await this.prisma.$transaction([
-      this.prisma.participant.createMany({
+    const [users] = await this.prisma.$transaction(async (tx) => {
+      await tx.participant.createMany({
         data: body.users.map((user) => {
           return {
             program_id: body.program_id,
@@ -777,8 +789,10 @@ export class AdminService {
             joined_at: date,
           };
         }),
-      }),
-      this.prisma.user.findMany({
+        skipDuplicates: true,
+      });
+
+      const users = await tx.user.findMany({
         where: {
           user_id: {
             in: body.users,
@@ -788,18 +802,93 @@ export class AdminService {
           fullname: true,
           email: true,
         },
-      }),
-    ]);
+      });
+
+      for (const user of body.users) {
+        const idempotency_key = `${user}-${program.program_id}-${year_format}`;
+
+        const existing_order = await tx.order.findUnique({
+          where: { idempotency_key },
+          select: { order_id: true },
+        });
+
+        if (existing_order) {
+          continue;
+        }
+
+        const total_order = await tx.order.count({
+          where: {
+            created_at: {
+              gte: today.toJSDate(),
+              lt: until.toJSDate(),
+            },
+          },
+        });
+
+        const invoice_number = generateInvoiceNumberCustom(
+          'INV',
+          'RO',
+          year_format,
+          total_order,
+        );
+
+        const transaction_id = `ROTX-${year_format}-${uid.rnd(7).toUpperCase()}`;
+        const date = new Date();
+
+        await tx.order.create({
+          data: {
+            idempotency_key,
+            invoice_number,
+            order_id: `ROORDER-${year_format}-${uid.rnd(7).toUpperCase()}`,
+            user_id: user,
+            total_amount: program.price,
+            final_amount: program.price,
+            paid_amount: program.price,
+            discount_amount: 0,
+            discount_code: null,
+            created_by: body.by,
+            updated_by: body.by,
+            paid_at: date,
+            status: 'paid',
+            items: {
+              create: {
+                product_id: program.program_id,
+                product_name: program.title,
+                product_type: 'tryout',
+                product_price: program.price,
+                created_by: body.by,
+                updated_by: body.by,
+              },
+            },
+            transactions: {
+              create: {
+                request_id: idempotency_key,
+                transaction_id,
+                external_id: transaction_id,
+                gateway: 'manual',
+                normalized_method: 'manual',
+                paid_amount: program.price,
+                payment_method: 'manual',
+                status: 'success',
+                paid_at: date,
+                created_by: body.by,
+                updated_by: body.by,
+              },
+            },
+          },
+        });
+      }
+
+      return [users];
+    });
 
     if (process.env.EMAIL_ACTIVE === 'true') {
       const from = `RuangObat <${process.env.EMAIL_ALIAS_TWO}>`;
       const subject = `🎉 Selamat! Kamu sudah bisa mengakses ${program.title}!`;
 
-      const promises = [];
-
       for (const user of users) {
-        promises.push(
-          this.mailerService.sendMail({
+        this.mailerService
+          .sendMail({
             from,
             subject,
             to: decryptString(user.email, process.env.ENCRYPT_KEY),
@@ -810,15 +899,14 @@ export class AdminService {
               program_name: program.title,
               path: `/programs/${program.program_id}`,
             }),
-          }),
-        );
+          })
+          .catch((err) => {
+            console.error('Failed to send email:', err);
+          });
       }
-
-      await Promise.all(promises);
     }
 
     delete body.by;
-
     return body;
   }
 
@@ -982,6 +1070,11 @@ export class AdminService {
                   is_correct: true,
                 },
               },
+              _count: {
+                select: {
+                  details: true,
+                },
+              },
             },
             orderBy: { number: 'asc' },
             take,
@@ -1006,9 +1099,19 @@ export class AdminService {
       status += 'Berakhir';
     }
 
+    const { questions, ...rest } = test;
+
     return {
       status,
-      ...test,
+      ...rest,
+      questions: questions.map((question) => {
+        const { _count, ...rest } = question;
+
+        return {
+          ...rest,
+          can_delete: Boolean(!_count.details),
+        };
+      }),
       page,
       total_questions,
       total_pages: Math.ceil(total_questions / take),
