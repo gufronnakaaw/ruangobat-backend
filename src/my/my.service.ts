@@ -9,7 +9,13 @@ import { random } from 'lodash';
 import ShortUniqueId from 'short-unique-id';
 import { decryptString, encryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
-import { UserChangeEmailDto, UserSendEmailDto, UserUpdateDto } from './my.dto';
+import { parseSortQuery } from '../utils/string.util';
+import {
+  MyQuery,
+  UserChangeEmailDto,
+  UserSendEmailDto,
+  UserUpdateDto,
+} from './my.dto';
 
 @Injectable()
 export class MyService {
@@ -274,6 +280,138 @@ export class MyService {
         result_id: test.result_id,
         score: test.score,
         created_at: test.created_at,
+      };
+    });
+  }
+
+  async getOrders(user_id: string, query: MyQuery) {
+    const default_page = 1;
+    const take = 5;
+    const page = Number(query.page) || default_page;
+    const skip = (page - 1) * take;
+
+    const where: any = { user_id };
+
+    if (query.filter) {
+      where.status = query.filter;
+    }
+
+    const [total_orders, orders] = await this.prisma.$transaction([
+      this.prisma.order.count({
+        where,
+      }),
+      this.prisma.order.findMany({
+        where,
+        select: {
+          order_id: true,
+          final_amount: true,
+          status: true,
+          created_at: true,
+          items: {
+            select: {
+              product_id: true,
+              product_name: true,
+              product_price: true,
+              product_type: true,
+            },
+          },
+        },
+        orderBy: query.sort
+          ? parseSortQuery(query.sort, ['created_at'])
+          : { created_at: 'desc' },
+        take,
+        skip,
+      }),
+    ]);
+
+    return {
+      orders,
+      page,
+      total_orders,
+      total_pages: Math.ceil(total_orders / take),
+    };
+  }
+
+  async getOrder(order_id: string, user_id: string) {
+    const order = await this.prisma.order.findFirst({
+      where: {
+        order_id,
+        user_id,
+      },
+      select: {
+        order_id: true,
+        invoice_number: true,
+        status: true,
+        total_amount: true,
+        final_amount: true,
+        paid_amount: true,
+        discount_amount: true,
+        discount_code: true,
+        created_at: true,
+        items: {
+          select: {
+            product_id: true,
+            product_name: true,
+            product_price: true,
+            product_type: true,
+          },
+        },
+        transactions: {
+          select: {
+            transaction_id: true,
+            status: true,
+            payment_method: true,
+            normalized_method: true,
+            paid_amount: true,
+            paid_at: true,
+            expired_at: true,
+            created_at: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order tidak ditemukan');
+    }
+
+    return order;
+  }
+
+  async getSubscriptions(user_id: string) {
+    const subscriptions = await this.prisma.access.findMany({
+      where: {
+        user_id,
+        is_active: true,
+      },
+      select: {
+        access_id: true,
+        duration: true,
+        started_at: true,
+        expired_at: true,
+        status: true,
+        type: true,
+        order: {
+          select: {
+            items: {
+              select: {
+                product_id: true,
+                product_name: true,
+                product_type: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    return subscriptions.map(({ order, ...rest }) => {
+      return {
+        ...rest,
+        items: order.items,
       };
     });
   }
