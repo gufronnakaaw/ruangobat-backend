@@ -148,6 +148,11 @@ export class QuizzesService {
                   is_correct: true,
                 },
               },
+              _count: {
+                select: {
+                  resultdetail: true,
+                },
+              },
             },
             orderBy: { number: 'asc' },
             take,
@@ -157,8 +162,18 @@ export class QuizzesService {
       }),
     ]);
 
+    const { question, ...rest } = quiz;
+
     return {
-      ...quiz,
+      ...rest,
+      question: question.map((item) => {
+        const { _count, ...question_data } = item;
+
+        return {
+          ...question_data,
+          can_delete: Boolean(!_count.resultdetail),
+        };
+      }),
       page,
       total_questions,
       total_pages: Math.ceil(total_questions / take),
@@ -330,16 +345,17 @@ export class QuizzesService {
       throw new NotFoundException('Quiz atau question tidak ditemukan');
     }
 
-    await this.prisma.assessmentQuestion.delete({
-      where: { ass_id: params.ass_id, assq_id: params.assq_id },
-    });
-
-    const questions = await this.prisma.assessmentQuestion.findMany({
-      where: { ass_id: params.ass_id },
-      select: {
-        assq_id: true,
-      },
-    });
+    const [, questions] = await this.prisma.$transaction([
+      this.prisma.assessmentQuestion.delete({
+        where: { ass_id: params.ass_id, assq_id: params.assq_id },
+      }),
+      this.prisma.assessmentQuestion.findMany({
+        where: { ass_id: params.ass_id },
+        select: {
+          assq_id: true,
+        },
+      }),
+    ]);
 
     const promises = [];
 
