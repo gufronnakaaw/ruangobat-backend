@@ -20,7 +20,6 @@ export const createQuizSchema = z.object({
     .transform((val) => val.replace(/\s+/g, ' '))
     .optional(),
   type: z.enum(['videocourse', 'apotekerclass', 'videoukmppai']),
-  variant: z.enum(['quiz', 'tryout']),
   questions: z
     .array(
       z.object({

@@ -12,13 +12,9 @@ export class QuizzesService {
   async getQuizzes(
     cat_or_sub: string,
     type: 'apotekerclass' | 'videocourse' | 'videoukmppai',
-    variant: 'quiz' | 'tryout',
     query: QuizzesQuery,
   ) {
-    if (
-      !['apotekerclass', 'videocourse', 'videoukmppai'].includes(type) ||
-      !['quiz', 'tryout'].includes(variant)
-    ) {
+    if (!['apotekerclass', 'videocourse', 'videoukmppai'].includes(type)) {
       return [];
     }
 
@@ -44,7 +40,7 @@ export class QuizzesService {
 
     const where_quiz: any = {
       ass_type: type,
-      variant,
+      variant: 'quiz',
     };
 
     if (query.filter === 'inactive') {
@@ -225,7 +221,7 @@ export class QuizzesService {
         ass_type: body.type,
         created_by: body.by,
         updated_by: body.by,
-        variant: body.variant,
+        variant: 'quiz',
       },
     });
 

@@ -29,24 +29,18 @@ import { QuizzesService } from './quizzes.service';
 export class QuizzesController {
   constructor(private readonly quizzesService: QuizzesService) {}
 
-  @Get(':cat_or_sub/:type/:variant')
+  @Get(':cat_or_sub/:type')
   @HttpCode(HttpStatus.OK)
   async getQuizzes(
     @Param('cat_or_sub') cat_or_sub: string,
     @Param('type') type: 'apotekerclass' | 'videocourse' | 'videoukmppai',
-    @Param('variant') variant: 'quiz' | 'tryout',
     @Query() query: QuizzesQuery,
   ): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.quizzesService.getQuizzes(
-          cat_or_sub,
-          type,
-          variant,
-          query,
-        ),
+        data: await this.quizzesService.getQuizzes(cat_or_sub, type, query),
       };
     } catch (error) {
       throw error;
