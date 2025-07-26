@@ -29,6 +29,23 @@ import { QuizzesService } from './quizzes.service';
 export class QuizzesController {
   constructor(private readonly quizzesService: QuizzesService) {}
 
+  @Get(':ass_id/detail')
+  @HttpCode(HttpStatus.OK)
+  async getQuiz(
+    @Param('ass_id') ass_id: string,
+    @Query() query: QuizzesQuery,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.quizzesService.getQuiz(ass_id, query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Get(':cat_or_sub/:type')
   @HttpCode(HttpStatus.OK)
   async getQuizzes(
@@ -41,23 +58,6 @@ export class QuizzesController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.quizzesService.getQuizzes(cat_or_sub, type, query),
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  @Get(':ass_id/detail')
-  @HttpCode(HttpStatus.OK)
-  async getQuiz(
-    @Param('ass_id') ass_id: string,
-    @Query() query: QuizzesQuery,
-  ): Promise<SuccessResponse> {
-    try {
-      return {
-        success: true,
-        status_code: HttpStatus.OK,
-        data: await this.quizzesService.getQuiz(ass_id, query),
       };
     } catch (error) {
       throw error;
