@@ -1,34 +1,40 @@
+import { MailerService } from '@nestjs-modules/mailer';
+import { HttpService } from '@nestjs/axios';
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { ClassMentorType } from '@prisma/client';
-import { existsSync } from 'fs';
-import { unlink } from 'fs/promises';
+import { AxiosResponse } from 'axios';
 import { random } from 'lodash';
-import path from 'path';
+import { DateTime } from 'luxon';
+import { firstValueFrom, Observable } from 'rxjs';
 import ShortUniqueId from 'short-unique-id';
-import { slug } from 'src/utils/slug.util';
 import { hashPassword } from '../utils/bcrypt.util';
 import { decryptString, encryptString } from '../utils/crypto.util';
-import { maskEmail, maskPhoneNumber } from '../utils/masking.util';
-import { scoreCategory } from '../utils/scorecategory';
 import { PrismaService } from '../utils/services/prisma.service';
+import { StorageService } from '../utils/services/storage.service';
+import {
+  generateEmailTemplate,
+  generateInvoiceNumberCustom,
+  maskEmail,
+  maskPhoneNumber,
+  parseSortQuery,
+  scoreCategory,
+  slug,
+} from '../utils/string.util';
 import {
   AdminQuery,
   ApprovedUserDto,
   CreateClassMentorDto,
   CreateMentorDto,
-  CreatePharmacistAdmissionDto,
   CreateProductSharedDto,
   CreateProgramsDto,
   CreateSubjectPrivateDto,
   CreateTestsDto,
   InviteUsersDto,
   UpdateMentorDto,
-  UpdatePharmacistAdmissionDto,
   UpdateProductSharedDto,
   UpdateProgramsDto,
   UpdateStatusProgramsDto,
@@ -40,36 +46,85 @@ import {
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly http: HttpService,
+    private readonly storage: StorageService,
+    private mailerService: MailerService,
+  ) {}
 
   async getDashboard() {
-    const [total_users, total_online_users, total_programs, total_tests] =
-      await this.prisma.$transaction([
-        this.prisma.user.count(),
-        this.prisma.session.count(),
-        this.prisma.program.count(),
-        this.prisma.test.count(),
-      ]);
+    const [
+      total_users,
+      total_online_users,
+      total_programs,
+      total_tests,
+      exchange_rates,
+      credits,
+    ] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.session.count(),
+      this.prisma.program.count(),
+      this.prisma.test.count(),
+      firstValueFrom(
+        this.http.get('https://open.er-api.com/v6/latest/usd') as Observable<
+          AxiosResponse<{ rates: { IDR: number } }>
+        >,
+      ),
+      firstValueFrom(
+        this.http.get(`${process.env.PROVIDER_URL}/api/v1/credits`, {
+          headers: {
+            Authorization: `Bearer ${process.env.PROVIDER_CREDIT_KEY}`,
+          },
+        }) as Observable<
+          AxiosResponse<{
+            data: { total_credits: number; total_usage: number };
+          }>
+        >,
+      ),
+    ]);
 
     return {
       total_users,
       total_online_users,
       total_programs,
       total_tests,
+      ...credits.data.data,
+      remaining_credits:
+        credits.data.data.total_credits - credits.data.data.total_usage,
+      usd_to_idr_rate: Math.round(exchange_rates.data.rates.IDR),
     };
   }
 
-  async getUsers(query: AdminQuery, role: string) {
+  async getUsersFiltered(query: AdminQuery, role: string) {
     const default_page = 1;
     const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
+    const where: any = {};
+
+    if (query.q) {
+      where.OR = [
+        {
+          user_id: {
+            contains: query.q,
+          },
+        },
+        {
+          fullname: {
+            contains: query.q,
+          },
+        },
+      ];
+    }
+
     const [total_users, users] = await this.prisma.$transaction([
-      this.prisma.user.count(),
+      this.prisma.user.count({
+        where,
+      }),
       this.prisma.user.findMany({
+        where,
         select: {
           user_id: true,
           fullname: true,
@@ -77,6 +132,7 @@ export class AdminService {
           phone_number: true,
           email: true,
           is_verified: true,
+          created_at: true,
         },
         orderBy: {
           created_at: 'desc',
@@ -102,7 +158,7 @@ export class AdminService {
                 ),
         };
       }),
-      page: parseInt(query.page),
+      page,
       total_users,
       total_pages: Math.ceil(total_users / take),
     };
@@ -132,6 +188,7 @@ export class AdminService {
         gender: true,
         university: true,
         created_at: true,
+        is_verified: true,
       },
     });
 
@@ -150,95 +207,35 @@ export class AdminService {
     };
   }
 
-  async getUsersBySearch(query: AdminQuery, role: string) {
-    const default_page = 1;
-    const take = 8;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_users, users] = await this.prisma.$transaction([
-      this.prisma.user.count({
-        where: {
-          OR: [
-            {
-              user_id: {
-                contains: query.q,
-              },
-            },
-            {
-              fullname: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-      }),
-      this.prisma.user.findMany({
-        where: {
-          OR: [
-            {
-              user_id: {
-                contains: query.q,
-              },
-            },
-            {
-              fullname: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-        select: {
-          user_id: true,
-          fullname: true,
-          university: true,
-          phone_number: true,
-          email: true,
-          is_verified: true,
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
-        take,
-        skip,
-      }),
-    ]);
-
-    return {
-      users: users.map((user) => {
-        return {
-          ...user,
-          email:
-            role === 'superadmin'
-              ? decryptString(user.email, process.env.ENCRYPT_KEY)
-              : maskEmail(decryptString(user.email, process.env.ENCRYPT_KEY)),
-          phone_number:
-            role === 'superadmin'
-              ? decryptString(user.phone_number, process.env.ENCRYPT_KEY)
-              : maskPhoneNumber(
-                  decryptString(user.phone_number, process.env.ENCRYPT_KEY),
-                ),
-        };
-      }),
-      page: parseInt(query.page),
-      total_users,
-      total_pages: Math.ceil(total_users / take),
-    };
-  }
-
-  async getSessions(query: AdminQuery) {
+  async getSessionsFiltered(query: AdminQuery) {
     const default_page = 1;
     const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
+    const where: any = {};
+
+    if (query.q) {
+      where.OR = [
+        {
+          user_id: {
+            contains: query.q,
+          },
+        },
+        {
+          user: {
+            fullname: {
+              contains: query.q,
+            },
+          },
+        },
+      ];
+    }
+
     const [total_sessions, sessions] = await this.prisma.$transaction([
-      this.prisma.session.count(),
+      this.prisma.session.count({ where }),
       this.prisma.session.findMany({
+        where,
         select: {
           user: {
             select: {
@@ -269,87 +266,7 @@ export class AdminService {
           ...all,
         };
       }),
-      page: parseInt(query.page),
-      total_sessions,
-      total_pages: Math.ceil(total_sessions / take),
-    };
-  }
-
-  async getSessionsBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_sessions, sessions] = await this.prisma.$transaction([
-      this.prisma.session.count({
-        where: {
-          OR: [
-            {
-              user_id: {
-                contains: query.q,
-              },
-            },
-            {
-              user: {
-                fullname: {
-                  contains: query.q,
-                },
-              },
-            },
-          ],
-        },
-      }),
-      this.prisma.session.findMany({
-        where: {
-          OR: [
-            {
-              user_id: {
-                contains: query.q,
-              },
-            },
-            {
-              user: {
-                fullname: {
-                  contains: query.q,
-                },
-              },
-            },
-          ],
-        },
-        select: {
-          user: {
-            select: {
-              user_id: true,
-              fullname: true,
-              university: true,
-            },
-          },
-          browser: true,
-          os: true,
-          created_at: true,
-          expired: true,
-        },
-        take,
-        skip,
-        orderBy: {
-          created_at: 'desc',
-        },
-      }),
-    ]);
-
-    return {
-      sessions: sessions.map((session) => {
-        const { user, ...all } = session;
-
-        return {
-          ...user,
-          ...all,
-        };
-      }),
-      page: parseInt(query.page),
+      page,
       total_sessions,
       total_pages: Math.ceil(total_sessions / take),
     };
@@ -388,17 +305,39 @@ export class AdminService {
     return { program_id, user_id };
   }
 
-  async getPrograms(query: AdminQuery) {
+  async getProgramsFiltered(query: AdminQuery) {
     const default_page = 1;
-    const take = 6;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const take = 9;
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
+    const where: any = {};
+
+    where.is_active = query.filter === 'inactive' ? false : true;
+
+    if (query.filter === 'free' || query.filter === 'paid') {
+      where.type = query.filter;
+    }
+
+    if (query.q) {
+      where.OR = [
+        {
+          program_id: {
+            contains: query.q,
+          },
+        },
+        {
+          title: {
+            contains: query.q,
+          },
+        },
+      ];
+    }
+
     const [total_programs, programs] = await this.prisma.$transaction([
-      this.prisma.program.count(),
+      this.prisma.program.count({ where }),
       this.prisma.program.findMany({
+        where,
         select: {
           program_id: true,
           title: true,
@@ -406,40 +345,164 @@ export class AdminService {
           price: true,
           created_at: true,
           is_active: true,
-          details: {
+          _count: {
             select: {
-              test_id: true,
+              details: true,
             },
           },
         },
         take,
         skip,
-        orderBy: {
-          created_at: 'desc',
-        },
+        orderBy: query.sort
+          ? parseSortQuery(query.sort, ['created_at', 'title'])
+          : { created_at: 'desc' },
       }),
     ]);
 
     return {
       programs: programs.map((program) => {
-        const { details, ...all } = program;
+        const { _count, ...rest } = program;
 
         return {
-          ...all,
-          total_tests: details.length,
+          ...rest,
+          total_tests: _count.details,
         };
       }),
-      page: parseInt(query.page),
+      page,
       total_programs,
       total_pages: Math.ceil(total_programs / take),
     };
   }
 
-  async createProgram(
-    body: CreateProgramsDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
+  async getProgram(program_id: string) {
+    const program = await this.prisma.program.findUnique({
+      where: {
+        program_id,
+      },
+      select: {
+        program_id: true,
+        title: true,
+        type: true,
+        price: true,
+        is_active: true,
+        qr_code: true,
+        url_qr_code: true,
+        details: {
+          select: {
+            test: {
+              select: {
+                test_id: true,
+                title: true,
+                start: true,
+                end: true,
+                duration: true,
+                is_active: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const { details, ...rest } = program;
+
+    return {
+      ...rest,
+      total_tests: details.length,
+      tests: details.map((detail) => {
+        const now = new Date();
+
+        const start = new Date(detail.test.start);
+        const end = new Date(detail.test.end);
+
+        let status = '';
+
+        if (now < start) {
+          status += 'Belum dimulai';
+        } else if (now >= start && now <= end) {
+          status += 'Berlangsung';
+        } else {
+          status += 'Berakhir';
+        }
+
+        return {
+          ...detail.test,
+          status,
+        };
+      }),
+    };
+  }
+
+  async getProgramParticipants(program_id: string, query: AdminQuery) {
+    const default_page = 1;
+    const take = 15;
+    const page = Number(query.page) || default_page;
+    const skip = (page - 1) * take;
+
+    const participant_where: any = { is_approved: true };
+
+    if (query.q) {
+      participant_where.OR = [
+        { user: { user_id: { contains: query.q } } },
+        { user: { fullname: { contains: query.q } } },
+      ];
+    }
+
+    const [total_participants, program] = await this.prisma.$transaction([
+      this.prisma.participant.count({
+        where: {
+          program_id,
+          ...participant_where,
+        },
+      }),
+      this.prisma.program.findUnique({
+        where: { program_id },
+        select: {
+          program_id: true,
+          title: true,
+          type: true,
+          participants: {
+            where: participant_where,
+            select: {
+              user: {
+                select: {
+                  user_id: true,
+                  fullname: true,
+                  university: true,
+                },
+              },
+              joined_at: true,
+              is_approved: true,
+            },
+            take,
+            skip,
+            orderBy: query.sort
+              ? parseSortQuery(query.sort, ['joined_at'])
+              : { joined_at: 'desc' },
+          },
+        },
+      }),
+    ]);
+
+    if (!program) {
+      return {};
+    }
+
+    const { participants, ...rest } = program;
+
+    return {
+      ...rest,
+      participants: participants.map(({ user, ...rest }) => ({
+        ...user,
+        ...rest,
+      })),
+      page,
+      total_participants,
+      total_pages: Math.ceil(total_participants / take),
+    };
+  }
+
+  async createProgram(body: CreateProgramsDto, file: Express.Multer.File) {
     const program = await this.prisma.program.create({
       data: {
         program_id: `ROP${random(100000, 999999)}`,
@@ -450,6 +513,13 @@ export class AdminService {
         created_by: body.by,
         updated_by: body.by,
         url_qr_code: body.url_qr_code,
+        qr_code: file
+          ? await this.storage.uploadFile({
+              key: `qr/${Date.now()}-${file.originalname}`,
+              buffer: file.buffer,
+              mimetype: file.mimetype,
+            })
+          : null,
         details: {
           createMany: {
             data: body.tests.map((test) => {
@@ -467,15 +537,6 @@ export class AdminService {
         price: true,
         created_at: true,
         is_active: true,
-      },
-    });
-
-    await this.prisma.program.update({
-      where: {
-        program_id: program.program_id,
-      },
-      data: {
-        qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
       },
     });
 
@@ -505,11 +566,7 @@ export class AdminService {
     });
   }
 
-  async updateProgram(
-    body: UpdateProgramsDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
+  async updateProgram(body: UpdateProgramsDto, file: Express.Multer.File) {
     const program = await this.prisma.program.findUnique({
       where: { program_id: body.program_id },
       select: {
@@ -540,7 +597,11 @@ export class AdminService {
             type: body.type,
             price: parseInt(body.price),
             updated_by: body.by,
-            qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+            qr_code: await this.storage.uploadFile({
+              key: `qr/${Date.now()}-${file.originalname}`,
+              buffer: file.buffer,
+              mimetype: file.mimetype,
+            }),
             url_qr_code: body.url_qr_code,
             details: {
               createMany: {
@@ -590,7 +651,11 @@ export class AdminService {
           type: body.type,
           price: parseInt(body.price),
           updated_by: body.by,
-          qr_code: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          qr_code: await this.storage.uploadFile({
+            key: `qr/${Date.now()}-${file.originalname}`,
+            buffer: file.buffer,
+            mimetype: file.mimetype,
+          }),
           url_qr_code: body.url_qr_code,
         },
       });
@@ -610,356 +675,6 @@ export class AdminService {
     }
 
     return body;
-  }
-
-  async getProgramsBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 6;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_programs, programs] = await this.prisma.$transaction([
-      this.prisma.program.count({
-        where: {
-          OR: [
-            {
-              program_id: {
-                contains: query.q,
-              },
-            },
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-      }),
-      this.prisma.program.findMany({
-        where: {
-          OR: [
-            {
-              program_id: {
-                contains: query.q,
-              },
-            },
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-        select: {
-          program_id: true,
-          title: true,
-          type: true,
-          price: true,
-          created_at: true,
-          is_active: true,
-          details: {
-            select: {
-              test_id: true,
-            },
-          },
-        },
-        take,
-        skip,
-        orderBy: {
-          created_at: 'desc',
-        },
-      }),
-    ]);
-
-    return {
-      programs: programs.map((program) => {
-        const { details, ...all } = program;
-
-        return {
-          ...all,
-          total_tests: details.length,
-        };
-      }),
-      page: parseInt(query.page),
-      total_programs,
-      total_pages: Math.ceil(total_programs / take),
-    };
-  }
-
-  async getProgram(program_id: string, query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [program, total_participants, total_users, total_approved_users] =
-      await this.prisma.$transaction([
-        this.prisma.program.findUnique({
-          where: {
-            program_id,
-          },
-          select: {
-            program_id: true,
-            title: true,
-            type: true,
-            price: true,
-            is_active: true,
-            qr_code: true,
-            url_qr_code: true,
-            details: {
-              select: {
-                test: {
-                  select: {
-                    test_id: true,
-                    title: true,
-                    start: true,
-                    end: true,
-                    duration: true,
-                    is_active: true,
-                  },
-                },
-              },
-            },
-            participants: {
-              select: {
-                user: {
-                  select: {
-                    user_id: true,
-                    fullname: true,
-                    university: true,
-                  },
-                },
-                code: true,
-                joined_at: true,
-                is_approved: true,
-              },
-              take,
-              skip,
-              orderBy: {
-                joined_at: 'asc',
-              },
-            },
-          },
-        }),
-        this.prisma.participant.count({
-          where: {
-            program_id,
-          },
-        }),
-        this.prisma.participant.count({
-          where: {
-            program_id,
-          },
-        }),
-        this.prisma.participant.count({
-          where: {
-            program_id,
-            joined_at: {
-              not: null,
-            },
-            is_approved: true,
-          },
-        }),
-      ]);
-
-    const { details, participants, ...all } = program;
-
-    return {
-      ...all,
-      page: parseInt(query.page),
-      total_tests: details.length,
-      total_users,
-      total_participants,
-      total_approved_users,
-      total_pages: Math.ceil(total_users / take),
-      tests: details.map((detail) => {
-        const now = new Date();
-
-        const start = new Date(detail.test.start);
-        const end = new Date(detail.test.end);
-
-        let status = '';
-
-        if (now < start) {
-          status += 'Belum dimulai';
-        } else if (now >= start && now <= end) {
-          status += 'Berlangsung';
-        } else {
-          status += 'Berakhir';
-        }
-
-        return {
-          ...detail.test,
-          status,
-        };
-      }),
-      participants: participants.map((participant) => {
-        const { user, ...all } = participant;
-
-        return {
-          ...user,
-          ...all,
-        };
-      }),
-    };
-  }
-
-  async getProgramParticipantsBySearch(program_id: string, query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [program, total_participants, total_users, total_approved_users] =
-      await this.prisma.$transaction([
-        this.prisma.program.findUnique({
-          where: {
-            program_id,
-          },
-          select: {
-            program_id: true,
-            title: true,
-            type: true,
-            price: true,
-            is_active: true,
-            qr_code: true,
-            url_qr_code: true,
-            details: {
-              select: {
-                test: {
-                  select: {
-                    test_id: true,
-                    title: true,
-                    start: true,
-                    end: true,
-                    duration: true,
-                    is_active: true,
-                  },
-                },
-              },
-            },
-            participants: {
-              where: {
-                OR: [
-                  {
-                    user: {
-                      user_id: {
-                        contains: query.q,
-                      },
-                    },
-                  },
-                  {
-                    user: {
-                      fullname: {
-                        contains: query.q,
-                      },
-                    },
-                  },
-                ],
-              },
-              select: {
-                user: {
-                  select: {
-                    user_id: true,
-                    fullname: true,
-                    university: true,
-                  },
-                },
-                code: true,
-                joined_at: true,
-                is_approved: true,
-              },
-              take,
-              skip,
-              orderBy: {
-                joined_at: 'asc',
-              },
-            },
-          },
-        }),
-        this.prisma.participant.count({
-          where: {
-            program_id,
-            OR: [
-              {
-                user: {
-                  user_id: {
-                    contains: query.q,
-                  },
-                },
-              },
-              {
-                user: {
-                  fullname: {
-                    contains: query.q,
-                  },
-                },
-              },
-            ],
-          },
-        }),
-        this.prisma.participant.count({
-          where: {
-            program_id,
-          },
-        }),
-        this.prisma.participant.count({
-          where: {
-            program_id,
-            joined_at: {
-              not: null,
-            },
-            is_approved: true,
-          },
-        }),
-      ]);
-
-    const { details, participants, ...all } = program;
-
-    return {
-      ...all,
-      page: parseInt(query.page),
-      total_tests: details.length,
-      total_users,
-      total_participants,
-      total_approved_users,
-      total_pages: Math.ceil(total_participants / take),
-      tests: details.map((detail) => {
-        const now = new Date();
-
-        const start = new Date(detail.test.start);
-        const end = new Date(detail.test.end);
-
-        let status = '';
-
-        if (now < start) {
-          status += 'Belum dimulai';
-        } else if (now >= start && now <= end) {
-          status += 'Berlangsung';
-        } else {
-          status += 'Berakhir';
-        }
-
-        return {
-          ...detail.test,
-          status,
-        };
-      }),
-      participants: participants.map((participant) => {
-        const { user, ...all } = participant;
-
-        return {
-          ...user,
-          ...all,
-        };
-      }),
-    };
   }
 
   async deleteProgram(program_id: string) {
@@ -1038,45 +753,209 @@ export class AdminService {
   }
 
   async inviteUsers(body: InviteUsersDto) {
-    if (
-      !(await this.prisma.program.count({
-        where: { program_id: body.program_id },
-      }))
-    ) {
+    const program = await this.prisma.program.findUnique({
+      where: { program_id: body.program_id },
+      select: {
+        program_id: true,
+        title: true,
+        price: true,
+      },
+    });
+
+    if (!program) {
       throw new NotFoundException('Program tidak ditemukan');
     }
 
+    const today = DateTime.now().setZone('Asia/Jakarta').startOf('day');
+    const until = today.plus({ days: 1 });
+
+    const year_format = DateTime.now()
+      .setZone('Asia/Jakarta')
+      .toFormat('yyyyMMdd');
+
+    const uid = new ShortUniqueId();
+
     const date = new Date();
 
-    await this.prisma.participant.createMany({
-      data: body.users.map((user) => {
-        return {
-          program_id: body.program_id,
-          user_id: user,
-          code: `ROC${random(100000, 999999)}`,
-          invited_at: date,
-          invited_by: body.by,
-          is_approved: null,
-        };
-      }),
+    const [users] = await this.prisma.$transaction(async (tx) => {
+      await tx.participant.createMany({
+        data: body.users.map((user) => {
+          return {
+            program_id: body.program_id,
+            user_id: user,
+            invited_at: date,
+            invited_by: body.by,
+            is_approved: true,
+            joined_at: date,
+          };
+        }),
+        skipDuplicates: true,
+      });
+
+      const users = await tx.user.findMany({
+        where: {
+          user_id: {
+            in: body.users,
+          },
+        },
+        select: {
+          fullname: true,
+          email: true,
+        },
+      });
+
+      for (const user of body.users) {
+        const idempotency_key = `${user}-${program.program_id}-${year_format}`;
+
+        const existing_order = await tx.order.findUnique({
+          where: { idempotency_key },
+          select: { order_id: true },
+        });
+
+        if (existing_order) {
+          continue;
+        }
+
+        const total_order = await tx.order.count({
+          where: {
+            created_at: {
+              gte: today.toJSDate(),
+              lt: until.toJSDate(),
+            },
+          },
+        });
+
+        const invoice_number = generateInvoiceNumberCustom(
+          'INV',
+          'RO',
+          year_format,
+          total_order,
+        );
+
+        const transaction_id = `ROTX-${year_format}-${uid.rnd(7).toUpperCase()}`;
+        const date = new Date();
+
+        await tx.order.create({
+          data: {
+            idempotency_key,
+            invoice_number,
+            order_id: `ROORDER-${year_format}-${uid.rnd(7).toUpperCase()}`,
+            user_id: user,
+            total_amount: program.price,
+            final_amount: program.price,
+            paid_amount: program.price,
+            discount_amount: 0,
+            discount_code: null,
+            created_by: body.by,
+            updated_by: body.by,
+            paid_at: date,
+            status: 'paid',
+            items: {
+              create: {
+                product_id: program.program_id,
+                product_name: program.title,
+                product_type: 'tryout',
+                product_price: program.price,
+                created_by: body.by,
+                updated_by: body.by,
+              },
+            },
+            transactions: {
+              create: {
+                request_id: idempotency_key,
+                transaction_id,
+                external_id: transaction_id,
+                gateway: 'manual',
+                normalized_method: 'manual',
+                paid_amount: program.price,
+                payment_method: 'manual',
+                status: 'success',
+                paid_at: date,
+                created_by: body.by,
+                updated_by: body.by,
+              },
+            },
+          },
+        });
+      }
+
+      return [users];
     });
 
-    delete body.by;
+    if (process.env.EMAIL_ACTIVE === 'true') {
+      const from = `RuangObat <${process.env.EMAIL_ALIAS_TWO}>`;
+      const subject = `🎉 Selamat! Kamu sudah bisa mengakses ${program.title}!`;
 
+      for (const user of users) {
+        this.mailerService
+          .sendMail({
+            from,
+            subject,
+            to: decryptString(user.email, process.env.ENCRYPT_KEY),
+            html: generateEmailTemplate({
+              env: process.env.NODE_ENV,
+              fullname: user.fullname,
+              type: ['program'],
+              program_name: program.title,
+              path: `/programs/${program.program_id}`,
+            }),
+          })
+          .catch((err) => {
+            console.error('Failed to send email:', err);
+          });
+      }
+    }
+
+    delete body.by;
     return body;
   }
 
-  async getTests(query: AdminQuery) {
+  async getTestsFiltered(query: AdminQuery) {
     const default_page = 1;
-    const take = 6;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const take = 9;
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
+    const where: any = {};
+
+    where.is_active = query.filter === 'inactive' ? false : true;
+
+    if (query.filter === 'free' || query.filter === 'paid') {
+      where.type = query.filter;
+    }
+
+    const now = new Date();
+
+    if (query.filter === 'upcoming') {
+      where.start = { gt: now };
+    } else if (query.filter === 'ongoing') {
+      where.start = { lte: now };
+      where.end = { gte: now };
+    } else if (query.filter === 'ended') {
+      where.end = { lt: now };
+    }
+
+    if (query.q) {
+      where.OR = [
+        {
+          test_id: {
+            contains: query.q,
+          },
+        },
+        {
+          title: {
+            contains: query.q,
+          },
+        },
+      ];
+    }
+
     const [total_tests, tests] = await this.prisma.$transaction([
-      this.prisma.test.count(),
+      this.prisma.test.count({
+        where,
+      }),
       this.prisma.test.findMany({
+        where,
         select: {
           test_id: true,
           title: true,
@@ -1085,9 +964,9 @@ export class AdminService {
           is_active: true,
           duration: true,
         },
-        orderBy: {
-          created_at: 'desc',
-        },
+        orderBy: query.sort
+          ? parseSortQuery(query.sort, ['created_at', 'title'])
+          : { created_at: 'desc' },
         take,
         skip,
       }),
@@ -1116,75 +995,9 @@ export class AdminService {
         };
       }),
 
-      page: parseInt(query.page),
+      page,
       total_tests,
       total_pages: Math.ceil(total_tests / take),
-    };
-  }
-
-  async getTest(test_id: string, query: AdminQuery) {
-    const default_page = 1;
-    const take = 20;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_questions, test] = await this.prisma.$transaction([
-      this.prisma.question.count({ where: { test_id } }),
-      this.prisma.test.findUnique({
-        where: { test_id },
-        select: {
-          test_id: true,
-          title: true,
-          description: true,
-          start: true,
-          end: true,
-          duration: true,
-          questions: {
-            select: {
-              question_id: true,
-              number: true,
-              text: true,
-              explanation: true,
-              type: true,
-              options: {
-                select: {
-                  text: true,
-                  option_id: true,
-                  is_correct: true,
-                },
-              },
-            },
-            orderBy: { number: 'asc' },
-            take,
-            skip,
-          },
-        },
-      }),
-    ]);
-
-    const now = new Date();
-
-    const start = new Date(test.start);
-    const end = new Date(test.end);
-
-    let status = '';
-
-    if (now < start) {
-      status += 'Belum dimulai';
-    } else if (now >= start && now <= end) {
-      status += 'Berlangsung';
-    } else {
-      status += 'Berakhir';
-    }
-
-    return {
-      status,
-      ...test,
-      page: parseInt(query.page),
-      total_questions,
-      total_pages: Math.ceil(total_questions / take),
     };
   }
 
@@ -1226,88 +1039,82 @@ export class AdminService {
     });
   }
 
-  async getTestsBySearch(query: AdminQuery) {
+  async getTest(test_id: string, query: AdminQuery) {
     const default_page = 1;
-    const take = 6;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const take = 20;
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_tests, tests] = await this.prisma.$transaction([
-      this.prisma.test.count({
-        where: {
-          OR: [
-            {
-              test_id: {
-                contains: query.q,
-              },
-            },
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-      }),
-      this.prisma.test.findMany({
-        where: {
-          OR: [
-            {
-              test_id: {
-                contains: query.q,
-              },
-            },
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
+    const [total_questions, test] = await this.prisma.$transaction([
+      this.prisma.question.count({ where: { test_id } }),
+      this.prisma.test.findUnique({
+        where: { test_id },
         select: {
           test_id: true,
           title: true,
+          description: true,
           start: true,
           end: true,
-          is_active: true,
           duration: true,
+          questions: {
+            select: {
+              question_id: true,
+              number: true,
+              text: true,
+              explanation: true,
+              type: true,
+              options: {
+                select: {
+                  text: true,
+                  option_id: true,
+                  is_correct: true,
+                },
+              },
+              _count: {
+                select: {
+                  details: true,
+                },
+              },
+            },
+            orderBy: { number: 'asc' },
+            take,
+            skip,
+          },
         },
-        orderBy: {
-          created_at: 'desc',
-        },
-        take,
-        skip,
       }),
     ]);
 
+    const now = new Date();
+
+    const start = new Date(test.start);
+    const end = new Date(test.end);
+
+    let status = '';
+
+    if (now < start) {
+      status += 'Belum dimulai';
+    } else if (now >= start && now <= end) {
+      status += 'Berlangsung';
+    } else {
+      status += 'Berakhir';
+    }
+
+    const { questions, ...rest } = test;
+
     return {
-      tests: tests.map((test) => {
-        const now = new Date();
-
-        const start = new Date(test.start);
-        const end = new Date(test.end);
-
-        let status = '';
-
-        if (now < start) {
-          status += 'Belum dimulai';
-        } else if (now >= start && now <= end) {
-          status += 'Berlangsung';
-        } else {
-          status += 'Berakhir';
-        }
+      status,
+      ...rest,
+      questions: questions.map((question) => {
+        const { _count, ...rest } = question;
 
         return {
-          ...test,
-          status,
+          ...rest,
+          can_delete: Boolean(!_count.details),
         };
       }),
-
-      page: parseInt(query.page),
-      total_tests,
-      total_pages: Math.ceil(total_tests / take),
+      page,
+      total_questions,
+      total_pages: Math.ceil(total_questions / take),
     };
   }
 
@@ -1480,20 +1287,38 @@ export class AdminService {
     return params;
   }
 
-  async getResultsTest(test_id: string, query: AdminQuery) {
+  async getResultsTestFiltered(test_id: string, query: AdminQuery) {
     const default_page = 1;
     const take = 15;
 
-    const page = query.page ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_results, results, test] = await this.prisma.$transaction([
-      this.prisma.result.count({ where: { test_id } }),
-      this.prisma.result.findMany({
-        where: {
-          test_id,
+    const where: any = { test_id };
+
+    if (query.q) {
+      where.OR = [
+        {
+          user: {
+            user_id: {
+              contains: query.q,
+            },
+          },
         },
+        {
+          user: {
+            fullname: {
+              contains: query.q,
+            },
+          },
+        },
+      ];
+    }
+
+    const [total_results, results, test] = await this.prisma.$transaction([
+      this.prisma.result.count({ where }),
+      this.prisma.result.findMany({
+        where,
         select: {
           result_id: true,
           user: {
@@ -1548,118 +1373,6 @@ export class AdminService {
           ...user,
           score,
           score_category: scoreCategory(score),
-        };
-      }),
-      page,
-      total_results,
-      total_participants,
-      total_pages: Math.ceil(total_results / take),
-    };
-  }
-
-  async getResultsTestBySearch(test_id: string, query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = query.page ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_results, results, test] = await this.prisma.$transaction([
-      this.prisma.result.count({
-        where: {
-          test_id,
-          OR: [
-            {
-              user: {
-                user_id: {
-                  contains: query.q,
-                },
-              },
-            },
-            {
-              user: {
-                fullname: {
-                  contains: query.q,
-                },
-              },
-            },
-          ],
-        },
-      }),
-      this.prisma.result.findMany({
-        where: {
-          test_id,
-          OR: [
-            {
-              user: {
-                user_id: {
-                  contains: query.q,
-                },
-              },
-            },
-            {
-              user: {
-                fullname: {
-                  contains: query.q,
-                },
-              },
-            },
-          ],
-        },
-        select: {
-          result_id: true,
-          user: {
-            select: {
-              user_id: true,
-              fullname: true,
-              university: true,
-            },
-          },
-          score: true,
-        },
-        skip,
-        take,
-        orderBy: {
-          score: 'desc',
-        },
-      }),
-      this.prisma.test.findUnique({
-        where: { test_id },
-        select: {
-          test_id: true,
-          title: true,
-        },
-      }),
-    ]);
-
-    const program_detail = await this.prisma.programDetail.findMany({
-      where: { test_id },
-      orderBy: {
-        program: {
-          created_at: 'desc',
-        },
-      },
-    });
-
-    const total_participants = await this.prisma.participant.count({
-      where: {
-        program_id: program_detail[0].program_id,
-        joined_at: {
-          not: null,
-        },
-        is_approved: true,
-      },
-    });
-
-    return {
-      ...test,
-      results: results.map((result) => {
-        const { score, user, result_id } = result;
-        return {
-          result_id,
-          ...user,
-          score,
         };
       }),
       page,
@@ -1783,80 +1496,35 @@ export class AdminService {
     });
   }
 
-  async getFeedbacks(query: AdminQuery) {
+  async getFeedbacksFiltered(query: AdminQuery) {
     const default_page = 1;
     const take = 8;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_feedback, feedback] = await this.prisma.$transaction([
-      this.prisma.feedback.count(),
-      this.prisma.feedback.findMany({
-        select: {
-          user_id: true,
-          fullname: true,
-          rating: true,
-          text: true,
-          created_at: true,
+    const where: any = {};
+
+    if (query.q) {
+      where.OR = [
+        {
+          user_id: {
+            contains: query.q,
+          },
         },
-        take,
-        skip,
-        orderBy: {
-          created_at: 'desc',
+        {
+          fullname: {
+            contains: query.q,
+          },
         },
-      }),
-    ]);
-
-    return {
-      feedback,
-      page,
-      total_feedback,
-      total_pages: Math.ceil(total_feedback / take),
-    };
-  }
-
-  async getFeedbacksBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 8;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
+      ];
+    }
 
     const [total_feedback, feedback] = await this.prisma.$transaction([
       this.prisma.feedback.count({
-        where: {
-          OR: [
-            {
-              user_id: {
-                contains: query.q,
-              },
-            },
-            {
-              fullname: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
+        where,
       }),
       this.prisma.feedback.findMany({
-        where: {
-          OR: [
-            {
-              user_id: {
-                contains: query.q,
-              },
-            },
-            {
-              fullname: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
+        where,
         select: {
           user_id: true,
           fullname: true,
@@ -2033,17 +1701,45 @@ export class AdminService {
     }
   }
 
-  async getMentors(query: AdminQuery) {
+  async getMentorsFiltered(query: AdminQuery) {
     const default_page = 1;
     const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
+    const where: any = {};
+
+    if (query.q) {
+      where.OR = [
+        {
+          mentor_id: {
+            contains: query.q,
+          },
+        },
+        {
+          fullname: {
+            contains: query.q,
+          },
+        },
+        {
+          nickname: {
+            contains: query.q,
+          },
+        },
+        {
+          mentor_title: {
+            contains: query.q,
+          },
+        },
+      ];
+    }
+
     const [total_mentors, mentors] = await this.prisma.$transaction([
-      this.prisma.mentor.count(),
+      this.prisma.mentor.count({
+        where,
+      }),
       this.prisma.mentor.findMany({
+        where,
         select: {
           mentor_id: true,
           fullname: true,
@@ -2064,7 +1760,7 @@ export class AdminService {
 
     return {
       mentors,
-      page: parseInt(query.page),
+      page,
       total_mentors,
       total_pages: Math.ceil(total_mentors / take),
     };
@@ -2088,97 +1784,7 @@ export class AdminService {
     });
   }
 
-  async getMentorsBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_mentors, mentors] = await this.prisma.$transaction([
-      this.prisma.mentor.count({
-        where: {
-          OR: [
-            {
-              mentor_id: {
-                contains: query.q,
-              },
-            },
-            {
-              fullname: {
-                contains: query.q,
-              },
-            },
-            {
-              nickname: {
-                contains: query.q,
-              },
-            },
-            {
-              mentor_title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-      }),
-      this.prisma.mentor.findMany({
-        where: {
-          OR: [
-            {
-              mentor_id: {
-                contains: query.q,
-              },
-            },
-            {
-              fullname: {
-                contains: query.q,
-              },
-            },
-            {
-              nickname: {
-                contains: query.q,
-              },
-            },
-            {
-              mentor_title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-        select: {
-          mentor_id: true,
-          fullname: true,
-          nickname: true,
-          mentor_title: true,
-          description: true,
-          img_url: true,
-          created_at: true,
-          is_show: true,
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
-        take,
-        skip,
-      }),
-    ]);
-
-    return {
-      mentors,
-      page: parseInt(query.page),
-      total_mentors,
-      total_pages: Math.ceil(total_mentors / take),
-    };
-  }
-
-  createMentor(
-    body: CreateMentorDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
+  async createMentor(body: CreateMentorDto, file: Express.Multer.File) {
     return this.prisma.mentor.create({
       data: {
         mentor_id: `ROM${random(10000, 99999)}`,
@@ -2188,7 +1794,11 @@ export class AdminService {
         mentor_title: body.mentor_title,
         created_by: body.by,
         updated_by: body.by,
-        img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+        img_url: await this.storage.uploadFile({
+          key: `mentors/${Date.now()}-${file.originalname}`,
+          buffer: file.buffer,
+          mimetype: file.mimetype,
+        }),
         is_show: body.is_show === 'true',
       },
       select: {
@@ -2197,11 +1807,7 @@ export class AdminService {
     });
   }
 
-  async updateMentor(
-    body: UpdateMentorDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
+  async updateMentor(body: UpdateMentorDto, file: Express.Multer.File) {
     const mentor = await this.prisma.mentor.findUnique({
       where: {
         mentor_id: body.mentor_id,
@@ -2212,22 +1818,10 @@ export class AdminService {
     });
 
     if (!mentor) {
-      if (body.with_image == 'true') {
-        if (existsSync(file.path)) {
-          await unlink(file.path);
-        }
-      }
       throw new NotFoundException('Mentor tidak ditemukan');
     }
 
     if (body.with_image == 'true') {
-      const pathname = new URL(mentor.img_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
-
       return this.prisma.mentor.update({
         where: {
           mentor_id: body.mentor_id,
@@ -2238,7 +1832,11 @@ export class AdminService {
           description: body.description,
           mentor_title: body.mentor_title,
           updated_by: body.by,
-          img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          img_url: await this.storage.uploadFile({
+            key: `mentors/${Date.now()}-${file.originalname}`,
+            buffer: file.buffer,
+            mimetype: file.mimetype,
+          }),
           is_show: body.is_show === 'true',
         },
         select: {
@@ -2279,312 +1877,12 @@ export class AdminService {
       throw new NotFoundException('Mentor tidak ditemukan');
     }
 
-    const pathname = new URL(mentor.img_url).pathname;
-    const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-    if (existsSync(file_path)) {
-      await unlink(file_path);
-    }
-
     return this.prisma.mentor.delete({
       where: {
         mentor_id,
       },
       select: {
         mentor_id: true,
-      },
-    });
-  }
-
-  async createSubjectPreparation(
-    body: CreateProductSharedDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
-    if (body.thumbnail_type == 'image') {
-      return this.prisma.subject.create({
-        data: {
-          subject_id: `ROSBJ${random(10000, 99999)}`,
-          title: body.title,
-          slug: slug(body.title),
-          subject_type: 'preparation',
-          link_order: body.link_order,
-          description: body.description,
-          price: parseInt(body.price),
-          thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
-          thumbnail_type: 'image',
-          created_by: body.by,
-          updated_by: body.by,
-        },
-        select: {
-          subject_id: true,
-        },
-      });
-    }
-
-    if (file && existsSync(file.path)) {
-      await unlink(file.path);
-    }
-
-    return this.prisma.subject.create({
-      data: {
-        subject_id: `ROSBJ${random(10000, 99999)}`,
-        title: body.title,
-        slug: slug(body.title),
-        subject_type: 'preparation',
-        link_order: body.link_order,
-        description: body.description,
-        price: parseInt(body.price),
-        thumbnail_url: body.video_url,
-        thumbnail_type: 'video',
-        created_by: body.by,
-        updated_by: body.by,
-      },
-      select: {
-        subject_id: true,
-      },
-    });
-  }
-
-  async updateSubjectPreparation(
-    body: UpdateProductSharedDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
-    if (!body.subject_id) {
-      throw new BadRequestException('Kelas ID tidak ditemukan');
-    }
-
-    const subject = await this.prisma.subject.findUnique({
-      where: {
-        subject_type: 'preparation',
-        subject_id: body.subject_id,
-      },
-      select: {
-        thumbnail_url: true,
-        thumbnail_type: true,
-      },
-    });
-
-    if (!subject) {
-      throw new NotFoundException('Kelas tidak ditemukan');
-    }
-
-    if (body.thumbnail_type == 'image') {
-      if (body.with_image == 'true') {
-        if (subject.thumbnail_type == 'image') {
-          const pathname = new URL(subject.thumbnail_url).pathname;
-          const file_path = pathname.startsWith('/')
-            ? pathname.slice(1)
-            : pathname;
-
-          if (existsSync(file_path)) {
-            await unlink(file_path);
-          }
-        }
-
-        return this.prisma.subject.update({
-          where: {
-            subject_type: 'preparation',
-            subject_id: body.subject_id,
-          },
-          data: {
-            title: body.title,
-            slug: body.title ? slug(body.title) : undefined,
-            subject_type: 'preparation',
-            link_order: body.link_order,
-            description: body.description,
-            price: body.price ? parseInt(body.price) : undefined,
-            thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
-            thumbnail_type: 'image',
-            updated_by: body.by,
-            is_active: body.is_active == 'true',
-          },
-          select: {
-            subject_id: true,
-          },
-        });
-      }
-
-      return this.prisma.subject.update({
-        where: {
-          subject_type: 'preparation',
-          subject_id: body.subject_id,
-        },
-        data: {
-          title: body.title,
-          slug: body.title ? slug(body.title) : undefined,
-          subject_type: 'preparation',
-          link_order: body.link_order,
-          description: body.description,
-          price: body.price ? parseInt(body.price) : undefined,
-          thumbnail_type: 'image',
-          updated_by: body.by,
-          is_active: body.is_active == 'true',
-        },
-        select: {
-          subject_id: true,
-        },
-      });
-    }
-
-    if (subject.thumbnail_type == 'image') {
-      const pathname = new URL(subject.thumbnail_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
-    }
-
-    return this.prisma.subject.update({
-      where: {
-        subject_type: 'preparation',
-        subject_id: body.subject_id,
-      },
-      data: {
-        title: body.title,
-        slug: body.title ? slug(body.title) : undefined,
-        subject_type: 'preparation',
-        link_order: body.link_order,
-        description: body.description,
-        price: body.price ? parseInt(body.price) : undefined,
-        thumbnail_type: 'video',
-        thumbnail_url: body.video_url,
-        updated_by: body.by,
-        is_active: body.is_active == 'true',
-      },
-      select: {
-        subject_id: true,
-      },
-    });
-  }
-
-  async getSubjectPreparation(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_preparation_classes, preparation_classes] =
-      await this.prisma.$transaction([
-        this.prisma.subject.count({
-          where: {
-            subject_type: 'preparation',
-          },
-        }),
-        this.prisma.subject.findMany({
-          where: {
-            subject_type: 'preparation',
-          },
-          select: {
-            subject_id: true,
-            title: true,
-            description: true,
-            slug: true,
-            price: true,
-            link_order: true,
-            thumbnail_url: true,
-            thumbnail_type: true,
-            is_active: true,
-            created_at: true,
-          },
-          orderBy: {
-            created_at: 'desc',
-          },
-          take,
-          skip,
-        }),
-      ]);
-
-    return {
-      preparation_classes,
-      page: parseInt(query.page),
-      total_preparation_classes,
-      total_pages: Math.ceil(total_preparation_classes / take),
-    };
-  }
-
-  async getSubjectPreparationBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_preparation_classes, preparation_classes] =
-      await this.prisma.$transaction([
-        this.prisma.subject.count({
-          where: {
-            subject_type: 'preparation',
-            OR: [
-              {
-                title: {
-                  contains: query.q,
-                },
-              },
-            ],
-          },
-        }),
-        this.prisma.subject.findMany({
-          where: {
-            subject_type: 'preparation',
-            OR: [
-              {
-                title: {
-                  contains: query.q,
-                },
-              },
-            ],
-          },
-          select: {
-            subject_id: true,
-            title: true,
-            description: true,
-            slug: true,
-            price: true,
-            link_order: true,
-            thumbnail_url: true,
-            thumbnail_type: true,
-            is_active: true,
-            created_at: true,
-          },
-          orderBy: {
-            created_at: 'desc',
-          },
-          take,
-          skip,
-        }),
-      ]);
-
-    return {
-      preparation_classes,
-      page: parseInt(query.page),
-      total_preparation_classes,
-      total_pages: Math.ceil(total_preparation_classes / take),
-    };
-  }
-
-  getSubjectPreparationById(subject_id: string) {
-    return this.prisma.subject.findUnique({
-      where: {
-        subject_id,
-        subject_type: 'preparation',
-      },
-      select: {
-        subject_id: true,
-        title: true,
-        description: true,
-        slug: true,
-        price: true,
-        link_order: true,
-        thumbnail_url: true,
-        thumbnail_type: true,
-        is_active: true,
-        created_at: true,
       },
     });
   }
@@ -2697,146 +1995,33 @@ export class AdminService {
     });
   }
 
-  async deleteSubjectPreparation(subject_id: string) {
-    const subject = await this.prisma.subject.findUnique({
-      where: {
-        subject_type: 'preparation',
-        subject_id,
-      },
-      select: {
-        thumbnail_url: true,
-        thumbnail_type: true,
-      },
-    });
-
-    if (!subject) {
-      throw new NotFoundException('Kelas tidak ditemukan');
-    }
-
-    if (subject.thumbnail_type == 'image') {
-      const pathname = new URL(subject.thumbnail_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
-
-      return this.prisma.subject.delete({
-        where: {
-          subject_type: 'preparation',
-          subject_id,
-        },
-        select: {
-          subject_id: true,
-        },
-      });
-    }
-
-    return this.prisma.subject.delete({
-      where: {
-        subject_type: 'preparation',
-        subject_id,
-      },
-      select: {
-        subject_id: true,
-      },
-    });
-  }
-
-  async getSubjectPrivate(query: AdminQuery) {
+  async getSubjectPrivateFiltered(query: AdminQuery) {
     const default_page = 1;
     const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_private_classes, private_classes] =
-      await this.prisma.$transaction([
-        this.prisma.subject.count({
-          where: {
-            subject_type: 'private',
-          },
-        }),
-        this.prisma.subject.findMany({
-          where: {
-            subject_type: 'private',
-          },
-          select: {
-            subject_id: true,
-            title: true,
-            description: true,
-            slug: true,
-            is_active: true,
-            created_at: true,
-            subject_part: {
-              select: {
-                subject_part_id: true,
-                price: true,
-                description: true,
-                link_order: true,
-              },
-              orderBy: {
-                price: 'asc',
-              },
-            },
-          },
-          orderBy: {
-            created_at: 'desc',
-          },
-          take,
-          skip,
-        }),
-      ]);
-
-    return {
-      private_classes: private_classes.map((private_class) => {
-        const { subject_part, ...all } = private_class;
-
-        return {
-          ...all,
-          private_sub_classes: subject_part,
-        };
-      }),
-      page: parseInt(query.page),
-      total_private_classes,
-      total_pages: Math.ceil(total_private_classes / take),
+    const where: any = {
+      subject_type: 'private',
     };
-  }
 
-  async getSubjectPrivateBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
+    if (query.q) {
+      where.OR = [
+        {
+          title: {
+            contains: query.q,
+          },
+        },
+      ];
+    }
 
     const [total_private_classes, private_classes] =
       await this.prisma.$transaction([
         this.prisma.subject.count({
-          where: {
-            subject_type: 'private',
-            OR: [
-              {
-                title: {
-                  contains: query.q,
-                },
-              },
-            ],
-          },
+          where,
         }),
         this.prisma.subject.findMany({
-          where: {
-            subject_type: 'private',
-            OR: [
-              {
-                title: {
-                  contains: query.q,
-                },
-              },
-            ],
-          },
+          where,
           select: {
             subject_id: true,
             title: true,
@@ -2873,7 +2058,7 @@ export class AdminService {
           private_sub_classes: subject_part,
         };
       }),
-      page: parseInt(query.page),
+      page,
       total_private_classes,
       total_pages: Math.ceil(total_private_classes / take),
     };
@@ -2963,75 +2148,30 @@ export class AdminService {
     });
   }
 
-  async getTheses(query: AdminQuery) {
+  async getThesesFiltered(query: AdminQuery) {
     const default_page = 1;
     const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_theses, theses] = await this.prisma.$transaction([
-      this.prisma.thesis.count(),
-      this.prisma.thesis.findMany({
-        select: {
-          thesis_id: true,
-          title: true,
-          description: true,
-          slug: true,
-          price: true,
-          link_order: true,
-          thumbnail_url: true,
-          thumbnail_type: true,
-          is_active: true,
-          created_at: true,
+    const where: any = {};
+
+    if (query.q) {
+      where.OR = [
+        {
+          title: {
+            contains: query.q,
+          },
         },
-        orderBy: {
-          created_at: 'desc',
-        },
-        take,
-        skip,
-      }),
-    ]);
-
-    return {
-      theses,
-      page: parseInt(query.page),
-      total_theses,
-      total_pages: Math.ceil(total_theses / take),
-    };
-  }
-
-  async getThesesBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
+      ];
+    }
 
     const [total_theses, theses] = await this.prisma.$transaction([
       this.prisma.thesis.count({
-        where: {
-          OR: [
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
+        where,
       }),
       this.prisma.thesis.findMany({
-        where: {
-          OR: [
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
+        where,
         select: {
           thesis_id: true,
           title: true,
@@ -3054,7 +2194,7 @@ export class AdminService {
 
     return {
       theses,
-      page: parseInt(query.page),
+      page,
       total_theses,
       total_pages: Math.ceil(total_theses / take),
     };
@@ -3080,11 +2220,7 @@ export class AdminService {
     });
   }
 
-  async createTheses(
-    body: CreateProductSharedDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
+  async createTheses(body: CreateProductSharedDto, file: Express.Multer.File) {
     if (body.thumbnail_type == 'image') {
       return this.prisma.thesis.create({
         data: {
@@ -3094,7 +2230,11 @@ export class AdminService {
           link_order: body.link_order,
           description: body.description,
           price: parseInt(body.price),
-          thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          thumbnail_url: await this.storage.uploadFile({
+            key: `theses/${Date.now()}-${file.originalname}`,
+            buffer: file.buffer,
+            mimetype: file.mimetype,
+          }),
           thumbnail_type: 'image',
           created_by: body.by,
           updated_by: body.by,
@@ -3103,10 +2243,6 @@ export class AdminService {
           thesis_id: true,
         },
       });
-    }
-
-    if (file && existsSync(file.path)) {
-      await unlink(file.path);
     }
 
     return this.prisma.thesis.create({
@@ -3143,24 +2279,6 @@ export class AdminService {
       throw new NotFoundException('Kelas tidak ditemukan');
     }
 
-    if (thesis.thumbnail_type == 'image') {
-      const pathname = new URL(thesis.thumbnail_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
-
-      return this.prisma.thesis.delete({
-        where: {
-          thesis_id,
-        },
-        select: {
-          thesis_id: true,
-        },
-      });
-    }
-
     return this.prisma.thesis.delete({
       where: {
         thesis_id,
@@ -3171,11 +2289,7 @@ export class AdminService {
     });
   }
 
-  async updateTheses(
-    body: UpdateProductSharedDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
+  async updateTheses(body: UpdateProductSharedDto, file: Express.Multer.File) {
     if (!body.thesis_id) {
       throw new BadRequestException('Kelas ID tidak ditemukan');
     }
@@ -3196,17 +2310,6 @@ export class AdminService {
 
     if (body.thumbnail_type == 'image') {
       if (body.with_image == 'true') {
-        if (thesis.thumbnail_type == 'image') {
-          const pathname = new URL(thesis.thumbnail_url).pathname;
-          const file_path = pathname.startsWith('/')
-            ? pathname.slice(1)
-            : pathname;
-
-          if (existsSync(file_path)) {
-            await unlink(file_path);
-          }
-        }
-
         return this.prisma.thesis.update({
           where: {
             thesis_id: body.thesis_id,
@@ -3217,7 +2320,11 @@ export class AdminService {
             link_order: body.link_order,
             description: body.description,
             price: body.price ? parseInt(body.price) : undefined,
-            thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+            thumbnail_url: await this.storage.uploadFile({
+              key: `theses/${Date.now()}-${file.originalname}`,
+              buffer: file.buffer,
+              mimetype: file.mimetype,
+            }),
             thumbnail_type: 'image',
             updated_by: body.by,
             is_active: body.is_active == 'true',
@@ -3248,15 +2355,6 @@ export class AdminService {
       });
     }
 
-    if (thesis.thumbnail_type == 'image') {
-      const pathname = new URL(thesis.thumbnail_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
-    }
-
     return this.prisma.thesis.update({
       where: {
         thesis_id: body.thesis_id,
@@ -3278,75 +2376,30 @@ export class AdminService {
     });
   }
 
-  async getResearch(query: AdminQuery) {
+  async getResearchFiltered(query: AdminQuery) {
     const default_page = 1;
     const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_research, research] = await this.prisma.$transaction([
-      this.prisma.research.count(),
-      this.prisma.research.findMany({
-        select: {
-          research_id: true,
-          title: true,
-          description: true,
-          slug: true,
-          price: true,
-          link_order: true,
-          thumbnail_url: true,
-          thumbnail_type: true,
-          is_active: true,
-          created_at: true,
+    const where: any = {};
+
+    if (query.q) {
+      where.OR = [
+        {
+          title: {
+            contains: query.q,
+          },
         },
-        orderBy: {
-          created_at: 'desc',
-        },
-        take,
-        skip,
-      }),
-    ]);
-
-    return {
-      research,
-      page: parseInt(query.page),
-      total_research,
-      total_pages: Math.ceil(total_research / take),
-    };
-  }
-
-  async getResearchBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
+      ];
+    }
 
     const [total_research, research] = await this.prisma.$transaction([
       this.prisma.research.count({
-        where: {
-          OR: [
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
+        where,
       }),
       this.prisma.research.findMany({
-        where: {
-          OR: [
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
+        where,
         select: {
           research_id: true,
           title: true,
@@ -3369,7 +2422,7 @@ export class AdminService {
 
     return {
       research,
-      page: parseInt(query.page),
+      page,
       total_research,
       total_pages: Math.ceil(total_research / take),
     };
@@ -3398,7 +2451,6 @@ export class AdminService {
   async createResearch(
     body: CreateProductSharedDto,
     file: Express.Multer.File,
-    fullurl: string,
   ) {
     if (body.thumbnail_type == 'image') {
       return this.prisma.research.create({
@@ -3409,7 +2461,11 @@ export class AdminService {
           link_order: body.link_order,
           description: body.description,
           price: parseInt(body.price),
-          thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+          thumbnail_url: await this.storage.uploadFile({
+            key: `research/${Date.now()}-${file.originalname}`,
+            buffer: file.buffer,
+            mimetype: file.mimetype,
+          }),
           thumbnail_type: 'image',
           created_by: body.by,
           updated_by: body.by,
@@ -3418,10 +2474,6 @@ export class AdminService {
           research_id: true,
         },
       });
-    }
-
-    if (file && existsSync(file.path)) {
-      await unlink(file.path);
     }
 
     return this.prisma.research.create({
@@ -3458,15 +2510,6 @@ export class AdminService {
       throw new NotFoundException('Kelas tidak ditemukan');
     }
 
-    if (research.thumbnail_type == 'image') {
-      const pathname = new URL(research.thumbnail_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
-    }
-
     return this.prisma.research.delete({
       where: {
         research_id,
@@ -3480,7 +2523,6 @@ export class AdminService {
   async updateResearch(
     body: UpdateProductSharedDto,
     file: Express.Multer.File,
-    fullurl: string,
   ) {
     if (!body.research_id) {
       throw new BadRequestException('Kelas ID tidak ditemukan');
@@ -3502,17 +2544,6 @@ export class AdminService {
 
     if (body.thumbnail_type == 'image') {
       if (body.with_image == 'true') {
-        if (research.thumbnail_type == 'image') {
-          const pathname = new URL(research.thumbnail_url).pathname;
-          const file_path = pathname.startsWith('/')
-            ? pathname.slice(1)
-            : pathname;
-
-          if (existsSync(file_path)) {
-            await unlink(file_path);
-          }
-        }
-
         return this.prisma.research.update({
           where: {
             research_id: body.research_id,
@@ -3523,7 +2554,11 @@ export class AdminService {
             link_order: body.link_order,
             description: body.description,
             price: body.price ? parseInt(body.price) : undefined,
-            thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
+            thumbnail_url: await this.storage.uploadFile({
+              key: `research/${Date.now()}-${file.originalname}`,
+              buffer: file.buffer,
+              mimetype: file.mimetype,
+            }),
             thumbnail_type: 'image',
             updated_by: body.by,
             is_active: body.is_active == 'true',
@@ -3552,15 +2587,6 @@ export class AdminService {
           research_id: true,
         },
       });
-    }
-
-    if (research.thumbnail_type == 'image') {
-      const pathname = new URL(research.thumbnail_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
     }
 
     return this.prisma.research.update({
@@ -3658,589 +2684,6 @@ export class AdminService {
       },
       select: {
         class_mentor_id: true,
-      },
-    });
-  }
-
-  async getPharmacistAdmission(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_pharmacist_admission, pharmacist_admission] =
-      await this.prisma.$transaction([
-        this.prisma.university.count(),
-        this.prisma.university.findMany({
-          select: {
-            university_id: true,
-            name: true,
-            description: true,
-            slug: true,
-            is_active: true,
-            img_url: true,
-            pa: {
-              select: {
-                pa_id: true,
-              },
-            },
-            created_at: true,
-          },
-          orderBy: {
-            created_at: 'desc',
-          },
-          take,
-          skip,
-        }),
-      ]);
-
-    return {
-      pharmacist_admission: pharmacist_admission.map((pa) => {
-        const total_class = pa.pa.length;
-        delete pa.pa;
-
-        return {
-          ...pa,
-          total_class,
-        };
-      }),
-      page: parseInt(query.page),
-      total_pharmacist_admission,
-      total_pages: Math.ceil(total_pharmacist_admission / take),
-    };
-  }
-
-  async getPharmacistAdmissionBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_pharmacist_admission, pharmacist_admission] =
-      await this.prisma.$transaction([
-        this.prisma.university.count({
-          where: {
-            OR: [
-              {
-                name: {
-                  contains: query.q,
-                },
-              },
-            ],
-          },
-        }),
-        this.prisma.university.findMany({
-          where: {
-            OR: [
-              {
-                name: {
-                  contains: query.q,
-                },
-              },
-            ],
-          },
-          select: {
-            university_id: true,
-            name: true,
-            description: true,
-            slug: true,
-            is_active: true,
-            img_url: true,
-            pa: {
-              select: {
-                pa_id: true,
-              },
-            },
-            created_at: true,
-          },
-          orderBy: {
-            created_at: 'desc',
-          },
-          take,
-          skip,
-        }),
-      ]);
-
-    return {
-      pharmacist_admission: pharmacist_admission.map((pa) => {
-        const total_class = pa.pa.length;
-        delete pa.pa;
-
-        return {
-          ...pa,
-          total_class,
-        };
-      }),
-      page: parseInt(query.page),
-      total_pharmacist_admission,
-      total_pages: Math.ceil(total_pharmacist_admission / take),
-    };
-  }
-
-  getPharmacistAdmissionById(university_id: string) {
-    return this.prisma.university.findUnique({
-      where: {
-        university_id,
-      },
-      select: {
-        university_id: true,
-        name: true,
-        description: true,
-        slug: true,
-        is_active: true,
-        img_url: true,
-        created_at: true,
-      },
-    });
-  }
-
-  async createPharmacistAdmission(
-    body: CreatePharmacistAdmissionDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
-    if (
-      await this.prisma.university.count({
-        where: { slug: slug(body.name) },
-      })
-    ) {
-      throw new BadRequestException('Kelas sudah ada');
-    }
-
-    return this.prisma.university.create({
-      data: {
-        university_id: `ROUNI${random(10000, 99999)}`,
-        name: body.name,
-        slug: slug(body.name),
-        description: body.description,
-        img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
-        created_by: body.by,
-        updated_by: body.by,
-      },
-      select: {
-        university_id: true,
-      },
-    });
-  }
-
-  async updatePharmacistAdmission(
-    body: UpdatePharmacistAdmissionDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
-    const university = await this.prisma.university.findUnique({
-      where: {
-        university_id: body.university_id,
-      },
-      select: {
-        img_url: true,
-      },
-    });
-
-    if (!university) {
-      throw new NotFoundException('Kelas tidak ditemukan');
-    }
-
-    if (body.with_image == 'true') {
-      const pathname = new URL(university.img_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
-
-      return this.prisma.university.update({
-        where: {
-          university_id: body.university_id,
-        },
-        data: {
-          name: body.name,
-          slug: body.name ? slug(body.name) : undefined,
-          description: body.description,
-          img_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
-          is_active: body.is_active == 'true',
-        },
-        select: {
-          university_id: true,
-        },
-      });
-    }
-
-    return this.prisma.university.update({
-      where: {
-        university_id: body.university_id,
-      },
-      data: {
-        name: body.name,
-        slug: body.name ? slug(body.name) : undefined,
-        description: body.description,
-        is_active: body.is_active == 'true',
-      },
-      select: {
-        university_id: true,
-      },
-    });
-  }
-
-  async deletePharmacistAdmission(university_id: string) {
-    const university = await this.prisma.university.findUnique({
-      where: {
-        university_id,
-      },
-      select: {
-        img_url: true,
-      },
-    });
-
-    if (!university) {
-      throw new NotFoundException('Data tidak ditemukan');
-    }
-
-    const pathname = new URL(university.img_url).pathname;
-    const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-    if (existsSync(file_path)) {
-      await unlink(file_path);
-    }
-
-    return this.prisma.university.delete({
-      where: {
-        university_id,
-      },
-      select: {
-        university_id: true,
-      },
-    });
-  }
-
-  async getPharmacistAdmissionProducts(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_pa_products, pa_products] = await this.prisma.$transaction([
-      this.prisma.pharmacistAdmission.count(),
-      this.prisma.pharmacistAdmission.findMany({
-        select: {
-          pa_id: true,
-          title: true,
-          description: true,
-          slug: true,
-          price: true,
-          link_order: true,
-          thumbnail_url: true,
-          thumbnail_type: true,
-          is_active: true,
-          created_at: true,
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
-        take,
-        skip,
-      }),
-    ]);
-
-    return {
-      pa_products,
-      page: parseInt(query.page),
-      total_pa_products,
-      total_pages: Math.ceil(total_pa_products / take),
-    };
-  }
-
-  async getPharmacistAdmissionProductsBySearch(query: AdminQuery) {
-    const default_page = 1;
-    const take = 15;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_pa_products, pa_products] = await this.prisma.$transaction([
-      this.prisma.pharmacistAdmission.count({
-        where: {
-          OR: [
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-      }),
-      this.prisma.pharmacistAdmission.findMany({
-        where: {
-          OR: [
-            {
-              title: {
-                contains: query.q,
-              },
-            },
-          ],
-        },
-        select: {
-          pa_id: true,
-          title: true,
-          description: true,
-          slug: true,
-          price: true,
-          link_order: true,
-          thumbnail_url: true,
-          thumbnail_type: true,
-          is_active: true,
-          created_at: true,
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
-        take,
-        skip,
-      }),
-    ]);
-
-    return {
-      pa_products,
-      page: parseInt(query.page),
-      total_pa_products,
-      total_pages: Math.ceil(total_pa_products / take),
-    };
-  }
-
-  async getPharmacistAdmissionProductById(pa_id: string) {
-    return this.prisma.pharmacistAdmission.findUnique({
-      where: {
-        pa_id,
-      },
-      select: {
-        pa_id: true,
-        title: true,
-        description: true,
-        slug: true,
-        price: true,
-        link_order: true,
-        thumbnail_url: true,
-        thumbnail_type: true,
-        is_active: true,
-        created_at: true,
-      },
-    });
-  }
-
-  async createPaProduct(
-    body: CreateProductSharedDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
-    if (!body.university_id) {
-      throw new BadRequestException('Universitas ID tidak ditemukan');
-    }
-
-    if (
-      !(await this.prisma.university.count({
-        where: { university_id: body.university_id },
-      }))
-    ) {
-      throw new NotFoundException('Universitas tidak ditemukan');
-    }
-
-    if (
-      await this.prisma.pharmacistAdmission.count({
-        where: { slug: slug(body.title) },
-      })
-    ) {
-      throw new ConflictException('Kelas sudah ada');
-    }
-
-    if (body.thumbnail_type == 'image') {
-      return this.prisma.pharmacistAdmission.create({
-        data: {
-          pa_id: `ROPAP${random(10000, 99999)}`,
-          university_id: body.university_id,
-          title: body.title,
-          slug: slug(body.title),
-          link_order: body.link_order,
-          description: body.description,
-          price: parseInt(body.price),
-          thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
-          thumbnail_type: 'image',
-          created_by: body.by,
-          updated_by: body.by,
-        },
-        select: {
-          pa_id: true,
-        },
-      });
-    }
-
-    if (file && existsSync(file.path)) {
-      await unlink(file.path);
-    }
-
-    return this.prisma.pharmacistAdmission.create({
-      data: {
-        pa_id: `ROPAP${random(10000, 99999)}`,
-        university_id: body.university_id,
-        title: body.title,
-        slug: slug(body.title),
-        link_order: body.link_order,
-        description: body.description,
-        price: parseInt(body.price),
-        thumbnail_url: body.video_url,
-        thumbnail_type: 'video',
-        created_by: body.by,
-        updated_by: body.by,
-      },
-      select: {
-        pa_id: true,
-      },
-    });
-  }
-
-  async updatePaProduct(
-    body: UpdateProductSharedDto,
-    file: Express.Multer.File,
-    fullurl: string,
-  ) {
-    if (!body.pa_id) {
-      throw new BadRequestException('Kelas ID tidak ditemukan');
-    }
-
-    const pa = await this.prisma.pharmacistAdmission.findUnique({
-      where: {
-        pa_id: body.pa_id,
-      },
-      select: {
-        thumbnail_url: true,
-        thumbnail_type: true,
-      },
-    });
-
-    if (!pa) {
-      throw new NotFoundException('Kelas tidak ditemukan');
-    }
-
-    if (body.thumbnail_type == 'image') {
-      if (body.with_image == 'true') {
-        if (pa.thumbnail_type == 'image') {
-          const pathname = new URL(pa.thumbnail_url).pathname;
-          const file_path = pathname.startsWith('/')
-            ? pathname.slice(1)
-            : pathname;
-
-          if (existsSync(file_path)) {
-            await unlink(file_path);
-          }
-        }
-
-        return this.prisma.pharmacistAdmission.update({
-          where: {
-            pa_id: body.pa_id,
-          },
-          data: {
-            title: body.title,
-            slug: body.title ? slug(body.title) : undefined,
-            link_order: body.link_order,
-            description: body.description,
-            price: body.price ? parseInt(body.price) : undefined,
-            thumbnail_url: `${fullurl}/${file.path.split(path.sep).join('/')}`,
-            thumbnail_type: 'image',
-            updated_by: body.by,
-            is_active: body.is_active == 'true',
-          },
-          select: {
-            pa_id: true,
-          },
-        });
-      }
-
-      return this.prisma.pharmacistAdmission.update({
-        where: {
-          pa_id: body.pa_id,
-        },
-        data: {
-          title: body.title,
-          slug: body.title ? slug(body.title) : undefined,
-          link_order: body.link_order,
-          description: body.description,
-          price: body.price ? parseInt(body.price) : undefined,
-          thumbnail_type: 'image',
-          updated_by: body.by,
-          is_active: body.is_active == 'true',
-        },
-        select: {
-          pa_id: true,
-        },
-      });
-    }
-
-    if (pa.thumbnail_type == 'image') {
-      const pathname = new URL(pa.thumbnail_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
-    }
-
-    return this.prisma.pharmacistAdmission.update({
-      where: {
-        pa_id: body.pa_id,
-      },
-      data: {
-        title: body.title,
-        slug: body.title ? slug(body.title) : undefined,
-        link_order: body.link_order,
-        description: body.description,
-        price: body.price ? parseInt(body.price) : undefined,
-        thumbnail_type: 'video',
-        thumbnail_url: body.video_url,
-        updated_by: body.by,
-        is_active: body.is_active == 'true',
-      },
-      select: {
-        pa_id: true,
-      },
-    });
-  }
-
-  async deletePharmacistAdmissionProduct(pa_id: string) {
-    const pa = await this.prisma.pharmacistAdmission.findUnique({
-      where: {
-        pa_id,
-      },
-      select: {
-        thumbnail_url: true,
-        thumbnail_type: true,
-      },
-    });
-
-    if (!pa) {
-      throw new NotFoundException('Kelas tidak ditemukan');
-    }
-
-    if (pa.thumbnail_type == 'image') {
-      const pathname = new URL(pa.thumbnail_url).pathname;
-      const file_path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-
-      if (existsSync(file_path)) {
-        await unlink(file_path);
-      }
-    }
-
-    return this.prisma.pharmacistAdmission.delete({
-      where: {
-        pa_id,
-      },
-      select: {
-        pa_id: true,
       },
     });
   }

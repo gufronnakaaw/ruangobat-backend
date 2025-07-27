@@ -4,389 +4,150 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import path from 'path';
-import { PrismaService } from 'src/utils/services/prisma.service';
+import { Request } from 'express';
+import { PrismaService } from '../utils/services/prisma.service';
+import { StorageService } from '../utils/services/storage.service';
 import { FollowPaidProgramsDto, ProgramsQuery } from './programs.dto';
 
 @Injectable()
 export class ProgramsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: StorageService,
+  ) {}
 
-  async getPrograms(user_id: string, query: ProgramsQuery) {
+  async getProgramsFiltered(req: Request, query: ProgramsQuery) {
     const default_page = 1;
     const take = 6;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
+    const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
-    const [total_programs, programs, user_programs] =
-      await this.prisma.$transaction([
-        this.prisma.program.count({
-          where: {
-            is_active: true,
-          },
-        }),
-        this.prisma.program.findMany({
-          where: {
-            is_active: true,
-          },
-          select: {
-            program_id: true,
-            title: true,
-            type: true,
-            price: true,
-            details: {
-              select: {
-                test_id: true,
-              },
-            },
-            participants: {
-              where: {
-                joined_at: {
-                  not: null,
-                },
-                is_approved: true,
-              },
-              select: {
-                user_id: true,
-                is_approved: true,
-              },
-            },
-          },
-          take,
-          skip,
-          orderBy: {
-            created_at: 'desc',
-          },
-        }),
-        this.prisma.participant.findMany({
-          where: {
-            user_id,
-          },
-          select: {
-            program_id: true,
-            is_approved: true,
-          },
-        }),
-      ]);
+    const where: any = { is_active: true };
+    if (query.q) {
+      where.OR = [
+        { program_id: { contains: query.q } },
+        { title: { contains: query.q } },
+      ];
+    }
 
-    return {
-      programs: programs.map((program) => {
-        const { details, participants, ...all } = program;
+    if (query.type) {
+      where.type = query.type;
+    }
 
-        let is_approved;
-        const find_user_program = user_programs.find(
-          (item) => item.program_id == program.program_id,
-        );
-
-        if (find_user_program) {
-          is_approved = find_user_program.is_approved;
-        } else {
-          is_approved = null;
-        }
-
-        return {
-          ...all,
-          total_tests: details.length,
-          total_users: participants.length,
-          is_approved,
-        };
-      }),
-      page: parseInt(query.page),
-      total_programs,
-      total_pages: Math.ceil(total_programs / take),
-    };
-  }
-
-  async getProgramsBySearch(user_id: string, query: ProgramsQuery) {
-    const default_page = 1;
-    const take = 6;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_programs, programs, user_programs] =
-      await this.prisma.$transaction([
-        this.prisma.program.count({
-          where: {
-            OR: [
-              {
-                program_id: {
-                  contains: query.q,
-                },
-              },
-              {
-                title: {
-                  contains: query.q,
-                },
-              },
-            ],
-            is_active: true,
-          },
-        }),
-        this.prisma.program.findMany({
-          where: {
-            OR: [
-              {
-                program_id: {
-                  contains: query.q,
-                },
-              },
-              {
-                title: {
-                  contains: query.q,
-                },
-              },
-            ],
-            is_active: true,
-          },
-          select: {
-            program_id: true,
-            title: true,
-            type: true,
-            price: true,
-            details: {
-              select: {
-                test_id: true,
-              },
-            },
-            participants: {
-              where: {
-                joined_at: {
-                  not: null,
-                },
-                is_approved: true,
-              },
-              select: {
-                user_id: true,
-                is_approved: true,
-              },
-            },
-          },
-          take,
-          skip,
-          orderBy: {
-            created_at: 'desc',
-          },
-        }),
-        this.prisma.participant.findMany({
-          where: {
-            user_id,
-          },
-          select: {
-            program_id: true,
-            is_approved: true,
-          },
-        }),
-      ]);
-
-    return {
-      programs: programs.map((program) => {
-        const { details, participants, ...all } = program;
-
-        let is_approved;
-        const find_user_program = user_programs.find(
-          (item) => item.program_id == program.program_id,
-        );
-
-        if (find_user_program) {
-          is_approved = find_user_program.is_approved;
-        } else {
-          is_approved = null;
-        }
-
-        return {
-          ...all,
-          total_tests: details.length,
-          total_users: participants.length,
-          is_approved,
-        };
-      }),
-      page: parseInt(query.page),
-      total_programs,
-      total_pages: Math.ceil(total_programs / take),
-    };
-  }
-
-  async getProgramsByType(user_id: string, query: ProgramsQuery) {
-    const default_page = 1;
-    const take = 6;
-
-    const page = parseInt(query.page) ? parseInt(query.page) : default_page;
-
-    const skip = (page - 1) * take;
-
-    const [total_programs, programs, user_programs] =
-      await this.prisma.$transaction([
-        this.prisma.program.count({
-          where: {
-            type: query.type,
-            is_active: true,
-          },
-        }),
-        this.prisma.program.findMany({
-          where: {
-            type: query.type,
-            is_active: true,
-          },
-          select: {
-            program_id: true,
-            title: true,
-            type: true,
-            price: true,
-            details: {
-              select: {
-                test_id: true,
-              },
-            },
-            participants: {
-              where: {
-                joined_at: {
-                  not: null,
-                },
-                is_approved: true,
-              },
-              select: {
-                user_id: true,
-                is_approved: true,
-              },
-            },
-          },
-          take,
-          skip,
-          orderBy: {
-            created_at: 'desc',
-          },
-        }),
-        this.prisma.participant.findMany({
-          where: {
-            user_id,
-          },
-          select: {
-            program_id: true,
-            is_approved: true,
-          },
-        }),
-      ]);
-
-    return {
-      programs: programs.map((program) => {
-        const { details, participants, ...all } = program;
-
-        let is_approved;
-        const find_user_program = user_programs.find(
-          (item) => item.program_id == program.program_id,
-        );
-
-        if (find_user_program) {
-          is_approved = find_user_program.is_approved;
-        } else {
-          is_approved = null;
-        }
-
-        return {
-          ...all,
-          total_tests: details.length,
-          total_users: participants.length,
-          is_approved,
-        };
-      }),
-      page: parseInt(query.page),
-      total_programs,
-      total_pages: Math.ceil(total_programs / take),
-    };
-  }
-
-  async getProgram(user_id: string, program_id: string) {
-    const [program, user_participated] = await this.prisma.$transaction([
-      this.prisma.program.findUnique({
-        where: {
-          program_id,
-        },
+    const [total_programs, programs] = await this.prisma.$transaction([
+      this.prisma.program.count({ where }),
+      this.prisma.program.findMany({
+        where,
         select: {
           program_id: true,
           title: true,
           type: true,
           price: true,
-          is_active: true,
-          qr_code: true,
-          url_qr_code: true,
-          details: {
-            where: {
-              test: {
-                is_active: true,
-              },
-            },
-            select: {
-              test: {
-                select: {
-                  test_id: true,
-                  title: true,
-                  start: true,
-                  end: true,
-                  duration: true,
-                  is_active: true,
-                  results: {
-                    where: {
-                      user_id,
-                    },
-                    select: {
-                      result_id: true,
-                      score: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
           participants: {
-            where: {
-              joined_at: {
-                not: null,
-              },
-              is_approved: true,
-            },
             select: {
               user_id: true,
               is_approved: true,
             },
           },
-        },
-      }),
-      this.prisma.participant.findUnique({
-        where: {
-          program_id_user_id: {
-            program_id,
-            user_id,
+          _count: {
+            select: {
+              details: true,
+            },
           },
         },
-        select: {
-          is_approved: true,
-        },
+        take,
+        skip,
+        orderBy: { created_at: 'desc' },
       }),
     ]);
 
-    if (!program || !program.is_active) {
+    return {
+      programs: programs.map((program) => {
+        const { _count, participants, ...rest } = program;
+
+        return {
+          ...rest,
+          total_tests: _count.details,
+          is_approved: req.is_login
+            ? participants.some(
+                (p) => p.user_id === req.user.user_id && p.is_approved,
+              )
+            : false,
+        };
+      }),
+      page,
+      total_programs,
+      total_pages: Math.ceil(total_programs / take),
+      is_login: req.is_login,
+    };
+  }
+
+  async getProgram(req: Request, program_id: string) {
+    const program = await this.prisma.program.findFirst({
+      where: {
+        program_id,
+        is_active: true,
+      },
+      select: {
+        program_id: true,
+        title: true,
+        type: true,
+        price: true,
+        qr_code: true,
+        url_qr_code: true,
+        details: {
+          where: {
+            test: {
+              is_active: true,
+            },
+          },
+          select: {
+            test: {
+              select: {
+                test_id: true,
+                title: true,
+                start: true,
+                end: true,
+                duration: true,
+                results: {
+                  where: {
+                    user_id: req.is_login ? req.user.user_id : '',
+                  },
+                  select: {
+                    user_id: true,
+                    result_id: true,
+                    score: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        participants: req.is_login
+          ? {
+              select: {
+                user_id: true,
+                is_approved: true,
+              },
+            }
+          : {},
+      },
+    });
+
+    if (!program) {
       throw new NotFoundException('Program tidak ditemukan');
     }
 
-    const { details, participants, ...all } = program;
-
-    let is_approved;
-
-    if (user_participated) {
-      is_approved = user_participated.is_approved;
-    } else {
-      is_approved = null;
-    }
+    const { details, participants, ...rest } = program;
 
     return {
-      ...all,
+      ...rest,
       total_tests: details.length,
-      total_users: participants.length,
-      is_approved,
+      is_approved: req.is_login
+        ? participants.some(
+            (p) => p.user_id === req.user.user_id && p.is_approved,
+          )
+        : false,
       tests: details.map((detail) => {
         const { results, ...all } = detail.test;
 
@@ -413,6 +174,7 @@ export class ProgramsService {
           status,
         };
       }),
+      is_login: req.is_login,
     };
   }
 
@@ -467,7 +229,6 @@ export class ProgramsService {
   async followFreeProgram(body: {
     user_id: string;
     program_id: string;
-    fullurl: string;
     files: Array<Express.Multer.File>;
   }) {
     if (
@@ -478,20 +239,35 @@ export class ProgramsService {
       throw new NotFoundException('Program tidak ditemukan');
     }
 
+    const urls: string[] = [];
+
+    for (const file of body.files) {
+      urls.push(
+        await this.storage.uploadFile({
+          buffer: file.buffer,
+          key: `users/programs/${Date.now()}-${file.originalname}`,
+          mimetype: file.mimetype,
+        }),
+      );
+    }
+
+    const date = new Date();
+
     await this.prisma.$transaction([
       this.prisma.participant.create({
         data: {
           program_id: body.program_id,
           user_id: body.user_id,
-          is_approved: false,
+          is_approved: true,
+          joined_at: date,
         },
       }),
       this.prisma.socialMediaImage.createMany({
-        data: body.files.map((file) => {
+        data: urls.map((url) => {
           return {
             program_id: body.program_id,
             user_id: body.user_id,
-            url: `${body.fullurl}/${file.path.split(path.sep).join('/')}`,
+            url,
           };
         }),
       }),

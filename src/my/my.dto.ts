@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+export type MyQuery = {
+  q?: string;
+  page?: string;
+  filter?: string;
+  sort?: string;
+};
+
 export const userUpdateSchema = z.object({
   fullname: z
     .string()

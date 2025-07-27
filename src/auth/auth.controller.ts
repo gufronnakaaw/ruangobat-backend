@@ -84,15 +84,12 @@ export class AuthController {
   @Post('/login/users')
   @HttpCode(HttpStatus.OK)
   @UsePipes(new ZodValidationPipe(userLoginSchema))
-  async usersLogin(
-    @Body() body: UserLoginDto,
-    @Req() req: Request,
-  ): Promise<SuccessResponse> {
+  async usersLogin(@Body() body: UserLoginDto): Promise<SuccessResponse> {
     try {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.authService.userLogin(body, req.headers['user-agent']),
+        data: await this.authService.userLogin(body),
       };
     } catch (error) {
       throw error;

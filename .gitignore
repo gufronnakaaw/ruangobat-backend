@@ -36,3 +36,4 @@ lerna-debug.log*
 
 .env
 /src/utils/seeds/*
+/src/utils/prompts.*

@@ -10,9 +10,9 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
-import { SuccessResponse } from 'src/utils/global/global.response';
-import { ZodValidationPipe } from 'src/utils/pipes/zod.pipe';
+import { SuccessResponse } from '../utils/global/global.response';
 import { SuperAdminGuard } from '../utils/guards/superadmin.guard';
+import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
 import { UpdateAdminsDto, updateAdminsSchema } from './admins.dto';
 import { AdminsService } from './admins.service';
 

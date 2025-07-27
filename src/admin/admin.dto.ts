@@ -3,6 +3,8 @@ import { z } from 'zod';
 export type AdminQuery = {
   q?: string;
   page: string;
+  filter?: string;
+  sort?: string;
 };
 
 export const createProgramsSchema = z.object({
@@ -348,26 +350,3 @@ export type ClassMentorType =
   | 'thesis'
   | 'research'
   | 'pharmacist_admission';
-
-export const createPharmacistAdmissionSchema = z.object({
-  name: z.string(),
-  description: z.string().optional(),
-  by: z.string(),
-});
-
-export type CreatePharmacistAdmissionDto = z.infer<
-  typeof createPharmacistAdmissionSchema
->;
-
-export const updatePharmacistAdmissionSchema = z.object({
-  university_id: z.string(),
-  with_image: z.enum(['true', 'false']),
-  name: z.string().optional(),
-  description: z.string().optional(),
-  is_active: z.enum(['true', 'false']),
-  by: z.string(),
-});
-
-export type UpdatePharmacistAdmissionDto = z.infer<
-  typeof updatePharmacistAdmissionSchema
->;

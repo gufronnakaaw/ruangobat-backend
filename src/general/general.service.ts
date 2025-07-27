@@ -69,7 +69,7 @@ export class GeneralService {
     const expired_at = new Date();
     expired_at.setMinutes(expired_at.getMinutes() + 5);
 
-    const template = `<p>Dear ${user.fullname},</p><p>Please use the one-time password below to authorize your account. It is valid for 5 minutes.</p><p><strong>${otp_code}</strong></p>---<p>Ruang Obat<br><a href="https://ruangobat.id" target="_blank">https://ruangobat.id</a></p>`;
+    const template = `<p>Dear ${user.fullname},</p><p>Please use the one-time password below to authorize your account. It is valid for 5 minutes.</p><p><strong>${otp_code}</strong></p>---<p>RuangObat<br><a href="https://ruangobat.id" target="_blank">https://ruangobat.id</a></p>`;
 
     await Promise.all([
       this.prisma.otp.create({
@@ -81,7 +81,7 @@ export class GeneralService {
         },
       }),
       this.mailerService.sendMail({
-        from: `Ruang Obat <${process.env.EMAIL_ALIAS_ONE}>`,
+        from: `RuangObat <${process.env.EMAIL_ALIAS_ONE}>`,
         to: user.email,
         subject: 'Verification Code (OTP)',
         html: template,
@@ -102,7 +102,7 @@ export class GeneralService {
 
     const user_id = `REGISTER${random(100000, 999999)}`;
 
-    const template = `<p>Please use the one-time password below to authorize your account. It is valid for 5 minutes.</p><p><strong>${otp_code}</strong></p>---<p>Ruang Obat<br><a href="https://ruangobat.id" target="_blank">https://ruangobat.id</a></p>`;
+    const template = `<p>Please use the one-time password below to authorize your account. It is valid for 5 minutes.</p><p><strong>${otp_code}</strong></p>---<p>RuangObat<br><a href="https://ruangobat.id" target="_blank">https://ruangobat.id</a></p>`;
 
     await Promise.all([
       this.prisma.otp.create({
@@ -114,7 +114,7 @@ export class GeneralService {
         },
       }),
       this.mailerService.sendMail({
-        from: `Ruang Obat <${process.env.EMAIL_ALIAS_ONE}>`,
+        from: `RuangObat <${process.env.EMAIL_ALIAS_ONE}>`,
         to: email,
         subject: 'Verification Code (OTP)',
         html: template,
@@ -263,57 +263,6 @@ export class GeneralService {
   async getHomepageData() {
     return {
       mentors: await this.getMentors(),
-    };
-  }
-
-  async getSubjectPreparation() {
-    const [preparation_classes, mentors] = await this.prisma.$transaction([
-      this.prisma.subject.findMany({
-        where: {
-          subject_type: 'preparation',
-          is_active: true,
-        },
-        select: {
-          subject_id: true,
-          title: true,
-          description: true,
-          price: true,
-          link_order: true,
-          thumbnail_url: true,
-          thumbnail_type: true,
-          created_at: true,
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
-      }),
-      this.prisma.classMentor.findMany({
-        where: {
-          type: 'preparation',
-        },
-        select: {
-          class_mentor_id: true,
-          mentor: {
-            select: {
-              fullname: true,
-              nickname: true,
-              mentor_title: true,
-              img_url: true,
-              description: true,
-            },
-          },
-        },
-      }),
-    ]);
-
-    return {
-      preparation_classes,
-      mentors: mentors.map((mentor) => {
-        return {
-          class_mentor_id: mentor.class_mentor_id,
-          ...mentor.mentor,
-        };
-      }),
     };
   }
 
@@ -473,95 +422,6 @@ export class GeneralService {
 
     return {
       research,
-      mentors: mentors.map((mentor) => {
-        return {
-          class_mentor_id: mentor.class_mentor_id,
-          ...mentor.mentor,
-        };
-      }),
-    };
-  }
-
-  getUniversity() {
-    return this.prisma.university.findMany({
-      where: {
-        is_active: true,
-      },
-      select: {
-        university_id: true,
-        name: true,
-        description: true,
-        img_url: true,
-        slug: true,
-        created_at: true,
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
-  }
-
-  async getPharmacistAdmission(slug: string) {
-    const university = await this.prisma.university.findUnique({
-      where: {
-        slug,
-      },
-      select: {
-        university_id: true,
-        name: true,
-        description: true,
-        img_url: true,
-      },
-    });
-
-    if (!university) return { pharmacist_admissions: [], mentors: [] };
-
-    const [pharmacist_admissions, mentors] = await this.prisma.$transaction([
-      this.prisma.pharmacistAdmission.findMany({
-        where: {
-          university: {
-            slug,
-          },
-          is_active: true,
-        },
-        select: {
-          pa_id: true,
-          title: true,
-          description: true,
-          price: true,
-          link_order: true,
-          thumbnail_url: true,
-          thumbnail_type: true,
-          slug: true,
-          created_at: true,
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
-      }),
-      this.prisma.classMentor.findMany({
-        where: {
-          type: 'pharmacist_admission',
-        },
-        select: {
-          class_mentor_id: true,
-          mentor: {
-            select: {
-              mentor_id: true,
-              fullname: true,
-              nickname: true,
-              mentor_title: true,
-              img_url: true,
-              description: true,
-            },
-          },
-        },
-      }),
-    ]);
-
-    return {
-      ...university,
-      pharmacist_admissions,
       mentors: mentors.map((mentor) => {
         return {
           class_mentor_id: mentor.class_mentor_id,

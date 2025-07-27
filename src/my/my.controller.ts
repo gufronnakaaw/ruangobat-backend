@@ -4,8 +4,10 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
   UsePipes,
@@ -15,6 +17,7 @@ import { SuccessResponse } from '../utils/global/global.response';
 import { UserGuard } from '../utils/guards/user.guard';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
 import {
+  MyQuery,
   UserChangeEmailDto,
   userChangeEmailSchema,
   UserSendEmailDto,
@@ -39,6 +42,54 @@ export class MyController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.myService.getProfile(req.user.user_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/orders')
+  @HttpCode(HttpStatus.OK)
+  async getOrders(
+    @Req() req: Request,
+    @Query() query: MyQuery,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.myService.getOrders(req.user.user_id, query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/orders/:order_id')
+  @HttpCode(HttpStatus.OK)
+  async getOrder(
+    @Param('order_id') order_id: string,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.myService.getOrder(order_id, req.user.user_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/subscriptions')
+  @HttpCode(HttpStatus.OK)
+  async getSubscriptions(@Req() req: Request): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.myService.getSubscriptions(req.user.user_id),
       };
     } catch (error) {
       throw error;

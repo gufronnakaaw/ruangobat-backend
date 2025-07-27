@@ -1,11 +1,13 @@
 import {
-  BadRequestException,
   Body,
   Controller,
+  FileTypeValidator,
   Get,
   HttpCode,
   HttpStatus,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Post,
   Query,
   Req,
@@ -16,10 +18,10 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
-import { diskStorage } from 'multer';
-import { SuccessResponse } from 'src/utils/global/global.response';
-import { ZodValidationPipe } from 'src/utils/pipes/zod.pipe';
+import { SuccessResponse } from '../utils/global/global.response';
+import { PublicGuard } from '../utils/guards/public.guard';
 import { UserGuard } from '../utils/guards/user.guard';
+import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
 import {
   FollowPaidProgramsDto,
   followPaidProgramsSchema,
@@ -27,11 +29,11 @@ import {
 } from './programs.dto';
 import { ProgramsService } from './programs.service';
 
-@UseGuards(UserGuard)
 @Controller('programs')
 export class ProgramsController {
   constructor(private readonly programsService: ProgramsService) {}
 
+  @UseGuards(PublicGuard)
   @Get()
   @HttpCode(HttpStatus.OK)
   async getPrograms(
@@ -39,38 +41,17 @@ export class ProgramsController {
     @Query() query: ProgramsQuery,
   ): Promise<SuccessResponse> {
     try {
-      if (query.q) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.programsService.getProgramsBySearch(
-            req.user.user_id,
-            query,
-          ),
-        };
-      }
-
-      if (query.type) {
-        return {
-          success: true,
-          status_code: HttpStatus.OK,
-          data: await this.programsService.getProgramsByType(
-            req.user.user_id,
-            query,
-          ),
-        };
-      }
-
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.programsService.getPrograms(req.user.user_id, query),
+        data: await this.programsService.getProgramsFiltered(req, query),
       };
     } catch (error) {
       throw error;
     }
   }
 
+  @UseGuards(PublicGuard)
   @Get(':program_id')
   @HttpCode(HttpStatus.OK)
   async getProgram(
@@ -81,16 +62,14 @@ export class ProgramsController {
       return {
         success: true,
         status_code: HttpStatus.OK,
-        data: await this.programsService.getProgram(
-          req.user.user_id,
-          program_id,
-        ),
+        data: await this.programsService.getProgram(req, program_id),
       };
     } catch (error) {
       throw error;
     }
   }
 
+  @UseGuards(UserGuard)
   @Post('/follow/paid')
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(followPaidProgramsSchema))
@@ -112,31 +91,25 @@ export class ProgramsController {
     }
   }
 
+  @UseGuards(UserGuard)
   @Post('/follow/free')
-  @UseInterceptors(
-    FilesInterceptor('files', 4, {
-      storage: diskStorage({
-        destination: './public/media',
-        filename(req, file, callback) {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
-      }),
-      fileFilter(req, file, callback) {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-          return callback(
-            new BadRequestException('Hanya gambar yang diperbolehkan'),
-            false,
-          );
-        }
-        callback(null, true);
-      },
-      limits: {
-        fileSize: 4 * 1024 * 1024,
-      },
-    }),
-  )
+  @UseInterceptors(FilesInterceptor('files'))
   async uploadFile(
-    @UploadedFiles() files: Array<Express.Multer.File>,
+    @UploadedFiles(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 5 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+          new FileTypeValidator({
+            fileType: /\/(jpeg|jpg|png)$/,
+          }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    files: Express.Multer.File[],
     @Body() body: { program_id: string },
     @Req() req: Request,
   ) {
@@ -148,7 +121,6 @@ export class ProgramsController {
           program_id: body.program_id,
           user_id: req.user.user_id,
           files,
-          fullurl: req.fullurl,
         }),
       };
     } catch (error) {

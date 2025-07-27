@@ -28,6 +28,7 @@ export type UserRegisterDto = z.infer<typeof userRegisterSchema>;
 export const userLoginSchema = z.object({
   email: z.string().email({ message: 'Email tidak valid' }),
   password: z.string().min(8, { message: 'Password minimal 8 karakter' }),
+  user_agent: z.string().optional(),
 });
 
 export type UserLoginDto = z.infer<typeof userLoginSchema>;
@@ -48,6 +49,7 @@ export type AdminRegisterDto = z.infer<typeof adminRegisterSchema>;
 export const adminLoginSchema = z.object({
   admin_id: z.string().min(1, { message: 'Admin ID wajib diisi' }),
   password: z.string().min(8, { message: 'Password minimal 8 karakter' }),
+  user_agent: z.string().optional(),
 });
 
 export type AdminLoginDto = z.infer<typeof adminLoginSchema>;

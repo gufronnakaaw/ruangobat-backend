@@ -6,16 +6,27 @@ import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { AccessesModule } from './accesses/accesses.module';
 import { AdminModule } from './admin/admin.module';
 import { AdminsModule } from './admins/admins.module';
+import { AiModule } from './ai/ai.module';
 import { AppController } from './app.controller';
+import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { BatchesModule } from './batches/batches.module';
+import { CardsModule } from './cards/cards.module';
+import { CategoriesModule } from './categories/categories.module';
+import { CoursesModule } from './courses/courses.module';
 import { CronModule } from './cron/cron.module';
-import { GeneralModule } from './general/general.module';
 import { MyModule } from './my/my.module';
 import { ProgramsModule } from './programs/programs.module';
+import { QuizzesModule } from './quizzes/quizzes.module';
+import { StatisticsModule } from './statistics/statistics.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TestsModule } from './tests/tests.module';
 import { GlobalMiddleware } from './utils/global/global.middleware';
+import { PrismaService } from './utils/services/prisma.service';
+import { StorageService } from './utils/services/storage.service';
 
 @Module({
   imports: [
@@ -51,11 +62,20 @@ import { GlobalMiddleware } from './utils/global/global.middleware';
     MyModule,
     ProgramsModule,
     AdminModule,
-    CronModule,
     AdminsModule,
-    GeneralModule,
+    AiModule,
+    SubscriptionsModule,
+    CategoriesModule,
+    CardsModule,
+    CoursesModule,
+    QuizzesModule,
+    BatchesModule,
+    StatisticsModule,
+    AccessesModule,
+    CronModule,
   ],
   controllers: [AppController],
+  providers: [AppService, PrismaService, StorageService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
