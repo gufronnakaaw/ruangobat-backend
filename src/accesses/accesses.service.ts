@@ -69,6 +69,7 @@ export class AccessesService {
           created_at: true,
           started_at: true,
           expired_at: true,
+          update_reason: true,
           user: {
             select: {
               user_id: true,
@@ -105,6 +106,7 @@ export class AccessesService {
         created_at: true,
         started_at: true,
         expired_at: true,
+        update_reason: true,
         user: {
           select: {
             user_id: true,
