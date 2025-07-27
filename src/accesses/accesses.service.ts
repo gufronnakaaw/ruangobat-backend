@@ -76,6 +76,11 @@ export class AccessesService {
               fullname: true,
             },
           },
+          revokelog: {
+            select: {
+              created_at: true,
+            },
+          },
         },
         take,
         skip,
@@ -86,7 +91,11 @@ export class AccessesService {
     ]);
 
     return {
-      accesses: accesses.map(({ user, ...rest }) => ({ ...rest, ...user })),
+      accesses: accesses.map(({ user, revokelog, ...rest }) => ({
+        ...rest,
+        ...user,
+        revoked_at: revokelog[0]?.created_at || null,
+      })),
       page,
       total_accesses,
       total_pages: Math.ceil(total_accesses / take),
@@ -152,6 +161,11 @@ export class AccessesService {
             },
           },
         },
+        revokelog: {
+          select: {
+            created_at: true,
+          },
+        },
       },
     });
 
@@ -159,7 +173,7 @@ export class AccessesService {
       return {};
     }
 
-    const { user, order, accesstest, ...rest } = access;
+    const { user, order, accesstest, revokelog, ...rest } = access;
 
     return {
       ...rest,
@@ -173,6 +187,7 @@ export class AccessesService {
           granted_by: university.granted_by,
         };
       }),
+      revoked_at: revokelog[0]?.created_at || null,
     };
   }
 
