@@ -163,10 +163,11 @@ export class QuizzesService {
     return {
       ...rest,
       questions: question.map((item) => {
-        const { _count, ...question_data } = item;
+        const { _count, option, ...question_data } = item;
 
         return {
           ...question_data,
+          options: option,
           can_delete: Boolean(!_count.resultdetail),
         };
       }),
