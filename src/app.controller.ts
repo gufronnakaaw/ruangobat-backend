@@ -16,12 +16,14 @@ import {
   Query,
   Req,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
+import mammoth from 'mammoth';
 import {
   AppQuery,
   CreateFeedbackDto,
@@ -860,6 +862,70 @@ export class AppController {
           body,
           req.user.user_id,
         ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('/files')
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(FilesInterceptor('files'))
+  async uploadFiles(
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<SuccessResponse> {
+    try {
+      const urls = [];
+      for (const file of files) {
+        urls.push({
+          url: await this.storage.uploadFile({
+            buffer: file.buffer,
+            key: `others/${file.originalname}`,
+            mimetype: file.mimetype,
+          }),
+        });
+      }
+
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: urls,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('/converts/docx')
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(FilesInterceptor('files'))
+  async convertFile(
+    @UploadedFiles(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 20 * 1024 * 1024,
+            message: 'Ukuran file terlalu besar',
+          }),
+        ],
+      }),
+    )
+    files: Express.Multer.File[],
+  ): Promise<SuccessResponse> {
+    try {
+      let text = '';
+
+      for (const file of files) {
+        const result = await mammoth.extractRawText({ buffer: file.buffer });
+        text += result.value;
+      }
+
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: { text },
       };
     } catch (error) {
       throw error;

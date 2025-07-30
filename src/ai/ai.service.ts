@@ -826,18 +826,28 @@ export class AiService {
           total_cost: true,
           total_tokens: true,
           created_at: true,
+          image: {
+            select: {
+              image_id: true,
+              img_url: true,
+            },
+          },
         },
       }),
     ]);
 
     return {
       logs: logs.map((log) => {
-        const { user, ...all } = log;
+        const { user, ...rest } = log;
 
         return {
           ...user,
-          ...all,
-          total_cost: Number(all.total_cost),
+          ...rest,
+          images: rest.image.map((img) => ({
+            image_id: img.image_id,
+            img_url: img.img_url,
+          })),
+          total_cost: Number(rest.total_cost),
         };
       }),
       page,

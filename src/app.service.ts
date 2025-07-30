@@ -368,7 +368,7 @@ export class AppService {
           created_at: true,
         },
         orderBy: {
-          created_at: 'desc',
+          created_at: 'asc',
         },
       }),
       this.prisma.classMentor.findMany({
@@ -419,7 +419,7 @@ export class AppService {
           created_at: true,
         },
         orderBy: {
-          created_at: 'desc',
+          created_at: 'asc',
         },
       }),
       this.prisma.classMentor.findMany({

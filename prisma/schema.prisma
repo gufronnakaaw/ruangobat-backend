@@ -950,7 +950,7 @@ model AssessmentOption {
   id               Int              @id               @default(autoincrement())
   asso_id          String           @unique
   assq_id          String
-  text             String
+  text             String           @db.Text
   is_correct       Boolean
 
   created_at       DateTime         @default(now())
