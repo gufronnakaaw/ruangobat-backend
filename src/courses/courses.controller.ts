@@ -47,6 +47,22 @@ import { CoursesService } from './courses.service';
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
+  @Get('tests/:content_id')
+  @HttpCode(HttpStatus.OK)
+  async getTestContent(
+    @Param('content_id') content_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.coursesService.getTestContent(content_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Get(':id_or_slug/detail')
   @HttpCode(HttpStatus.OK)
   async getCourse(
@@ -212,22 +228,6 @@ export class CoursesController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.coursesService.updateContent(body),
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  @Get('tests/:content_id')
-  @HttpCode(HttpStatus.OK)
-  async getTestContent(
-    @Param('content_id') content_id: string,
-  ): Promise<SuccessResponse> {
-    try {
-      return {
-        success: true,
-        status_code: HttpStatus.OK,
-        data: await this.coursesService.getTestContent(content_id),
       };
     } catch (error) {
       throw error;
