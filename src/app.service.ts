@@ -1808,30 +1808,55 @@ export class AppService {
       score: number;
     }[] = [];
 
+    let has_subscription = false;
+    const access_tests: { univ_id: string }[] = [];
+
     if (req.is_login) {
-      const result = await this.prisma.assessmentResult.findMany({
-        where: {
-          user_id: req.user.user_id,
-          variant: 'tryout',
-        },
-        select: {
-          assr_id: true,
-          score: true,
-          created_at: true,
-          assessment: {
-            select: {
-              ass_id: true,
-              title: true,
+      const [access, results, access_tests] = await this.prisma.$transaction([
+        this.prisma.access.count({
+          where: {
+            user_id: req.user.user_id,
+            is_active: true,
+            type: 'apotekerclass',
+          },
+        }),
+        this.prisma.assessmentResult.findMany({
+          where: {
+            user_id: req.user.user_id,
+            variant: 'tryout',
+          },
+          select: {
+            assr_id: true,
+            score: true,
+            created_at: true,
+            assessment: {
+              select: {
+                ass_id: true,
+                title: true,
+              },
             },
           },
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
-      });
+          orderBy: {
+            created_at: 'desc',
+          },
+        }),
+        this.prisma.accessTest.findMany({
+          where: {
+            user_id: req.user.user_id,
+          },
+          select: {
+            univ_id: true,
+          },
+        }),
+      ]);
+
+      if (access) {
+        has_subscription = true;
+        access_tests.push(...access_tests);
+      }
 
       histories.push(
-        ...result.map((item) => ({
+        ...results.map((item) => ({
           ass_id: item.assessment.ass_id,
           title: item.assessment.title,
           created_at: item.created_at,
@@ -1882,14 +1907,20 @@ export class AppService {
 
     return {
       ...rest,
-      tryouts: tryouts_mapping.map((detail) => ({
-        ass_id: detail.assessment.ass_id,
-        title: detail.assessment.title,
-        description: detail.assessment.description,
-        total_questions: detail.assessment._count.question,
-      })),
+      tryouts: tryouts_mapping.map((detail) => {
+        return {
+          ass_id: detail.assessment.ass_id,
+          title: detail.assessment.title,
+          description: detail.assessment.description,
+          total_questions: detail.assessment._count.question,
+          has_access: access_tests.some(
+            (test) => test.univ_id === university.univ_id,
+          ),
+        };
+      }),
       histories: histories.length ? histories : [],
       is_login: req.is_login,
+      has_subscription,
     };
   }
 
