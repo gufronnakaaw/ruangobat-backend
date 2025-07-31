@@ -452,6 +452,7 @@ model Subject {
   thumbnail_url    String?
   thumbnail_type   ThumbnailType?
   price            Int?             @db.UnsignedInt
+  discount_amount  Int?             @db.UnsignedInt
   link_order       String?
   subject_type     SubjectType
   is_active        Boolean          @default(true)
