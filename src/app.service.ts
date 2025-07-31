@@ -1582,14 +1582,14 @@ export class AppService {
       has_subscription = Boolean(access);
     }
 
-    const lowest = Math.min(
-      ...contents
-        .filter((content) => content.content_type === 'video')
-        .map((content) => content.number),
-    );
+    // const lowest = Math.min(
+    //   ...contents
+    //     .filter((content) => content.content_type === 'video')
+    //     .map((content) => content.number),
+    // );
 
     const contents_mapping = contents.map((content) => {
-      const { _count, segment, ...rest } = content;
+      const { _count, ...rest } = content;
 
       let is_locked: boolean;
       let has_note: boolean;
@@ -1602,16 +1602,17 @@ export class AppService {
           is_locked = false;
           token = generateToken(3600);
         } else {
-          if (
-            segment.number === 1 &&
-            ((rest.content_type === 'test' && rest.test_type === 'pre') ||
-              (rest.content_type === 'video' && rest.number === lowest))
-          ) {
-            is_locked = false;
-            token = generateToken(3600);
-          } else {
-            is_locked = true;
-          }
+          is_locked = true;
+          // if (
+          //   segment.number === 1 &&
+          //   ((rest.content_type === 'test' && rest.test_type === 'pre') ||
+          //     (rest.content_type === 'video' && rest.number === lowest))
+          // ) {
+          //   is_locked = false;
+          //   token = generateToken(3600);
+          // } else {
+          //   is_locked = true;
+          // }
         }
       }
 
