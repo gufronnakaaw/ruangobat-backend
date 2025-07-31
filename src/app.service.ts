@@ -1622,8 +1622,6 @@ export class AppService {
       }
 
       delete rest.number;
-      delete rest.video_note;
-      delete rest.video_note_url;
 
       if (content.content_type === 'test') {
         const { result, ...mapping } = removeKeys(rest, [
