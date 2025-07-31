@@ -184,7 +184,7 @@ export class CoursesController {
     }
   }
 
-  @Post('contents')
+  @Post('videos')
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(createContentSchema))
   async createContent(
@@ -201,7 +201,7 @@ export class CoursesController {
     }
   }
 
-  @Patch('contents')
+  @Patch('videos')
   @HttpCode(HttpStatus.OK)
   @UsePipes(new ZodValidationPipe(updateContentSchema))
   async updateContent(
