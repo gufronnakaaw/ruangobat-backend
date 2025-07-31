@@ -495,6 +495,7 @@ model Thesis {
   thumbnail_url    String?
   thumbnail_type   ThumbnailType?
   price            Int              @db.UnsignedInt
+  discount_amount  Int?             @db.UnsignedInt
   link_order       String
   is_active        Boolean          @default(true)
 
@@ -516,6 +517,7 @@ model Research {
   thumbnail_url    String?
   thumbnail_type   ThumbnailType?
   price            Int              @db.UnsignedInt
+  discount_amount  Int?             @db.UnsignedInt
   link_order       String
   is_active        Boolean          @default(true)
 
@@ -653,6 +655,7 @@ model SubscriptionPackage {
   package_id       String           @unique           @default(uuid())
   name             String
   price            Int              @db.UnsignedInt
+  discount_amount  Int?             @db.UnsignedInt
   duration         Int              @db.UnsignedInt
   type             SubscriptionType
   link_order       String
@@ -691,7 +694,7 @@ model Category {
   category_id      String           @unique           @default(uuid())
   slug             String           
   name             String
-  img_url          String
+  img_url          String           @db.Text
   img_key          String
   type             SubscriptionType
   is_active        Boolean          @default(true)
@@ -716,10 +719,10 @@ model SubCategory {
   id               Int              @id               @default(autoincrement())
   sub_category_id  String           @unique           @default(uuid())
   category_id      String
-  name             String
+  name             String           
   slug             String           
   type             SubscriptionType
-  img_url          String
+  img_url          String           @db.Text  
   img_key          String
   is_active        Boolean          @default(true)
 
@@ -746,10 +749,10 @@ model Course {
   sub_category_id   String?   
   title             String
   slug              String          
-  preview_url       String?
+  preview_url       String?         @db.Text
   thumbnail_url     String
   thumbnail_key     String
-  description       String
+  description       String          @db.Text
   is_active         Boolean         @default(true)
   type              SubscriptionType
 
@@ -796,8 +799,8 @@ model Content {
   segment_id        String
   number            Int             @db.UnsignedInt
   title             String
-  video_url         String?
-  video_note_url    String?
+  video_url         String?         @db.Text
+  video_note_url    String?         @db.Text
   video_note        String?         @db.Text
   duration          String?          
   content_type      ContentType
@@ -843,7 +846,7 @@ model Card {
   type              CardType
   text              String?         @db.Text
   url               String?         @db.Text  
-  key               String?
+  key               String?         @db.Text 
   is_active         Boolean         @default(true)
 
   created_at        DateTime        @default(now())
