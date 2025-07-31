@@ -73,7 +73,7 @@ export class StorageService {
     }
   }
 
-  getSingleSignedUrl(key: string) {
+  getSingleSignedUrl(key: string, duration: number = 30) {
     try {
       const command = new GetObjectCommand({
         Bucket: this.bucket,
@@ -81,7 +81,7 @@ export class StorageService {
         ResponseContentDisposition: 'inline',
       });
 
-      return getSignedUrl(this.s3Client, command, { expiresIn: 60 * 30 });
+      return getSignedUrl(this.s3Client, command, { expiresIn: 60 * duration });
     } catch (error) {
       throw new InternalServerErrorException(
         'Error pada cloud storage saat mendapatkan signed URL',
