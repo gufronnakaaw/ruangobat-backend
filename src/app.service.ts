@@ -652,6 +652,7 @@ export class AppService {
             package_id: true,
             name: true,
             price: true,
+            discount_amount: true,
             duration: true,
             type: true,
             link_order: true,
@@ -747,6 +748,7 @@ export class AppService {
           package_id: true,
           name: true,
           price: true,
+          discount_amount: true,
           duration: true,
           type: true,
           link_order: true,
@@ -869,6 +871,7 @@ export class AppService {
         package_id: true,
         name: true,
         price: true,
+        discount_amount: true,
         duration: true,
         type: true,
         link_order: true,
@@ -1773,6 +1776,7 @@ export class AppService {
     return {
       video_url: await this.storage.getSingleSignedUrl(
         decodeURIComponent(url.pathname.slice(1)),
+        120,
       ),
     };
   }
