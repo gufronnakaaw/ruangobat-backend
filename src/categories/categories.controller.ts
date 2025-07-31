@@ -80,7 +80,7 @@ export class CategoriesController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({
-            maxSize: 2 * 1024 * 1024,
+            maxSize: 10 * 1024 * 1024,
             message: 'Ukuran file terlalu besar',
           }),
           new FileTypeValidator({
@@ -114,7 +114,7 @@ export class CategoriesController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({
-            maxSize: 2 * 1024 * 1024,
+            maxSize: 10 * 1024 * 1024,
             message: 'Ukuran file terlalu besar',
           }),
           new FileTypeValidator({
@@ -171,7 +171,7 @@ export class CategoriesController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({
-            maxSize: 2 * 1024 * 1024,
+            maxSize: 10 * 1024 * 1024,
             message: 'Ukuran file terlalu besar',
           }),
           new FileTypeValidator({
@@ -205,7 +205,7 @@ export class CategoriesController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({
-            maxSize: 2 * 1024 * 1024,
+            maxSize: 10 * 1024 * 1024,
             message: 'Ukuran file terlalu besar',
           }),
           new FileTypeValidator({
