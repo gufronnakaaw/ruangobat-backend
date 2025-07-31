@@ -416,6 +416,9 @@ export class CoursesService {
         title: true,
         test_type: true,
         question: {
+          where: {
+            content_id,
+          },
           select: {
             assq_id: true,
             number: true,

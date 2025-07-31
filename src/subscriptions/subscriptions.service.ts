@@ -32,6 +32,7 @@ export class SubscriptionsService {
           package_id: true,
           name: true,
           price: true,
+          discount_amount: true,
           duration: true,
           type: true,
           link_order: true,
@@ -62,6 +63,7 @@ export class SubscriptionsService {
           package_id: true,
           name: true,
           price: true,
+          discount_amount: true,
           duration: true,
           type: true,
           link_order: true,
@@ -94,6 +96,7 @@ export class SubscriptionsService {
       data: {
         name: body.name,
         price: body.price,
+        discount_amount: body.discount_amount,
         duration: body.duration,
         type: body.type,
         link_order: body.link_order,
@@ -131,6 +134,7 @@ export class SubscriptionsService {
       data: {
         name: body.name,
         price: body.price,
+        discount_amount: body.discount_amount,
         duration: body.duration,
         type: body.type,
         link_order: body.link_order,

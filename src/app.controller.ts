@@ -817,6 +817,25 @@ export class AppController {
   }
 
   @UseGuards(AdminGuard)
+  @Post('/storage/signed')
+  @HttpCode(HttpStatus.OK)
+  async getSingleSignedUrl(
+    @Query('key') key: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: {
+          url: await this.storage.getSingleSignedUrl(key, 60),
+        },
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
   @Post('/storage/folders')
   @HttpCode(HttpStatus.OK)
   @UsePipes(new ZodValidationPipe(createFolderSchema))

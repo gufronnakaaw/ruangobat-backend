@@ -9,6 +9,10 @@ export type SubscriptionsQuery = {
 export const createSubscriptionPackageSchema = z.object({
   name: z.string().min(1, 'Nama paket tidak boleh kosong'),
   price: z.number().min(0, 'Harga harus bernilai positif'),
+  discount_amount: z
+    .number()
+    .min(0, 'Diskon harus bernilai positif')
+    .optional(),
   duration: z.number().min(1, 'Durasi harus minimal 1 bulan'),
   type: z.enum(['videocourse', 'apotekerclass']),
   link_order: z.string().url('Link order harus berupa URL yang valid'),
@@ -24,6 +28,10 @@ export const updateSubscriptionPackageSchema = z.object({
   package_id: z.string().uuid('ID paket tidak valid'),
   name: z.string().min(1, 'Nama paket tidak boleh kosong').optional(),
   price: z.number().min(0, 'Harga harus bernilai positif').optional(),
+  discount_amount: z
+    .number()
+    .min(0, 'Diskon harus bernilai positif')
+    .optional(),
   duration: z.number().min(1, 'Durasi harus minimal 1 bulan').optional(),
   type: z.enum(['videocourse', 'apotekerclass']).optional(),
   link_order: z

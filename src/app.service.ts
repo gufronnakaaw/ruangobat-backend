@@ -652,6 +652,7 @@ export class AppService {
             package_id: true,
             name: true,
             price: true,
+            discount_amount: true,
             duration: true,
             type: true,
             link_order: true,
@@ -747,6 +748,7 @@ export class AppService {
           package_id: true,
           name: true,
           price: true,
+          discount_amount: true,
           duration: true,
           type: true,
           link_order: true,
@@ -869,6 +871,7 @@ export class AppService {
         package_id: true,
         name: true,
         price: true,
+        discount_amount: true,
         duration: true,
         type: true,
         link_order: true,
@@ -1619,8 +1622,6 @@ export class AppService {
       }
 
       delete rest.number;
-      delete rest.video_note;
-      delete rest.video_note_url;
 
       if (content.content_type === 'test') {
         const { result, ...mapping } = removeKeys(rest, [
@@ -1773,6 +1774,7 @@ export class AppService {
     return {
       video_url: await this.storage.getSingleSignedUrl(
         decodeURIComponent(url.pathname.slice(1)),
+        120,
       ),
     };
   }
