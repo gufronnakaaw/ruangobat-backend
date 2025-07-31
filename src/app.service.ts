@@ -1812,47 +1812,48 @@ export class AppService {
     const access_tests: { univ_id: string }[] = [];
 
     if (req.is_login) {
-      const [access, results, access_tests] = await this.prisma.$transaction([
-        this.prisma.access.count({
-          where: {
-            user_id: req.user.user_id,
-            is_active: true,
-            type: 'apotekerclass',
-          },
-        }),
-        this.prisma.assessmentResult.findMany({
-          where: {
-            user_id: req.user.user_id,
-            variant: 'tryout',
-          },
-          select: {
-            assr_id: true,
-            score: true,
-            created_at: true,
-            assessment: {
-              select: {
-                ass_id: true,
-                title: true,
+      const [access, results, access_tests_result] =
+        await this.prisma.$transaction([
+          this.prisma.access.count({
+            where: {
+              user_id: req.user.user_id,
+              is_active: true,
+              type: 'apotekerclass',
+            },
+          }),
+          this.prisma.assessmentResult.findMany({
+            where: {
+              user_id: req.user.user_id,
+              variant: 'tryout',
+            },
+            select: {
+              assr_id: true,
+              score: true,
+              created_at: true,
+              assessment: {
+                select: {
+                  ass_id: true,
+                  title: true,
+                },
               },
             },
-          },
-          orderBy: {
-            created_at: 'desc',
-          },
-        }),
-        this.prisma.accessTest.findMany({
-          where: {
-            user_id: req.user.user_id,
-          },
-          select: {
-            univ_id: true,
-          },
-        }),
-      ]);
+            orderBy: {
+              created_at: 'desc',
+            },
+          }),
+          this.prisma.accessTest.findMany({
+            where: {
+              user_id: req.user.user_id,
+            },
+            select: {
+              univ_id: true,
+            },
+          }),
+        ]);
 
       if (access) {
         has_subscription = true;
-        access_tests.push(...access_tests);
+        access_tests.push(...access_tests_result);
       }
 
       histories.push(
