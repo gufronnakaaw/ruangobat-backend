@@ -674,4 +674,43 @@ export class CoursesService {
       assq_id,
     };
   }
+
+  async deleteSegment(segment_id: string) {
+    const segment = await this.prisma.segment.count({
+      where: { segment_id },
+    });
+
+    if (!segment) {
+      throw new NotFoundException('Segment tidak ditemukan');
+    }
+    await this.prisma.$transaction([
+      this.prisma.segment.delete({
+        where: { segment_id },
+      }),
+    ]);
+
+    return {
+      segment_id,
+    };
+  }
+
+  async deleteContent(content_id: string) {
+    const content = await this.prisma.content.count({
+      where: { content_id },
+    });
+
+    if (!content) {
+      throw new NotFoundException('Konten tidak ditemukan');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.content.delete({
+        where: { content_id },
+      }),
+    ]);
+
+    return {
+      content_id,
+    };
+  }
 }
