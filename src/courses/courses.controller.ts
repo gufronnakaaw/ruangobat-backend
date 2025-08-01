@@ -200,6 +200,38 @@ export class CoursesController {
     }
   }
 
+  @Delete('segments/:segment_id')
+  @HttpCode(HttpStatus.OK)
+  async deleteSegment(
+    @Param('segment_id') segment_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.coursesService.deleteSegment(segment_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Delete('contents/:content_id')
+  @HttpCode(HttpStatus.OK)
+  async deleteContent(
+    @Param('content_id') content_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.coursesService.deleteContent(content_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Post('videos')
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(createContentSchema))
