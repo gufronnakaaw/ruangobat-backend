@@ -55,8 +55,13 @@ export class TestsController {
     @Req() req: Request,
   ): Promise<SuccessResponse> {
     try {
-      const cache = (await this.cacheManager.get(
+      const test = await this.testsService.validateTestAndUser(
         test_id,
+        req.user.user_id,
+      );
+
+      const cache = (await this.cacheManager.get(
+        test.test_id,
       )) as StartTestQuestion[];
 
       if (cache) {
@@ -64,21 +69,21 @@ export class TestsController {
           success: true,
           status_code: HttpStatus.OK,
           data: await this.testsService.startTest({
-            test_id,
+            test,
             user_id: req.user.user_id,
             questions: cache,
           }),
         };
       }
 
-      const questions = await this.testsService.getQuestions(test_id);
-      await this.cacheManager.set(test_id, questions, 120000);
+      const questions = await this.testsService.getQuestions(test.test_id);
+      await this.cacheManager.set(test.test_id, questions, 120000);
 
       return {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.testsService.startTest({
-          test_id,
+          test,
           user_id: req.user.user_id,
           questions,
         }),
