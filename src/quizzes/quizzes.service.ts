@@ -19,7 +19,7 @@ export class QuizzesService {
     }
 
     const default_page = 1;
-    const take = 10;
+    const take = 9;
     const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
