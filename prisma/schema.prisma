@@ -132,17 +132,6 @@ enum OrderStatus {
   replaced
 }
 
-enum OrderItemType {
-  videocourse 
-  apotekerclass 
-  videoukmppai 
-  theses 
-  research 
-  tryout 
-  book 
-  ai
-}
-
 enum NormalizedMethod {
   va
   qris
@@ -155,6 +144,23 @@ enum TransactionStatus {
   success
   failed
   expired
+}
+
+enum ProductType {
+  apotekerclass
+  videoukmppai
+  videocourse
+  research
+  private
+  tryout
+  theses
+  book
+  ai
+}
+
+enum Action {
+  click
+  view
 }
 
 model Admin {
@@ -181,6 +187,7 @@ model User {
   university       String            
   gender           Gender
   password         String
+  entry_year       String?          
   is_verified      Boolean?         @default(false)
 
   created_at       DateTime         @default(now())
@@ -200,7 +207,8 @@ model User {
 
   order            Order[]
   access           Access[] 
-  accestest        AccessTest[]     
+  accestest        AccessTest[]
+  assess_session   AssessmentSession[]     
 
   @@index([fullname, email, phone_number, created_at])
   @@map("user")
@@ -919,6 +927,7 @@ model Assessment {
   result           AssessmentResult[]
   category         Category?       @relation(fields: [category_id], references: [category_id], onDelete: Cascade)
   sub_category     SubCategory?    @relation(fields: [sub_category_id], references: [sub_category_id], onDelete: Cascade)
+  assess_session   AssessmentSession[]
 
   @@unique([title, ass_type])
   @@map("assessment")
@@ -1154,7 +1163,7 @@ model OrderItem {
   order_id          String
   product_id        String
   product_name      String
-  product_type      OrderItemType
+  product_type      ProductType
   product_price     Int              @db.UnsignedInt
 
   created_at        DateTime         @default(now())
@@ -1211,4 +1220,35 @@ model PaymentGateway {
   updated_at        DateTime        @updatedAt
 
   @@map("payment_gateway")
+}
+
+model AssessmentSession {
+  id                Int              @id               @default(autoincrement())
+  session_id        String           @unique           @default(uuid())
+  ass_id            String
+  user_id           String
+  start_time        DateTime         @default(now())
+  end_time          DateTime
+
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+
+  assessment        Assessment       @relation(fields: [ass_id], references: [ass_id], onDelete: Cascade)
+  user              User             @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@index([ass_id, user_id])
+  @@map("assessment_session")
+}
+
+model LogProduct {
+  id                String           @id @default(uuid())
+  product_id        String
+  product_name      String
+  product_type      ProductType
+  action            Action
+  user_id           String
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+
+  @@map("log_product")
 }
