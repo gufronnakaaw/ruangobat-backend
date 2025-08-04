@@ -24,7 +24,7 @@ export const updateCourseSchema = z.object({
   title: z.string().optional(),
   preview_url: z.string().url().optional(),
   description: z.string().optional(),
-  is_active: z.enum(['true', 'false']),
+  is_active: z.enum(['true', 'false']).optional(),
   by: z.string(),
 });
 
