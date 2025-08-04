@@ -15,8 +15,9 @@ export const TypeAccess = z.enum([
   'ai',
 ]);
 
-export const OrderItemTypeSchema = z.enum([
+export const ProductTypeSchema = z.enum([
   'videocourse',
+  'private',
   'apotekerclass',
   'videoukmppai',
   'theses',
@@ -33,7 +34,7 @@ export const createAccessSchema = z
     user_id: z.string().min(1, 'User ID harus diisi'),
     user_timezone: z.string().default('Asia/Jakarta'),
     product_id: z.string(),
-    product_type: OrderItemTypeSchema,
+    product_type: ProductTypeSchema,
     discount_amount: z.number().optional(),
     discount_code: z.string().optional(),
     univ_tests: z.array(z.string()).optional(),
@@ -49,7 +50,7 @@ export const updatePlanSchema = z
     type_access: TypeAccess,
     user_timezone: z.string().default('Asia/Jakarta'),
     product_id: z.string(),
-    product_type: OrderItemTypeSchema,
+    product_type: ProductTypeSchema,
     discount_amount: z.number().optional(),
     discount_code: z.string().optional(),
   })

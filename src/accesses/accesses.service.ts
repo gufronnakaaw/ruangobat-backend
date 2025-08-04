@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AccessType, OrderItemType, SubscriptionType } from '@prisma/client';
+import { AccessType, ProductType, SubscriptionType } from '@prisma/client';
 import { Request } from 'express';
 import { DateTime } from 'luxon';
 import ShortUniqueId from 'short-unique-id';
@@ -281,7 +281,7 @@ export class AccessesService {
             create: {
               product_id: body.product_id,
               product_name: product.name,
-              product_type: body.product_type as OrderItemType,
+              product_type: body.product_type as ProductType,
               product_price: product.price,
               created_by: req.admin.fullname,
               updated_by: req.admin.fullname,
@@ -479,7 +479,7 @@ export class AccessesService {
             create: {
               product_id: body.product_id,
               product_name: product.name,
-              product_type: body.product_type as OrderItemType,
+              product_type: body.product_type as ProductType,
               product_price: product.price,
               created_by: req.admin.fullname,
               updated_by: req.admin.fullname,
