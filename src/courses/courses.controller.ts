@@ -35,6 +35,7 @@ import {
   UpdateContentDto,
   updateContentSchema,
   UpdateCourseDto,
+  updateCourseSchema,
   UpdateSegmentDto,
   updateSegmentSchema,
   UpdateTestContentDto,
@@ -135,7 +136,7 @@ export class CoursesController {
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
     FileInterceptor('thumbnail'),
-    new InputInterceptor(createCourseSchema),
+    new InputInterceptor(updateCourseSchema),
   )
   async updateCourse(
     @UploadedFile(
