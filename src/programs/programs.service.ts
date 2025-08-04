@@ -239,14 +239,30 @@ export class ProgramsService {
       throw new NotFoundException('Program tidak ditemukan');
     }
 
-    const urls: string[] = [];
+    const transactions = [];
 
-    for (const file of body.files) {
-      urls.push(
-        await this.storage.uploadFile({
-          buffer: file.buffer,
-          key: `users/programs/${Date.now()}-${file.originalname}`,
-          mimetype: file.mimetype,
+    if (body.files.length) {
+      const urls: string[] = [];
+
+      for (const file of body.files) {
+        urls.push(
+          await this.storage.uploadFile({
+            buffer: file.buffer,
+            key: `users/programs/${Date.now()}-${file.originalname}`,
+            mimetype: file.mimetype,
+          }),
+        );
+      }
+
+      transactions.push(
+        this.prisma.socialMediaImage.createMany({
+          data: urls.map((url) => {
+            return {
+              program_id: body.program_id,
+              user_id: body.user_id,
+              url,
+            };
+          }),
         }),
       );
     }
@@ -262,15 +278,7 @@ export class ProgramsService {
           joined_at: date,
         },
       }),
-      this.prisma.socialMediaImage.createMany({
-        data: urls.map((url) => {
-          return {
-            program_id: body.program_id,
-            user_id: body.user_id,
-            url,
-          };
-        }),
-      }),
+      ...transactions,
     ]);
 
     return {

@@ -1,10 +1,15 @@
+import { HttpService } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../utils/services/prisma.service';
 
 @Injectable()
 export class CronService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private http: HttpService,
+  ) {}
 
   // @Cron(CronExpression.EVERY_5_MINUTES)
   // async handleDeleteSession() {
@@ -59,10 +64,33 @@ export class CronService {
           status: 'expired',
         },
       });
-      console.log('access expiration executed successfully ✅');
+
+      const formatted_json = JSON.stringify({
+        message: 'cron job subscription executed successfully ✅',
+        env: process.env.MODE.toUpperCase(),
+      });
+
+      await firstValueFrom(
+        this.http.post(process.env.TELEGRAM_URL, {
+          chat_id: process.env.TELEGRAM_CHAT_ID,
+          text: `\`\`\`json\n${formatted_json}\n\`\`\``,
+          parse_mode: 'Markdown',
+        }),
+      );
     } catch (error) {
-      console.log(error);
-      console.log('failed to execute access expiration ❌');
+      const formatted_json = JSON.stringify({
+        message: 'cron job subscription failed to execute ❌',
+        error: error.message,
+        env: process.env.MODE.toUpperCase(),
+      });
+
+      await firstValueFrom(
+        this.http.post(process.env.TELEGRAM_URL, {
+          chat_id: process.env.TELEGRAM_CHAT_ID,
+          text: `\`\`\`json\n${formatted_json}\n\`\`\``,
+          parse_mode: 'Markdown',
+        }),
+      );
     }
   }
 }

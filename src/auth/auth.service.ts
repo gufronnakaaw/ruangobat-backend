@@ -91,7 +91,8 @@ export class AuthService {
     return {
       admin_id: admin.admin_id,
       fullname: admin.fullname,
-      expired,
+      role: admin.role,
+      expired_at: expired,
       access_token: await this.jwtService.signAsync({
         admin_id: admin.admin_id,
         role: admin.role,
@@ -137,6 +138,7 @@ export class AuthService {
         gender: body.gender,
         password: await hashPassword(body.password),
         university: capitalize(body.university.toLowerCase()),
+        entry_year: body.entry_year,
         is_verified: true,
       },
       select: {
@@ -212,7 +214,7 @@ export class AuthService {
     return {
       user_id: user.user_id,
       fullname: user.fullname,
-      expired,
+      expired_at: expired,
       gender: user.gender,
       is_verified: user.is_verified,
       access_token: await this.jwtService.signAsync(
