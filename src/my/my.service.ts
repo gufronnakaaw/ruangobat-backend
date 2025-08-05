@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { random } from 'lodash';
 import ShortUniqueId from 'short-unique-id';
-import { decryptString, encryptString } from '../utils/crypto.util';
+import { decryptString, encryptString, hashString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import { parseSortQuery } from '../utils/string.util';
 import {
@@ -34,6 +34,7 @@ export class MyService {
         phone_number: true,
         gender: true,
         university: true,
+        entry_year: true,
         created_at: true,
         is_verified: true,
       },
@@ -60,58 +61,45 @@ export class MyService {
         phone_number: encryptString(body.phone_number, process.env.ENCRYPT_KEY),
         gender: body.gender,
         university: body.university,
+        entry_year: body.entry_year,
       },
       select: {
         user_id: true,
-        fullname: true,
-        gender: true,
-        university: true,
       },
     });
   }
 
   async verifyEmail(user_id: string, otp_code: string) {
-    const otp = await this.prisma.otp.findMany({
+    const otp = await this.prisma.otp.findFirst({
       where: { otp_code, user_id },
       select: {
         expired_at: true,
-        user_id: true,
-        otp_id: true,
-        otp_code: true,
         used_at: true,
+        otp_id: true,
       },
-      orderBy: {
-        created_at: 'desc',
-      },
+      orderBy: { created_at: 'desc' },
     });
 
-    if (!otp.length) {
+    if (!otp) {
       throw new NotFoundException('OTP tidak ditemukan');
     }
 
-    const date = new Date();
-    const expired_at = new Date(otp[0].expired_at);
-
-    if (date > expired_at) {
-      throw new UnauthorizedException('OTP expired');
-    }
-
-    if (otp[0].used_at) {
+    if (otp.used_at) {
       throw new UnauthorizedException('OTP telah digunakan');
     }
 
+    if (new Date() > new Date(otp.expired_at)) {
+      throw new UnauthorizedException('OTP expired');
+    }
+
     await this.prisma.$transaction([
-      this.prisma.otp.updateMany({
-        where: { otp_code, user_id },
-        data: {
-          used_at: new Date(),
-        },
+      this.prisma.otp.update({
+        where: { otp_id: otp.otp_id },
+        data: { used_at: new Date() },
       }),
       this.prisma.user.update({
         where: { user_id },
-        data: {
-          is_verified: true,
-        },
+        data: { is_verified: true },
       }),
     ]);
 
@@ -122,7 +110,7 @@ export class MyService {
   }
 
   async changeEmail(user_id: string, body: UserChangeEmailDto) {
-    const otp = await this.prisma.otp.findMany({
+    const otp = await this.prisma.otp.findFirst({
       where: { otp_code: body.otp_code, user_id },
       select: {
         expired_at: true,
@@ -136,36 +124,31 @@ export class MyService {
       },
     });
 
-    if (!otp.length) {
+    if (!otp) {
       throw new NotFoundException('OTP tidak ditemukan');
     }
 
-    const date = new Date();
-    const expired_at = new Date(otp[0].expired_at);
-
-    if (date > expired_at) {
-      throw new UnauthorizedException('OTP expired');
-    }
-
-    if (otp[0].used_at) {
+    if (otp.used_at) {
       throw new UnauthorizedException('OTP telah digunakan');
     }
 
-    const users = await this.prisma.user.findMany({
-      select: { email: true, phone_number: true },
+    if (new Date() > new Date(otp.expired_at)) {
+      throw new UnauthorizedException('OTP expired');
+    }
+
+    const email_hash = hashString(body.email, process.env.ENCRYPT_KEY);
+
+    const email_used = await this.prisma.user.findFirst({
+      where: { email_hash },
+      select: { user_id: true },
     });
 
-    for (const user of users) {
-      const email = decryptString(user.email, process.env.ENCRYPT_KEY);
-      if (email === body.email) {
-        await this.prisma.otp.updateMany({
-          where: { otp_code: body.otp_code, user_id },
-          data: {
-            used_at: new Date(),
-          },
-        });
-        throw new BadRequestException('Email sudah digunakan');
-      }
+    if (email_used) {
+      await this.prisma.otp.update({
+        where: { otp_id: otp.otp_id },
+        data: { used_at: new Date() },
+      });
+      throw new BadRequestException('Email sudah digunakan');
     }
 
     await this.prisma.$transaction([

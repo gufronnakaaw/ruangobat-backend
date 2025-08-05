@@ -1,5 +1,5 @@
-import { AES, enc } from 'crypto-js';
 import crypto from 'crypto';
+import { AES, enc } from 'crypto-js';
 
 export function encryptString(strings: string, key: string): string {
   return AES.encrypt(strings, key).toString();
@@ -7,6 +7,10 @@ export function encryptString(strings: string, key: string): string {
 
 export function decryptString(encrypted: string, key: string): string {
   return AES.decrypt(encrypted, key).toString(enc.Utf8);
+}
+
+export function hashString(string: string, key: string): string {
+  return crypto.createHmac('sha256', key).update(string).digest('hex');
 }
 
 export function generateToken(expiresInSec = 300): string {

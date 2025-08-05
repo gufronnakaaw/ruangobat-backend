@@ -12,7 +12,7 @@ import { DateTime } from 'luxon';
 import { firstValueFrom, Observable } from 'rxjs';
 import ShortUniqueId from 'short-unique-id';
 import { hashPassword } from '../utils/bcrypt.util';
-import { decryptString, encryptString } from '../utils/crypto.util';
+import { decryptString, encryptString, hashString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import { StorageService } from '../utils/services/storage.service';
 import {
@@ -116,6 +116,16 @@ export class AdminService {
             contains: query.q,
           },
         },
+        {
+          email_hash: {
+            contains: hashString(query.q, process.env.ENCRYPT_KEY),
+          },
+        },
+        {
+          phone_hash: {
+            contains: hashString(query.q, process.env.ENCRYPT_KEY),
+          },
+        },
       ];
     }
 
@@ -131,6 +141,7 @@ export class AdminService {
           university: true,
           phone_number: true,
           email: true,
+          entry_year: true,
           is_verified: true,
           created_at: true,
         },
@@ -188,6 +199,7 @@ export class AdminService {
         gender: true,
         university: true,
         created_at: true,
+        entry_year: true,
         is_verified: true,
       },
     });
@@ -893,7 +905,7 @@ export class AdminService {
             subject,
             to: decryptString(user.email, process.env.ENCRYPT_KEY),
             html: generateEmailTemplate({
-              env: process.env.NODE_ENV,
+              env: process.env.MODE,
               fullname: user.fullname,
               type: ['program'],
               program_name: program.title,
