@@ -905,7 +905,7 @@ export class AdminService {
             subject,
             to: decryptString(user.email, process.env.ENCRYPT_KEY),
             html: generateEmailTemplate({
-              env: process.env.NODE_ENV,
+              env: process.env.MODE,
               fullname: user.fullname,
               type: ['program'],
               program_name: program.title,
