@@ -9,9 +9,13 @@ import { JwtService } from '@nestjs/jwt';
 import { random } from 'lodash';
 import { UAParser } from 'ua-parser-js';
 import { hashPassword, verifyPassword } from '../utils/bcrypt.util';
-import { decryptString, encryptString } from '../utils/crypto.util';
+import { encryptString, hashString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
-import { capitalize, getInitials } from '../utils/string.util';
+import {
+  capitalize,
+  generateEmailTemplate,
+  getInitials,
+} from '../utils/string.util';
 import {
   AdminLoginDto,
   AdminRegisterDto,
@@ -106,83 +110,70 @@ export class AuthService {
       secret: process.env.JWT_SECRET_KEY,
     });
 
-    const users = await this.prisma.user.findMany({
-      select: { email: true, phone_number: true },
-    });
+    const email_hash = hashString(body.email, process.env.ENCRYPT_KEY);
+    const phone_hash = hashString(body.phone_number, process.env.ENCRYPT_KEY);
+    const email_enc = encryptString(body.email, process.env.ENCRYPT_KEY);
+    const phone_enc = encryptString(body.phone_number, process.env.ENCRYPT_KEY);
 
-    for (const user of users) {
-      const email = decryptString(user.email, process.env.ENCRYPT_KEY);
-      if (email === body.email) {
-        throw new BadRequestException('Email sudah digunakan');
-      }
+    if (await this.prisma.user.count({ where: { email_hash } })) {
+      throw new BadRequestException('Email sudah digunakan');
     }
 
-    for (const user of users) {
-      const phone_number = decryptString(
-        user.phone_number,
-        process.env.ENCRYPT_KEY,
-      );
-      if (phone_number === body.phone_number) {
-        throw new BadRequestException('Nomor telepon sudah digunakan');
-      }
+    if (await this.prisma.user.count({ where: { phone_hash } })) {
+      throw new BadRequestException('Nomor telepon sudah digunakan');
     }
 
     const fullname = capitalize(body.fullname.toLowerCase());
+    const university = capitalize(body.university.toLowerCase());
 
     const user = await this.prisma.user.create({
       data: {
         user_id: `ROU${getInitials(fullname)}${random(100000, 999999)}`,
-        email: encryptString(body.email, process.env.ENCRYPT_KEY),
-        phone_number: encryptString(body.phone_number, process.env.ENCRYPT_KEY),
+        email: email_enc,
+        phone_number: phone_enc,
+        email_hash,
+        phone_hash,
         fullname,
         gender: body.gender,
         password: await hashPassword(body.password),
-        university: capitalize(body.university.toLowerCase()),
+        university,
         entry_year: body.entry_year,
         is_verified: true,
       },
       select: {
         user_id: true,
-        fullname: true,
-        gender: true,
-        university: true,
       },
     });
 
     if (process.env.EMAIL_ACTIVE === 'true') {
-      const template = `<p>Hi <strong>${fullname}</strong>! 🎉</p><br/>`;
-
-      await this.mailerService.sendMail({
-        from: `RuangObat <${process.env.EMAIL_ALIAS_TWO}>`,
-        to: body.email,
-        subject: 'Yeay! Kamu berhasil daftar! 🎉',
-        html: template,
-      });
+      this.mailerService
+        .sendMail({
+          from: `RuangObat <${process.env.EMAIL_ALIAS_TWO}>`,
+          to: body.email,
+          subject: 'Yeay! Kamu berhasil daftar! 🎉',
+          html: generateEmailTemplate({
+            fullname,
+            env: process.env.MODE,
+            type: ['register'],
+          }),
+        })
+        .catch(console.error);
     }
 
     return user;
   }
 
   async userLogin(body: UserLoginDto) {
-    const users = await this.prisma.user.findMany({
+    const user = await this.prisma.user.findUnique({
+      where: { email_hash: hashString(body.email, process.env.ENCRYPT_KEY) },
       select: {
-        email: true,
-        password: true,
         user_id: true,
         fullname: true,
-        gender: true,
+        password: true,
         is_verified: true,
+        gender: true,
       },
     });
-
-    const user = users
-      .map((user) => {
-        return {
-          ...user,
-          email: decryptString(user.email, process.env.ENCRYPT_KEY),
-        };
-      })
-      .find((user) => user.email == body.email);
 
     if (!user) {
       throw new BadRequestException('Email atau password salah');
@@ -191,10 +182,6 @@ export class AuthService {
     if (!(await verifyPassword(body.password, user.password))) {
       throw new BadRequestException('Email atau password salah');
     }
-
-    // if (await this.prisma.session.count({ where: { user_id: user.user_id } })) {
-    //   throw new ConflictException('Sesi login anda sedang aktif');
-    // }
 
     const date = new Date();
     const expired = new Date();
