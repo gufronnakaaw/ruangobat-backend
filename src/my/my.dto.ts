@@ -26,6 +26,7 @@ export const userUpdateSchema = z.object({
     .transform((val) => val.replace(/\s+/g, ' '))
     .optional(),
   gender: z.enum(['M', 'F']).optional(),
+  entry_year: z.string().optional(),
 });
 
 export type UserUpdateDto = z.infer<typeof userUpdateSchema>;
