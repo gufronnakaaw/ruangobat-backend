@@ -164,7 +164,7 @@ export class AuthService {
   }
 
   async userLogin(body: UserLoginDto) {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findFirst({
       where: { email_hash: hashString(body.email, process.env.ENCRYPT_KEY) },
       select: {
         user_id: true,
