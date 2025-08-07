@@ -510,6 +510,7 @@ export class AiService {
         include: true,
       },
       stream: true,
+      temperature: 0.9,
     };
 
     try {
