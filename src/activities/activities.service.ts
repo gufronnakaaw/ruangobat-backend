@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../utils/services/prisma.service';
 import { parseSortQuery } from '../utils/string.util';
-import { ActivitiesQuery, CreateProductLogDto } from './activitites.dto';
+import { ActivitiesQuery, CreateProductLogDto } from './activities.dto';
 
 @Injectable()
 export class ActivitiesService {

@@ -24,7 +24,6 @@ export const createProductLogSchema = z.object({
     'book',
     'ai',
   ]),
-  timestamp: z.date().default(new Date()),
 });
 
 export type CreateProductLogDto = z.infer<typeof createProductLogSchema>;

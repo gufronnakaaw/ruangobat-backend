@@ -14,12 +14,12 @@ import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
 import { UserGuard } from '../utils/guards/user.guard';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
-import { ActivitiesService } from './activities.service';
 import {
   ActivitiesQuery,
   CreateProductLogDto,
   createProductLogSchema,
-} from './activitites.dto';
+} from './activities.dto';
+import { ActivitiesService } from './activities.service';
 
 @Controller('activities')
 export class ActivitiesController {
