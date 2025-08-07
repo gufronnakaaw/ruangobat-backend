@@ -211,7 +211,8 @@ model User {
   order            Order[]
   access           Access[] 
   accestest        AccessTest[]
-  assess_session   AssessmentSession[]     
+  assess_session   AssessmentSession[]
+  log_product      LogProduct[]     
 
   @@index([fullname, email, phone_number, created_at])
   @@map("user")
@@ -1252,6 +1253,8 @@ model LogProduct {
   user_id           String
   created_at        DateTime         @default(now())
   updated_at        DateTime         @updatedAt
+
+  user              User             @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
 
   @@map("log_product")
 }
