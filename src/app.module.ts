@@ -27,6 +27,7 @@ import { TestsModule } from './tests/tests.module';
 import { GlobalMiddleware } from './utils/global/global.middleware';
 import { PrismaService } from './utils/services/prisma.service';
 import { StorageService } from './utils/services/storage.service';
+import { ActivitiesModule } from './activities/activities.module';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { StorageService } from './utils/services/storage.service';
     StatisticsModule,
     AccessesModule,
     CronModule,
+    ActivitiesModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, StorageService],
