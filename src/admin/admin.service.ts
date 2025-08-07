@@ -1587,25 +1587,30 @@ export class AdminService {
     }
 
     if (body.type == 'edit') {
-      const users = await this.prisma.user.findMany({
-        select: { email: true, phone_number: true },
-      });
+      const email_hash = hashString(body.email, process.env.ENCRYPT_KEY);
+      const phone_hash = hashString(body.phone_number, process.env.ENCRYPT_KEY);
 
-      const decrypts = users.map((user) => {
-        return {
-          email: decryptString(user.email, process.env.ENCRYPT_KEY),
-          phone_number: decryptString(
-            user.phone_number,
-            process.env.ENCRYPT_KEY,
-          ),
-        };
-      });
-
-      if (decrypts.find((user) => user.email == body.email)) {
+      if (
+        await this.prisma.user.findFirst({
+          where: {
+            email_hash,
+            NOT: { user_id: body.user_id },
+          },
+          select: { user_id: true },
+        })
+      ) {
         throw new BadRequestException('Email sudah digunakan');
       }
 
-      if (decrypts.find((user) => user.phone_number == body.phone_number)) {
+      if (
+        await this.prisma.user.findFirst({
+          where: {
+            phone_hash,
+            NOT: { user_id: body.user_id },
+          },
+          select: { user_id: true },
+        })
+      ) {
         throw new BadRequestException('Nomor telepon sudah digunakan');
       }
 
@@ -1619,6 +1624,8 @@ export class AdminService {
             body.phone_number,
             process.env.ENCRYPT_KEY,
           ),
+          email_hash,
+          phone_hash,
         },
         select: {
           user_id: true,

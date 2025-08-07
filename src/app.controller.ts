@@ -540,8 +540,15 @@ export class AppController {
   @HttpCode(HttpStatus.OK)
   async startAssessment(
     @Param('ass_or_content_id') ass_or_content_id: string,
+    @Req() req: Request,
+    @Query('duration') duration: string,
   ): Promise<SuccessResponse> {
     try {
+      const validate = await this.appService.validateUserAccessTest({
+        ass_or_content_id,
+        user_id: req.user.user_id,
+      });
+
       const cache = (await this.cacheManager.get(
         ass_or_content_id,
       )) as StartAssessmentQuestion[];
@@ -551,8 +558,11 @@ export class AppController {
           success: true,
           status_code: HttpStatus.OK,
           data: await this.appService.startAssessment({
-            ass_or_content_id,
             questions: cache,
+            title: validate.title,
+            duration,
+            ass_id: ass_or_content_id,
+            user_id: req.user.user_id,
           }),
         };
       }
@@ -565,8 +575,11 @@ export class AppController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.appService.startAssessment({
-          ass_or_content_id,
-          questions,
+          questions: cache,
+          title: validate.title,
+          duration,
+          ass_id: ass_or_content_id,
+          user_id: req.user.user_id,
         }),
       };
     } catch (error) {
@@ -851,6 +864,20 @@ export class AppController {
     }
   }
 
+  @Get('/testimonials/page')
+  @HttpCode(HttpStatus.OK)
+  async getTestimonialsPage(): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.getTestimonialsPage(),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Get('/testimonials')
   @HttpCode(HttpStatus.OK)
   async getTestimonials(@Query() query: AppQuery): Promise<SuccessResponse> {
@@ -881,6 +908,23 @@ export class AppController {
           body,
           req.user.user_id,
         ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(AdminGuard)
+  @Delete('/testimonials/:testimonial_id')
+  @HttpCode(HttpStatus.OK)
+  async deleteTestimonial(
+    @Param('testimonial_id') testimonial_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.appService.deleteTestimonial(testimonial_id),
       };
     } catch (error) {
       throw error;

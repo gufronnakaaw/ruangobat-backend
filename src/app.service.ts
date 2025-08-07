@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { $Enums } from '@prisma/client';
+import { $Enums, ProductType } from '@prisma/client';
 import { Request } from 'express';
 import { random } from 'lodash';
 import ShortUniqueId from 'short-unique-id';
@@ -27,7 +27,7 @@ import {
 } from './app.dto';
 import { removeKeys, shuffle } from './utils/array.util';
 import { hashPassword } from './utils/bcrypt.util';
-import { decryptString, generateToken, verifyToken } from './utils/crypto.util';
+import { generateToken, hashString, verifyToken } from './utils/crypto.util';
 import { PrismaService } from './utils/services/prisma.service';
 import { StorageService } from './utils/services/storage.service';
 import {
@@ -65,22 +65,14 @@ export class AppService {
   }
 
   async sendForgotPasswordOTP(email: string) {
-    const users = await this.prisma.user.findMany({
+    const user = await this.prisma.user.findFirst({
+      where: { email_hash: hashString(email, process.env.ENCRYPT_KEY) },
       select: {
         email: true,
         user_id: true,
         fullname: true,
       },
     });
-
-    const decrypts = users.map((user) => {
-      return {
-        ...user,
-        email: decryptString(user.email, process.env.ENCRYPT_KEY),
-      };
-    });
-
-    const user = decrypts.find((user) => user.email == email);
 
     if (!user) {
       throw new NotFoundException('Email tidak ditemukan');
@@ -150,7 +142,7 @@ export class AppService {
   }
 
   async verifyOtp(body: VerifyOtpDto) {
-    const otp = await this.prisma.otp.findMany({
+    const otp = await this.prisma.otp.findFirst({
       where: { otp_code: body.otp_code, user_id: body.user_id },
       select: {
         expired_at: true,
@@ -164,19 +156,16 @@ export class AppService {
       },
     });
 
-    if (!otp.length) {
+    if (!otp) {
       throw new NotFoundException('OTP tidak ditemukan');
     }
 
-    const date = new Date();
-    const expired_at = new Date(otp[0].expired_at);
-
-    if (date > expired_at) {
-      throw new UnauthorizedException('OTP expired');
+    if (otp.used_at) {
+      throw new UnauthorizedException('OTP telah digunakan');
     }
 
-    if (otp[0].used_at) {
-      throw new UnauthorizedException('OTP telah digunakan');
+    if (new Date() > new Date(otp.expired_at)) {
+      throw new UnauthorizedException('OTP expired');
     }
 
     await this.prisma.otp.updateMany({
@@ -1063,28 +1052,121 @@ export class AppService {
     };
   }
 
-  async startAssessment({
+  async validateUserAccessTest({
     ass_or_content_id,
-    questions,
+    user_id,
   }: {
     ass_or_content_id: string;
-    questions: StartAssessmentQuestion[];
+    user_id: string;
   }) {
     const [assessment, content] = await this.prisma.$transaction([
       this.prisma.assessment.findUnique({
         where: { ass_id: ass_or_content_id },
-        select: { title: true },
+        select: {
+          title: true,
+          ass_type: true,
+          variant: true,
+          univdetail: { select: { univ_id: true } },
+        },
       }),
       this.prisma.content.findUnique({
         where: { content_id: ass_or_content_id },
-        select: { title: true },
+        select: { title: true, content_id: true, test_type: true },
       }),
     ]);
 
     if (!assessment && !content) {
-      throw new NotFoundException('Test/kuiz atau konten tidak ditemukan');
+      throw new NotFoundException('Test tidak ditemukan');
     }
 
+    if (assessment) {
+      const access = await this.prisma.access.findFirst({
+        where: {
+          user_id,
+          is_active: true,
+          type: assessment.ass_type,
+        },
+        select: {
+          accesstest: {
+            select: {
+              univ_id: true,
+            },
+          },
+          type: true,
+        },
+      });
+
+      if (!access) {
+        throw new ForbiddenException(
+          'Anda tidak memiliki akses untuk test ini',
+        );
+      }
+
+      if (access.type === 'apotekerclass' && assessment.variant === 'tryout') {
+        const has_access = assessment.univdetail.some((detail) =>
+          access.accesstest.some((item) => item.univ_id === detail.univ_id),
+        );
+
+        if (!has_access) {
+          throw new ForbiddenException(
+            'Anda tidak memiliki akses untuk test ini',
+          );
+        }
+      }
+    }
+
+    if (content) {
+      const check_content = await this.prisma.content.findUnique({
+        where: {
+          content_id: content.content_id,
+        },
+        select: {
+          segment: {
+            select: {
+              course: {
+                select: {
+                  type: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const access = await this.prisma.access.count({
+        where: {
+          user_id,
+          is_active: true,
+          type: check_content.segment.course.type,
+        },
+      });
+
+      if (!access) {
+        throw new ForbiddenException(
+          'Anda tidak memiliki akses untuk test ini',
+        );
+      }
+    }
+
+    return {
+      title: assessment ? assessment.title : content.title,
+      variant: assessment ? assessment.variant : content.test_type,
+    };
+  }
+
+  async startAssessment({
+    questions,
+    title,
+    duration,
+    ass_id,
+    user_id,
+  }: {
+    questions: StartAssessmentQuestion[];
+    title: string;
+    duration: string;
+    ass_id: string;
+    user_id: string;
+  }) {
     const shuffles = shuffle(questions).map((question, index) => {
       return {
         number: index + 1,
@@ -1094,33 +1176,67 @@ export class AppService {
       };
     });
 
+    if (duration === 'true') {
+      const session = await this.prisma.assessmentSession.findFirst({
+        where: {
+          ass_id,
+          user_id,
+        },
+        select: {
+          session_id: true,
+          end_time: true,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
+
+      if (session) {
+        return {
+          ...session,
+          title,
+          questions: shuffles,
+          total_questions: questions.length,
+        };
+      }
+
+      const end_time = new Date();
+      end_time.setMinutes(end_time.getMinutes() + shuffles.length * 2);
+
+      const create_session = await this.prisma.assessmentSession.create({
+        data: {
+          ass_id,
+          user_id,
+          end_time,
+        },
+        select: {
+          session_id: true,
+          end_time: true,
+        },
+      });
+
+      return {
+        ...create_session,
+        title,
+        questions: shuffles,
+        total_questions: questions.length,
+      };
+    }
+
     return {
-      title: assessment ? assessment.title : content.title,
+      title,
       questions: shuffles,
       total_questions: questions.length,
     };
   }
 
   async getAssessmentQuestions(ass_or_content_id: string) {
-    const [assessment_count, content_count] = await this.prisma.$transaction([
-      this.prisma.assessment.count({ where: { ass_id: ass_or_content_id } }),
-      this.prisma.content.count({ where: { content_id: ass_or_content_id } }),
-    ]);
-
-    if (!assessment_count && !content_count) {
-      throw new NotFoundException('Test/kuiz atau konten tidak ditemukan');
-    }
-
     return this.prisma.assessmentQuestion
       .findMany({
         where: {
           OR: [
-            {
-              ass_id: ass_or_content_id,
-            },
-            {
-              content_id: ass_or_content_id,
-            },
+            { ass_id: ass_or_content_id },
+            { content_id: ass_or_content_id },
           ],
         },
         select: {
@@ -1137,6 +1253,10 @@ export class AppService {
         },
       })
       .then((questions) => {
+        if (!questions.length) {
+          throw new NotFoundException('Soal tidak ditemukan');
+        }
+
         return questions.map((question) => {
           const { option, ...rest } = question;
           return {
@@ -1149,34 +1269,23 @@ export class AppService {
 
   async finishAssessment(body: FinishAssessmentDto, user_id: string) {
     const [assessment, content] = await this.prisma.$transaction([
-      this.prisma.assessment.findFirst({
-        where: {
-          ass_id: body.value_id,
-        },
+      this.prisma.assessment.findUnique({
+        where: { ass_id: body.value_id },
         select: { variant: true },
       }),
-      this.prisma.content.findFirst({
-        where: {
-          content_id: body.value_id,
-        },
+      this.prisma.content.findUnique({
+        where: { content_id: body.value_id },
         select: { test_type: true },
       }),
     ]);
 
     if (!assessment && !content) {
-      throw new NotFoundException('Test/kuiz atau konten tidak ditemukan');
+      throw new NotFoundException('Test tidak ditemukan');
     }
 
     const questions = await this.prisma.assessmentQuestion.findMany({
       where: {
-        OR: [
-          {
-            ass_id: body.value_id,
-          },
-          {
-            content_id: body.value_id,
-          },
-        ],
+        OR: [{ ass_id: body.value_id }, { content_id: body.value_id }],
       },
       select: {
         assq_id: true,
@@ -1192,63 +1301,46 @@ export class AppService {
       },
     });
 
-    const total_questions = questions.length;
-    const point = 100 / total_questions;
+    if (!questions.length) {
+      throw new NotFoundException('Soal tidak ditemukan');
+    }
+
+    const question_map = new Map(questions.map((q) => [q.assq_id, q]));
+    const point = 100 / questions.length;
     let total_correct = 0;
     let total_incorrect = 0;
     const uid = new ShortUniqueId({ length: 12 });
 
-    const user_questions: {
-      number: number;
-      assq_id: string;
-      correct_option: string;
-      user_answer: string;
-      is_correct: boolean;
-    }[] = [];
-
-    for (const user_question of body.questions) {
-      const assessment_question = questions.find(
-        (question) => question.assq_id === user_question.assq_id,
-      );
-
+    const user_questions = body.questions.map((user_question) => {
+      const assessment_question = question_map.get(user_question.assq_id);
+      if (!assessment_question) {
+        total_incorrect += 1;
+        return {
+          number: user_question.number,
+          assq_id: user_question.assq_id,
+          correct_option: '',
+          user_answer: user_question.user_answer,
+          is_correct: false,
+        };
+      }
       const correct_options = assessment_question.option.map(
         (item) => item.asso_id,
       );
+      const is_correct =
+        !!user_question.user_answer &&
+        correct_options.includes(user_question.user_answer);
 
-      if (user_question.user_answer) {
-        if (correct_options.includes(user_question.user_answer)) {
-          user_questions.push({
-            number: user_question.number,
-            assq_id: user_question.assq_id,
-            correct_option: correct_options[0],
-            user_answer: user_question.user_answer,
-            is_correct: true,
-          });
+      if (is_correct) total_correct += 1;
+      else total_incorrect += 1;
 
-          total_correct += 1;
-        } else {
-          user_questions.push({
-            number: user_question.number,
-            assq_id: user_question.assq_id,
-            correct_option: correct_options[0],
-            user_answer: user_question.user_answer,
-            is_correct: false,
-          });
-
-          total_incorrect += 1;
-        }
-      } else {
-        user_questions.push({
-          number: user_question.number,
-          assq_id: user_question.assq_id,
-          correct_option: correct_options[0],
-          user_answer: user_question.user_answer,
-          is_correct: false,
-        });
-
-        total_incorrect += 1;
-      }
-    }
+      return {
+        number: user_question.number,
+        assq_id: user_question.assq_id,
+        correct_option: correct_options[0] || '',
+        user_answer: user_question.user_answer,
+        is_correct,
+      };
+    });
 
     const result = await this.prisma.assessmentResult.create({
       data: {
@@ -1261,7 +1353,7 @@ export class AppService {
         total_correct,
         total_incorrect,
         score: Math.round(total_correct * point),
-        variant: assessment ? assessment.variant : content.test_type,
+        variant: assessment ? assessment.variant : content?.test_type,
         resultdetail: {
           createMany: {
             data: user_questions.map((item) => {
@@ -1926,9 +2018,42 @@ export class AppService {
     };
   }
 
+  async getTestimonialsPage() {
+    const types = [
+      'apotekerclass',
+      'videocourse',
+      'tryout',
+      'private',
+      'research',
+      'theses',
+    ];
+
+    const results = await Promise.all(
+      types.map((type: ProductType) =>
+        this.prisma.testimonial.findMany({
+          where: { type },
+          take: 8,
+          orderBy: { created_at: 'desc' },
+          select: {
+            testimonial_id: true,
+            img_url: true,
+            type: true,
+          },
+        }),
+      ),
+    );
+
+    const response = {};
+    types.forEach((type, idx) => {
+      response[type] = results[idx];
+    });
+
+    return response;
+  }
+
   async getTestimonials(query: AppQuery) {
     const default_page = 1;
-    const take = 10;
+    const take = 12;
     const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
@@ -1990,6 +2115,21 @@ export class AppService {
     };
   }
 
+  async deleteTestimonial(testimonial_id: string) {
+    if (
+      !(await this.prisma.testimonial.findFirst({ where: { testimonial_id } }))
+    ) {
+      throw new NotFoundException('Testimonial tidak ditemukan');
+    }
+
+    return this.prisma.testimonial.delete({
+      where: { testimonial_id },
+      select: {
+        testimonial_id: true,
+      },
+    });
+  }
+
   createGeneralTestimonial(body: CreateGeneralTestimonialDto, user_id: string) {
     return this.prisma.testimonial.create({
       data: {
@@ -2005,7 +2145,7 @@ export class AppService {
 
   async getTryouts(query: AppQuery) {
     const default_page = 1;
-    const take = 10;
+    const take = 9;
     const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
