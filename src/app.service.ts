@@ -27,7 +27,12 @@ import {
 } from './app.dto';
 import { removeKeys, shuffle } from './utils/array.util';
 import { hashPassword } from './utils/bcrypt.util';
-import { generateToken, hashString, verifyToken } from './utils/crypto.util';
+import {
+  decryptString,
+  generateToken,
+  hashString,
+  verifyToken,
+} from './utils/crypto.util';
 import { PrismaService } from './utils/services/prisma.service';
 import { StorageService } from './utils/services/storage.service';
 import {
@@ -96,7 +101,7 @@ export class AppService {
       }),
       this.mailerService.sendMail({
         from: `RuangObat <${process.env.EMAIL_ALIAS_ONE}>`,
-        to: user.email,
+        to: decryptString(user.email, process.env.ENCRYPT_KEY),
         subject: 'Verification Code (OTP)',
         html: template,
       }),
