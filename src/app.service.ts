@@ -178,8 +178,8 @@ export class AppService {
     return {
       token: await this.jwtService.signAsync(
         {
-          otp_id: otp[0].otp_id,
-          user_id: otp[0].user_id,
+          otp_id: otp.otp_id,
+          user_id: otp.user_id,
         },
         { expiresIn: '5m' },
       ),
