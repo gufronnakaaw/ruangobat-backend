@@ -320,6 +320,7 @@ export class AppController {
     }
   }
 
+  @UseGuards(AdminGuard)
   @Post('/universities/tryouts')
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(createTryoutSchema))
@@ -335,6 +336,7 @@ export class AppController {
     }
   }
 
+  @UseGuards(AdminGuard)
   @Patch('/universities/tryouts')
   @HttpCode(HttpStatus.OK)
   @UsePipes(new ZodValidationPipe(updateTryoutSchema))
@@ -350,6 +352,7 @@ export class AppController {
     }
   }
 
+  @UseGuards(AdminGuard)
   @Delete('/universities/tryouts/:ass_id/questions/:assq_id')
   @HttpCode(HttpStatus.OK)
   async deleteQuestion(
@@ -627,6 +630,7 @@ export class AppController {
     }
   }
 
+  @UseGuards(PublicGuard)
   @Get('categories/:id_or_slug/:type/detail')
   @HttpCode(HttpStatus.OK)
   async getCategory(
@@ -878,6 +882,7 @@ export class AppController {
     }
   }
 
+  @UseGuards(AdminGuard)
   @Get('/testimonials')
   @HttpCode(HttpStatus.OK)
   async getTestimonials(@Query() query: AppQuery): Promise<SuccessResponse> {
