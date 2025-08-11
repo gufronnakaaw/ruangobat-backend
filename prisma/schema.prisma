@@ -164,6 +164,11 @@ enum Action {
   view
 }
 
+enum AdType {
+  homepage
+  detailpage
+}
+
 model Admin {
   id               Int              @id               @default(autoincrement())
   admin_id         String           @unique
@@ -1257,4 +1262,66 @@ model LogProduct {
   user              User             @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
 
   @@map("log_product")
+}
+
+model Topic {
+  id                 Int             @id @default(autoincrement())
+  topic_id           String          @unique @default(uuid())
+  name               String
+  first_letter       String   
+
+  articles           Article[]   
+
+  created_at         DateTime        @default(now())
+  updated_at         DateTime        @updatedAt
+
+  created_by         String         
+  updated_by         String
+
+  @@index([first_letter])
+  @@map("topic")
+}
+
+model Article {
+  id                 Int             @id            @default(autoincrement())
+  article_id         String          @unique        @default(uuid())
+  slug               String          @unique
+  topic_id           String
+  title              String
+  description        String?
+  content            String          @db.Text
+  img_url            String          @db.Text
+  img_key            String          @db.Text
+  is_active          Boolean         @default(true)
+
+  created_at         DateTime        @default(now())
+  updated_at         DateTime        @updatedAt
+
+  created_by         String         
+  updated_by         String
+
+  topic              Topic           @relation(fields: [topic_id], references: [topic_id], onDelete: Cascade)
+
+  @@index([topic_id])
+  @@unique([slug, topic_id])
+  @@map("blog")
+}
+
+model Ad {
+  id                 Int             @id               @default(autoincrement())
+  ad_id              String          @unique           @default(uuid())
+  title              String
+  type               AdType
+  link               String          @db.Text
+  img_url            String          @db.Text
+  img_key            String          @db.Text
+  is_active          Boolean         @default(true)
+
+  created_at         DateTime        @default(now())
+  updated_at         DateTime        @updatedAt
+
+  created_by         String         
+  updated_by         String
+
+  @@map("ad")
 }
