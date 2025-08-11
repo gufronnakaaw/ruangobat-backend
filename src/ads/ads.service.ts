@@ -80,6 +80,7 @@ export class AdsService {
       where: { ad_id: body.ad_id },
       select: {
         ad_id: true,
+        img_key: true,
       },
     });
 
@@ -95,6 +96,7 @@ export class AdsService {
         buffer: file.buffer,
         mimetype: file.mimetype,
       });
+      await this.storage.deleteFile(ads.img_key);
     }
 
     return this.prisma.ad.update({
