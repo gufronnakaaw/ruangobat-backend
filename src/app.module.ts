@@ -7,11 +7,14 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AccessesModule } from './accesses/accesses.module';
+import { ActivitiesModule } from './activities/activities.module';
 import { AdminModule } from './admin/admin.module';
 import { AdminsModule } from './admins/admins.module';
+import { AdsModule } from './ads/ads.module';
 import { AiModule } from './ai/ai.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ArticlesModule } from './articles/articles.module';
 import { AuthModule } from './auth/auth.module';
 import { BatchesModule } from './batches/batches.module';
 import { CardsModule } from './cards/cards.module';
@@ -24,10 +27,10 @@ import { QuizzesModule } from './quizzes/quizzes.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TestsModule } from './tests/tests.module';
+import { TopicsModule } from './topics/topics.module';
 import { GlobalMiddleware } from './utils/global/global.middleware';
 import { PrismaService } from './utils/services/prisma.service';
 import { StorageService } from './utils/services/storage.service';
-import { ActivitiesModule } from './activities/activities.module';
 
 @Module({
   imports: [
@@ -75,6 +78,9 @@ import { ActivitiesModule } from './activities/activities.module';
     AccessesModule,
     CronModule,
     ActivitiesModule,
+    ArticlesModule,
+    AdsModule,
+    TopicsModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, StorageService],
