@@ -75,7 +75,8 @@ export const createBatchTestimonialsSchema = z.object({
     'research',
     'tryout',
     'book',
-    'rosa',
+    'ai',
+    'private',
   ]),
   keys: z.array(z.string()),
 });
