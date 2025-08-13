@@ -1293,6 +1293,7 @@ model Article {
   img_url            String          @db.Text
   img_key            String          @db.Text
   is_active          Boolean         @default(true)
+  views              Int             @default(0)
 
   created_at         DateTime        @default(now())
   updated_at         DateTime        @updatedAt
