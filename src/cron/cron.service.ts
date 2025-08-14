@@ -1,5 +1,6 @@
 import { HttpService } from '@nestjs/axios';
-import { Injectable } from '@nestjs/common';
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Inject, Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../utils/services/prisma.service';
@@ -9,6 +10,7 @@ export class CronService {
   constructor(
     private prisma: PrismaService,
     private http: HttpService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   // @Cron(CronExpression.EVERY_5_MINUTES)
@@ -91,6 +93,54 @@ export class CronService {
           parse_mode: 'Markdown',
         }),
       );
+    }
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE, {
+    timeZone: 'Asia/Jakarta',
+  })
+  async handleUpdateArticleViews() {
+    try {
+      const keys = await this.cacheManager.store.keys();
+      const now = Date.now();
+      let updatedCount = 0;
+
+      for (const key of keys) {
+        if (key.startsWith('article:') && key.endsWith(':views')) {
+          try {
+            const cacheData = await this.cacheManager.get<{
+              count: number;
+              lastUpdate: number;
+            }>(key);
+
+            if (!cacheData || cacheData.count <= 0) continue;
+
+            const timeElapsed = now - cacheData.lastUpdate;
+
+            const shouldProcess = timeElapsed > 30000 || timeElapsed > 150000;
+
+            if (shouldProcess) {
+              const article_id = key.split(':')[1];
+
+              await this.prisma.article.update({
+                where: { article_id },
+                data: { views: { increment: cacheData.count } },
+              });
+
+              await this.cacheManager.del(key);
+              updatedCount++;
+            }
+          } catch (keyError) {
+            console.error(`Failed to process key ${key}:`, keyError);
+          }
+        }
+      }
+
+      if (updatedCount > 0) {
+        console.log(`Updated ${updatedCount} article views`);
+      }
+    } catch (error) {
+      console.error('Article views cron job failed:', error);
     }
   }
 }
