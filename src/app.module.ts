@@ -14,6 +14,7 @@ import { AdsModule } from './ads/ads.module';
 import { AiModule } from './ai/ai.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ArticlesModule } from './articles/articles.module';
 import { AuthModule } from './auth/auth.module';
 import { BatchesModule } from './batches/batches.module';
 import { CardsModule } from './cards/cards.module';
@@ -79,6 +80,7 @@ import { StorageService } from './utils/services/storage.service';
     ActivitiesModule,
     AdsModule,
     TopicsModule,
+    ArticlesModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, StorageService],
