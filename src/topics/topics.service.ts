@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../utils/services/prisma.service';
 import { parseSortQuery } from '../utils/string.util';
 import { CreateTopicDto, TopicQuery, UpdateTopicDto } from './topics.dto';
@@ -48,7 +52,7 @@ export class TopicsService {
 
   async getTopicsFiltered(query: TopicQuery) {
     const default_page = 1;
-    const take = 10;
+    const take = 12;
     const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
@@ -74,7 +78,7 @@ export class TopicsService {
         },
         orderBy: query.sort
           ? parseSortQuery(query.sort, ['created_at', 'name'])
-          : { created_at: 'desc' },
+          : { name: 'asc' },
         take,
         skip,
       }),
@@ -123,9 +127,18 @@ export class TopicsService {
   }
 
   async deleteTopic(topic_id: string) {
-    const topic = await this.prisma.topic.findUnique({ where: { topic_id } });
+    const topic = await this.prisma.topic.findUnique({
+      where: { topic_id },
+      select: { _count: { select: { articles: true } } },
+    });
 
     if (!topic) throw new NotFoundException('Topic tidak ditemukan');
+
+    if (topic._count.articles) {
+      throw new ForbiddenException(
+        'Topic tidak dapat dihapus karena masih memiliki artikel',
+      );
+    }
 
     return this.prisma.topic.delete({
       where: { topic_id },
