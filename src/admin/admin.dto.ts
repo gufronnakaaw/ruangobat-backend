@@ -5,6 +5,7 @@ export type AdminQuery = {
   page: string;
   filter?: string;
   sort?: string;
+  all?: 'true' | 'false';
 };
 
 export const createProgramsSchema = z.object({

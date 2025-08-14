@@ -1056,6 +1056,12 @@ export class AdminService {
     const take = 20;
     const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
+    const pagination: any = {};
+
+    if (!query.all || query.all === 'false') {
+      pagination.take = take;
+      pagination.skip = skip;
+    }
 
     const [total_questions, test] = await this.prisma.$transaction([
       this.prisma.question.count({ where: { test_id } }),
@@ -1089,8 +1095,7 @@ export class AdminService {
               },
             },
             orderBy: { number: 'asc' },
-            take,
-            skip,
+            ...pagination,
           },
         },
       }),
