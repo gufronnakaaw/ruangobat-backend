@@ -1267,7 +1267,7 @@ model LogProduct {
 model Topic {
   id                 Int             @id @default(autoincrement())
   topic_id           String          @unique @default(uuid())
-  name               String
+  name               String          @unique
   first_letter       String   
 
   articles           Article[]   
@@ -1305,7 +1305,7 @@ model Article {
 
   @@index([topic_id])
   @@unique([slug, topic_id])
-  @@map("blog")
+  @@map("article")
 }
 
 model Ad {
