@@ -24,6 +24,7 @@ import {
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import mammoth from 'mammoth';
+import { fetch } from 'undici';
 import {
   AppQuery,
   CreateFeedbackDto,
@@ -320,6 +321,7 @@ export class AppController {
     }
   }
 
+  @UseGuards(AdminGuard)
   @Post('/universities/tryouts')
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(createTryoutSchema))
@@ -335,6 +337,7 @@ export class AppController {
     }
   }
 
+  @UseGuards(AdminGuard)
   @Patch('/universities/tryouts')
   @HttpCode(HttpStatus.OK)
   @UsePipes(new ZodValidationPipe(updateTryoutSchema))
@@ -350,6 +353,7 @@ export class AppController {
     }
   }
 
+  @UseGuards(AdminGuard)
   @Delete('/universities/tryouts/:ass_id/questions/:assq_id')
   @HttpCode(HttpStatus.OK)
   async deleteQuestion(
@@ -375,6 +379,40 @@ export class AppController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.appService.getUniversities(query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/universities/search')
+  @HttpCode(HttpStatus.OK)
+  async searchUniversities(@Query() query: AppQuery): Promise<SuccessResponse> {
+    try {
+      const cache: { name: string }[] =
+        await this.cacheManager.get('universitites');
+
+      if (cache) {
+        return {
+          success: true,
+          status_code: HttpStatus.OK,
+          data: cache.filter((item) =>
+            item.name.toLowerCase().includes(query.q.toLowerCase()),
+          ),
+        };
+      }
+
+      const response = await fetch(process.env.STATIC_UNIVERSITY_URL);
+      const data = (await response.json()) as { name: string }[];
+
+      await this.cacheManager.set('universitites', data, 60000 * 60);
+
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: data.filter((item) =>
+          item.name.toLowerCase().includes(query.q.toLowerCase()),
+        ),
       };
     } catch (error) {
       throw error;
@@ -627,6 +665,7 @@ export class AppController {
     }
   }
 
+  @UseGuards(PublicGuard)
   @Get('categories/:id_or_slug/:type/detail')
   @HttpCode(HttpStatus.OK)
   async getCategory(
@@ -878,6 +917,7 @@ export class AppController {
     }
   }
 
+  @UseGuards(AdminGuard)
   @Get('/testimonials')
   @HttpCode(HttpStatus.OK)
   async getTestimonials(@Query() query: AppQuery): Promise<SuccessResponse> {

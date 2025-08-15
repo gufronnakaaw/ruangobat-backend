@@ -2058,7 +2058,7 @@ export class AppService {
 
   async getTestimonials(query: AppQuery) {
     const default_page = 1;
-    const take = 12;
+    const take = 15;
     const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 

@@ -232,6 +232,7 @@ export class MyService {
         title: true,
         type: true,
         price: true,
+        is_active: true,
       },
     });
   }

@@ -15,25 +15,30 @@ export class PublicGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const token = this.extractToken(request);
 
-    if (!token) {
-      request['is_login'] = false;
-      return true;
-    }
+    request['is_login'] = false;
+    request['is_admin'] = false;
+
+    if (!token) return true;
 
     try {
       const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_SECRET_KEY,
       });
 
-      if (payload.role == 'user') {
+      if (payload.role === 'user') {
         request['user'] = payload;
         request['is_login'] = true;
         return true;
       }
 
-      request['is_login'] = false;
+      if (payload.role === 'admin' || payload.role === 'superadmin') {
+        request['admin'] = payload;
+        request['is_admin'] = true;
+        return true;
+      }
+
       return true;
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException();
     }
   }
