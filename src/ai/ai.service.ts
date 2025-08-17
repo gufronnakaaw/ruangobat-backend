@@ -6,7 +6,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prompt } from '@prisma/client';
+import { Prompt, PromptType } from '@prisma/client';
+import { ModelMessage } from 'ai';
 import { AxiosResponse } from 'axios';
 import { DateTime } from 'luxon';
 import { firstValueFrom } from 'rxjs';
@@ -1151,5 +1152,123 @@ export class AiService {
         prompt_id: true,
       },
     });
+  }
+
+  async getActiveProvider() {
+    const provider = await this.prisma.aiProvider.findFirst({
+      where: {
+        is_active: true,
+      },
+      select: {
+        api_key: true,
+        model: true,
+      },
+    });
+
+    if (!provider) {
+      return `Server-nya lagi ngambek sedikit 🤏, aku coba ajak baikan dulu ya!`;
+    }
+
+    return {
+      api_key: decryptString(provider.api_key, process.env.ENCRYPT_KEY),
+      model: provider.model,
+    };
+  }
+
+  async getChatHistories(
+    user_id: string,
+    timezone = 'Asia/Jakarta',
+  ): Promise<ModelMessage[]> {
+    const today = DateTime.now().setZone(timezone).startOf('day');
+    const until = today.plus({ days: 1 });
+
+    const histories = await this.prisma.aiChat.findMany({
+      where: {
+        user_id,
+        created_at: {
+          gte: today.toJSDate(),
+          lt: until.toJSDate(),
+        },
+      },
+      select: {
+        question: true,
+        answer: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+      take: 10,
+    });
+
+    return histories.reverse().flatMap((item) => [
+      { role: 'user', content: item.question },
+      { role: 'assistant', content: item.answer },
+    ]);
+  }
+
+  async getSystemPrompt(input: string) {
+    const messages: ModelMessage[] = [];
+
+    const keywords = removeStopwords(input.split(' '), ind);
+
+    const contexts = await this.prisma.aiContext.findMany({
+      where: {
+        is_active: true,
+        OR: keywords.map((word) => ({
+          OR: [{ title: { contains: word } }, { content: { contains: word } }],
+        })),
+      },
+      select: {
+        title: true,
+        content: true,
+      },
+    });
+
+    const cache = (await this.cacheManager.get('system_prompt')) as Pick<
+      Prompt,
+      'type' | 'content'
+    >[];
+
+    let instruction: {
+      type: PromptType;
+      content: string;
+    };
+    let answer_format: {
+      type: PromptType;
+      content: string;
+    };
+
+    if (cache) {
+      instruction = cache.find((item) => item.type === 'INSTRUCTION');
+      answer_format = cache.find((item) => item.type === 'ANSWER_FORMAT');
+    } else {
+      const prompts = await this.prisma.prompt.findMany({
+        select: { type: true, content: true },
+      });
+
+      await this.cacheManager.set('system_prompt', prompts, 60 * 1000 * 5);
+
+      instruction = prompts.find((item) => item.type === 'INSTRUCTION');
+      answer_format = prompts.find((item) => item.type === 'ANSWER_FORMAT');
+    }
+
+    messages.push({
+      role: 'system',
+      content: instruction ? instruction.content : '',
+    });
+
+    if (contexts.length) {
+      messages.push({
+        role: 'system',
+        content: buildContext(contexts.map((context) => context.content)),
+      });
+    }
+
+    messages.push({
+      role: 'system',
+      content: answer_format ? answer_format.content : '',
+    });
+
+    return messages;
   }
 }
