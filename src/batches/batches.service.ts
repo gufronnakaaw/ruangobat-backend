@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { random } from 'lodash';
 import { removeKeys } from '../utils/array.util';
 import { hashPassword } from '../utils/bcrypt.util';
-import { encryptString } from '../utils/crypto.util';
+import { encryptString, hashString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import { StorageService } from '../utils/services/storage.service';
 import { capitalize, getInitials, slug } from '../utils/string.util';
@@ -32,6 +32,9 @@ export class BatchesService {
       email: string;
       phone_number: string;
       university: string;
+      email_hash: string;
+      phone_hash: string;
+      entry_year: string;
       gender: 'M' | 'F';
       is_verified: boolean;
     }[] = [];
@@ -46,6 +49,9 @@ export class BatchesService {
         password: await hashPassword(
           user.password ? user.password : process.env.DEFAULT_PASSWORD_USER,
         ),
+        email_hash: hashString(user.email, process.env.ENCRYPT_KEY),
+        phone_hash: hashString(user.phone_number, process.env.ENCRYPT_KEY),
+        entry_year: user.entry_year,
         university: capitalize(user.university.toLowerCase()),
         is_verified: true,
       });

@@ -57,6 +57,8 @@ export class AdsService {
           title: true,
           type: true,
           img_url: true,
+          link: true,
+          is_active: true,
           created_at: true,
         },
         orderBy: query.sort
