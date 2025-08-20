@@ -23,6 +23,11 @@ export const createBatchUsersSchema = z.object({
           .trim()
           .transform((val) => val.replace(/\s+/g, ' ')),
         gender: z.enum(['M', 'F']),
+        entry_year: z
+          .string()
+          .min(1, { message: 'Tahun masuk wajib diisi' })
+          .trim()
+          .transform((val) => val.replace(/\s+/g, ' ')),
         password: z
           .string()
           .min(8, { message: 'Password minimal 8 karakter' })
