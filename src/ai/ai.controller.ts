@@ -30,6 +30,7 @@ import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
 import { UserGuard } from '../utils/guards/user.guard';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
+import { StorageService } from '../utils/services/storage.service';
 import {
   AiQuery,
   createAiLimit,
@@ -48,6 +49,8 @@ import {
   updateProviderSchema,
   UpdateProviderStatusDto,
   updateProviderStatusSchema,
+  UpdateThreadDto,
+  updateThreadSchema,
   updateUserAiLimit,
   UpdateUserAiLimitDto,
   UpsertPromptDto,
@@ -59,7 +62,10 @@ import { AiService } from './ai.service';
 
 @Controller('ai')
 export class AiController {
-  constructor(private readonly aiService: AiService) {}
+  constructor(
+    private readonly aiService: AiService,
+    private storage: StorageService,
+  ) {}
 
   @UseGuards(AdminGuard)
   @Get('/providers')
@@ -554,7 +560,11 @@ export class AiController {
 
       for (const file of files) {
         data.push({
-          url: await this.aiService.uploadChatImage(file, req.user.user_id),
+          url: await this.storage.uploadFile({
+            buffer: file.buffer,
+            key: `chat/${Date.now()}-${req.user.user_id}-${file.originalname}`,
+            mimetype: file.mimetype,
+          }),
         });
       }
 
@@ -774,6 +784,61 @@ export class AiController {
         success: true,
         status_code: HttpStatus.CREATED,
         data: await this.aiService.upsertPrompt(body),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(UserGuard)
+  @Get('/threads')
+  @HttpCode(HttpStatus.OK)
+  async getThreads(
+    @Query('archive') archive: string,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.aiService.getThreads(
+          req.user.user_id,
+          parseInt(archive),
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(UserGuard)
+  @Post('/threads')
+  @HttpCode(HttpStatus.CREATED)
+  async createThread(@Req() req: Request): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.CREATED,
+        data: await this.aiService.createThread(req.user.user_id),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(UserGuard)
+  @Patch('/threads')
+  @UsePipes(new ZodValidationPipe(updateThreadSchema))
+  @HttpCode(HttpStatus.OK)
+  async updateThread(
+    @Body() body: UpdateThreadDto,
+    @Req() req: Request,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.aiService.updateThread(body, req.user.user_id),
       };
     } catch (error) {
       throw error;

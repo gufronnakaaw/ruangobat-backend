@@ -155,3 +155,10 @@ export const upsertPromptSchema = z.object({
 });
 
 export type UpsertPromptDto = z.infer<typeof upsertPromptSchema>;
+
+export const updateThreadSchema = z.object({
+  thread_id: z.string(),
+  is_archived: z.boolean(),
+});
+
+export type UpdateThreadDto = z.infer<typeof updateThreadSchema>;
