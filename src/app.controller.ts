@@ -613,7 +613,7 @@ export class AppController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.appService.startAssessment({
-          questions: cache,
+          questions,
           title: validate.title,
           duration,
           ass_id: ass_or_content_id,
