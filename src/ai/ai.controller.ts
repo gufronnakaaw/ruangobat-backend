@@ -256,6 +256,27 @@ export class AiController {
   }
 
   @UseGuards(UserGuard)
+  @Get('/chat/:thread_id')
+  @HttpCode(HttpStatus.OK)
+  async getChatByThreadId(
+    @Req() req: Request,
+    @Param('thread_id') thread_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.aiService.getChatByThreadId(
+          req.user.user_id,
+          thread_id,
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @UseGuards(UserGuard)
   @Get('/chat')
   @HttpCode(HttpStatus.OK)
   async getChat(

@@ -1314,4 +1314,33 @@ export class AiService {
       },
     });
   }
+
+  async getChatByThreadId(user_id: string, thread_id: string) {
+    const chats = await this.prisma.aiChat.findMany({
+      where: {
+        user_id,
+        thread_id,
+      },
+      select: {
+        chat_id: true,
+        question: true,
+        answer: true,
+        image: { select: { image_id: true, img_url: true } },
+      },
+    });
+
+    return chats.flatMap((chat) => [
+      {
+        role: 'user',
+        content: chat.question,
+        images: chat.image,
+        chat_id: `${chat.chat_id}-user`,
+      },
+      {
+        role: 'assistant',
+        content: chat.answer,
+        chat_id: `${chat.chat_id}-assistant`,
+      },
+    ]);
+  }
 }
