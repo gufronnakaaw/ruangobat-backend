@@ -531,6 +531,7 @@ export class AiController {
                 cost: usage.cost,
                 prompt_tokens: usage.promptTokens,
                 img_url: body.img_url,
+                thread_id: body.thread_id,
               })
               .catch((error) => {
                 console.error('failed to save chat: ', error);

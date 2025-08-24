@@ -729,6 +729,7 @@ export class AiService {
     total_tokens: number;
     cost: number;
     img_url?: string[];
+    thread_id?: string;
   }) {
     const {
       user_id,
@@ -740,6 +741,7 @@ export class AiService {
       total_tokens,
       cost,
       img_url,
+      thread_id,
     } = params;
 
     return this.prisma.aiChat.create({
@@ -753,6 +755,7 @@ export class AiService {
         completion_tokens,
         total_tokens,
         total_cost: cost,
+        thread_id,
         ...(Array.isArray(img_url) && img_url.length
           ? {
               image: {
