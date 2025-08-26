@@ -131,6 +131,14 @@ export const userChatCompletionSchema = z.object({
   img_url: z.array(z.string().url()).optional(),
   timezone: z.string().default('Asia/Jakarta'),
   thread_id: z.string().optional(),
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(['user', 'assistant', 'system']),
+        content: z.string(),
+      }),
+    )
+    .optional(),
 });
 
 export type UserChatCompletionDto = z.infer<typeof userChatCompletionSchema>;

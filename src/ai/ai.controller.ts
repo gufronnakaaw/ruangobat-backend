@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,6 +8,7 @@ import {
   HttpCode,
   HttpStatus,
   MaxFileSizeValidator,
+  NotFoundException,
   Param,
   ParseFilePipe,
   Patch,
@@ -28,6 +30,7 @@ import { ModelMessage, streamText } from 'ai';
 import { Request, Response } from 'express';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
+import { PublicGuard } from '../utils/guards/public.guard';
 import { UserGuard } from '../utils/guards/user.guard';
 import { ZodValidationPipe } from '../utils/pipes/zod.pipe';
 import { StorageService } from '../utils/services/storage.service';
@@ -465,7 +468,7 @@ export class AiController {
         return;
       }
 
-      const provider = await this.aiService.getActiveProvider();
+      const provider = await this.aiService.getActiveProvider('paid');
 
       if (typeof provider === 'string') {
         sendError(provider);
@@ -553,6 +556,240 @@ export class AiController {
       console.error('error in main stream function: ', error);
       sendError('Server aku lagi drama dulu guys, sabar sebentar ya! 😩');
       res.end();
+    }
+  }
+
+  @UseGuards(PublicGuard)
+  @Post('/chat/streaming/v3')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(userChatCompletionSchema))
+  async chatStreamingV3(
+    @Body() body: UserChatCompletionDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const sendError = (message: string) => {
+      res.write(
+        `event: error\ndata: ${JSON.stringify({ content: message })}\n\n`,
+      );
+      res.end();
+    };
+
+    try {
+      if (!req.is_login) {
+        const provider = await this.aiService.getActiveProvider('free');
+
+        if (typeof provider === 'string') {
+          sendError(provider);
+          return;
+        }
+
+        const openrouter = createOpenRouter({
+          apiKey: provider.api_key,
+        });
+
+        const result = streamText({
+          model: openrouter(`${provider.model}${process.env.AI_PRESET}`),
+          messages: body.messages.map((message) => {
+            return {
+              role: message.role,
+              content: message.content,
+            };
+          }),
+          onError: (error) => {
+            console.log('error in onError callback: ', error);
+            sendError(
+              'Server-nya lagi putus sama aku, sebentar ya aku ajak balikan dulu 😫',
+            );
+          },
+          onFinish: () => {
+            res.write('data: [DONE]\n\n');
+            res.end();
+          },
+        });
+
+        for await (const text of result.textStream) {
+          res.write(`data: ${JSON.stringify({ content: text })}\n\n`);
+        }
+
+        return;
+      }
+
+      if (
+        !(await this.aiService.checkLimitUser(req.user.user_id, body.timezone))
+          .remaining
+      ) {
+        sendError(
+          'Kamu rajin banget sampe kuotanya kepake semua 🙌, coba lagi besok ya!',
+        );
+        return;
+      }
+
+      const provider = await this.aiService.getActiveProvider('paid');
+
+      if (typeof provider === 'string') {
+        sendError(provider);
+        return;
+      }
+
+      const chat_histories = await this.aiService.getChatHistories(
+        req.user.user_id,
+        body.timezone,
+      );
+
+      const messages: ModelMessage[] = [...chat_histories];
+
+      if (body.img_url?.length) {
+        messages.push({
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: body.input,
+            },
+            ...body.img_url.map((img) => ({
+              type: 'image' as const,
+              image: img,
+            })),
+          ],
+        });
+      } else {
+        messages.push({
+          role: 'user',
+          content: [{ text: body.input, type: 'text' }],
+        });
+      }
+
+      const openrouter = createOpenRouter({
+        apiKey: provider.api_key,
+      });
+
+      const result = streamText({
+        model: openrouter(`${provider.model}${process.env.AI_PRESET}`, {
+          usage: { include: true },
+        }),
+        messages,
+        onError: (error) => {
+          console.log('error in onError callback: ', error);
+          sendError(
+            'Server-nya lagi putus sama aku, sebentar ya aku ajak balikan dulu 😫',
+          );
+        },
+        onFinish: (response) => {
+          try {
+            const usage = response.providerMetadata.openrouter
+              .usage as OpenRouterUsageAccounting;
+
+            this.aiService
+              .saveChat({
+                user_id: req.user.user_id,
+                input: body.input,
+                answer: response.text,
+                model: provider.model,
+                completion_tokens: usage.completionTokens,
+                total_tokens: usage.totalTokens,
+                cost: usage.cost,
+                prompt_tokens: usage.promptTokens,
+                img_url: body.img_url,
+                thread_id: body.thread_id,
+              })
+              .catch((error) => {
+                console.error('failed to save chat: ', error);
+              });
+
+            res.write('data: [DONE]\n\n');
+            res.end();
+          } catch (error) {
+            console.error('error in onFinish callback: ', error);
+            res.end();
+          }
+        },
+      });
+
+      for await (const text of result.textStream) {
+        res.write(`data: ${JSON.stringify({ content: text })}\n\n`);
+      }
+
+      return;
+    } catch (error) {
+      console.error('error in main stream function: ', error);
+      sendError('Server aku lagi drama dulu guys, sabar sebentar ya! 😩');
+      res.end();
+    }
+  }
+
+  @UseGuards(UserGuard)
+  @Post('/chat/summarize')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(userChatCompletionSchema))
+  async summarizeChat(
+    @Body() body: UserChatCompletionDto,
+    @Res() res: Response,
+  ) {
+    try {
+      if (!body.thread_id || !body.messages?.length) {
+        throw new BadRequestException('Thread ID atau messages harus ada');
+      }
+
+      if (!(await this.aiService.checkThread(body.thread_id))) {
+        throw new NotFoundException('Thread tidak ditemukan');
+      }
+
+      const provider = await this.aiService.getActiveProvider('paid');
+
+      if (typeof provider === 'string') {
+        return;
+      }
+
+      const openrouter = createOpenRouter({
+        apiKey: provider.api_key,
+      });
+
+      const response = streamText({
+        model: openrouter(provider.model),
+        system:
+          'Ringkas percakapan ini menjadi 4 sampai 6 kata. Gunakan hanya huruf alfabet. Jangan gunakan tanda baca, emoji, karakter unik, atau simbol apapun.',
+        messages: body.messages.map((message) => {
+          return {
+            role: message.role,
+            content: message.content,
+          };
+        }),
+        onFinish: async (response) => {
+          try {
+            await this.aiService.updateTitleThread(
+              body.thread_id,
+              response.text,
+            );
+
+            res.json({
+              success: true,
+              status_code: HttpStatus.CREATED,
+              data: {
+                title: response.text,
+              },
+            });
+          } catch (error) {
+            console.error('error in onFinish callback: ', error);
+            res.json({
+              success: false,
+              status_code: HttpStatus.INTERNAL_SERVER_ERROR,
+              errors: {
+                ...error,
+              },
+            });
+          }
+        },
+      });
+
+      response.consumeStream();
+    } catch (error) {
+      throw error;
     }
   }
 

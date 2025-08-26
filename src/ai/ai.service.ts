@@ -1150,10 +1150,11 @@ export class AiService {
     });
   }
 
-  async getActiveProvider() {
+  async getActiveProvider(type: 'free' | 'paid') {
     const provider = await this.prisma.aiProvider.findFirst({
       where: {
         is_active: true,
+        type,
       },
       select: {
         api_key: true,
@@ -1345,5 +1346,19 @@ export class AiService {
         chat_id: `${chat.chat_id}-assistant`,
       },
     ]);
+  }
+
+  updateTitleThread(thread_id: string, title: string) {
+    return this.prisma.aiThread.update({
+      where: { thread_id },
+      data: { title },
+      select: { thread_id: true },
+    });
+  }
+
+  checkThread(thread_id: string) {
+    return this.prisma.aiThread.count({
+      where: { thread_id },
+    });
   }
 }
