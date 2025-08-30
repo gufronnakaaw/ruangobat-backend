@@ -130,6 +130,15 @@ export const userChatCompletionSchema = z.object({
   input: z.string(),
   img_url: z.array(z.string().url()).optional(),
   timezone: z.string().default('Asia/Jakarta'),
+  thread_id: z.string().optional(),
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(['user', 'assistant', 'system']),
+        content: z.string(),
+      }),
+    )
+    .optional(),
 });
 
 export type UserChatCompletionDto = z.infer<typeof userChatCompletionSchema>;
@@ -155,3 +164,10 @@ export const upsertPromptSchema = z.object({
 });
 
 export type UpsertPromptDto = z.infer<typeof upsertPromptSchema>;
+
+export const updateThreadSchema = z.object({
+  thread_id: z.string(),
+  is_archived: z.boolean(),
+});
+
+export type UpdateThreadDto = z.infer<typeof updateThreadSchema>;

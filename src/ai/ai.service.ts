@@ -29,6 +29,7 @@ import {
   UpdateContextDto,
   UpdateProviderDto,
   UpdateProviderStatusDto,
+  UpdateThreadDto,
   UpdateUserAiLimitDto,
   UpsertPromptDto,
   UserChatCompletionDto,
@@ -728,6 +729,7 @@ export class AiService {
     total_tokens: number;
     cost: number;
     img_url?: string[];
+    thread_id?: string;
   }) {
     const {
       user_id,
@@ -739,6 +741,7 @@ export class AiService {
       total_tokens,
       cost,
       img_url,
+      thread_id,
     } = params;
 
     return this.prisma.aiChat.create({
@@ -752,6 +755,7 @@ export class AiService {
         completion_tokens,
         total_tokens,
         total_cost: cost,
+        thread_id,
         ...(Array.isArray(img_url) && img_url.length
           ? {
               image: {
@@ -764,14 +768,6 @@ export class AiService {
             }
           : {}),
       },
-    });
-  }
-
-  uploadChatImage(file: Express.Multer.File, user_id: string) {
-    return this.storage.uploadFile({
-      buffer: file.buffer,
-      key: `chat/${Date.now()}-${user_id}-${file.originalname}`,
-      mimetype: file.mimetype,
     });
   }
 
@@ -1154,10 +1150,11 @@ export class AiService {
     });
   }
 
-  async getActiveProvider() {
+  async getActiveProvider(type: 'free' | 'paid') {
     const provider = await this.prisma.aiProvider.findFirst({
       where: {
         is_active: true,
+        type,
       },
       select: {
         api_key: true,
@@ -1270,5 +1267,98 @@ export class AiService {
     });
 
     return messages;
+  }
+
+  getThreads(user_id: string, archive: number) {
+    return this.prisma.aiThread.findMany({
+      where: {
+        user_id,
+        is_archived: Boolean(archive),
+      },
+      select: {
+        thread_id: true,
+        title: true,
+        created_at: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+  }
+
+  createThread(user_id: string) {
+    return this.prisma.aiThread.create({
+      data: {
+        user_id,
+        title: 'New Chat',
+      },
+      select: {
+        thread_id: true,
+      },
+    });
+  }
+
+  async updateThread(body: UpdateThreadDto, user_id: string) {
+    if (
+      !(await this.prisma.aiThread.findFirst({
+        where: { thread_id: body.thread_id, user_id },
+        select: { thread_id: true },
+      }))
+    ) {
+      throw new NotFoundException('Thread tidak ditemukan');
+    }
+
+    return this.prisma.aiThread.update({
+      where: { thread_id: body.thread_id, user_id },
+      data: {
+        is_archived: body.is_archived,
+      },
+      select: {
+        thread_id: true,
+      },
+    });
+  }
+
+  async getChatByThreadId(user_id: string, thread_id: string) {
+    const chats = await this.prisma.aiChat.findMany({
+      where: {
+        user_id,
+        thread_id,
+      },
+      select: {
+        chat_id: true,
+        question: true,
+        answer: true,
+        image: { select: { image_id: true, img_url: true } },
+      },
+    });
+
+    return chats.flatMap((chat) => [
+      {
+        role: 'user',
+        content: chat.question,
+        images: chat.image,
+        chat_id: `${chat.chat_id}-user`,
+      },
+      {
+        role: 'assistant',
+        content: chat.answer,
+        chat_id: `${chat.chat_id}-assistant`,
+      },
+    ]);
+  }
+
+  updateTitleThread(thread_id: string, title: string) {
+    return this.prisma.aiThread.update({
+      where: { thread_id },
+      data: { title },
+      select: { thread_id: true },
+    });
+  }
+
+  checkThread(thread_id: string) {
+    return this.prisma.aiThread.count({
+      where: { thread_id },
+    });
   }
 }

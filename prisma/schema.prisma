@@ -217,7 +217,8 @@ model User {
   access           Access[] 
   accestest        AccessTest[]
   assess_session   AssessmentSession[]
-  log_product      LogProduct[]     
+  log_product      LogProduct[]
+  threads          AiThread[]
 
   @@index([fullname, email, phone_number, created_at])
   @@map("user")
@@ -604,6 +605,7 @@ model AiContext {
 model AiChat {
   id               Int              @id               @default(autoincrement())
   chat_id          String           @unique           @default(uuid())
+  thread_id        String?
   user_id          String
   source           String
   model            String
@@ -617,6 +619,7 @@ model AiChat {
   created_at       DateTime         @default(now())
 
   user             User             @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  thread           AiThread?        @relation(fields: [thread_id], references: [thread_id], onDelete: Cascade)
   image            AiChatImage[]
 
   @@index([user_id, created_at])
@@ -1325,4 +1328,19 @@ model Ad {
   updated_by         String
 
   @@map("ad")
+}
+
+model AiThread {
+  id                 Int             @id               @default(autoincrement())
+  thread_id          String          @unique           @default(uuid())
+  user_id            String
+  title              String
+  is_archived        Boolean         @default(false)
+  created_at         DateTime        @default(now())
+  updated_at         DateTime        @updatedAt
+
+  user               User           @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  chats              AiChat[]
+
+  @@map("ai_thread")
 }

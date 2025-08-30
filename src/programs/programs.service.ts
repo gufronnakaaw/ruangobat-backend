@@ -122,6 +122,11 @@ export class ProgramsService {
               },
             },
           },
+          orderBy: {
+            test: {
+              title: 'asc',
+            },
+          },
         },
         participants: req.is_login
           ? {
