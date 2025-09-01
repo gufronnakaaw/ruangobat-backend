@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { decryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import { parseSortQuery } from '../utils/string.util';
 import { ActivitiesQuery, CreateProductLogDto } from './activities.dto';
@@ -41,8 +42,10 @@ export class ActivitiesService {
             select: {
               user_id: true,
               fullname: true,
+              phone_number: true,
             },
           },
+          created_at: true,
         },
         take,
         skip,
@@ -53,7 +56,16 @@ export class ActivitiesService {
     ]);
 
     return {
-      products: products.map(({ user, ...rest }) => ({ ...user, ...rest })),
+      products: products.map(({ user, ...rest }) => {
+        return {
+          ...user,
+          phone_number: decryptString(
+            user.phone_number,
+            process.env.ENCRYPT_KEY,
+          ),
+          ...rest,
+        };
+      }),
       page,
       total_logs,
       total_pages: Math.ceil(total_logs / take),
