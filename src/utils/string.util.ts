@@ -1,5 +1,3 @@
-import { prompts } from './prompts.util';
-
 export function buildContext(context: string | string[]) {
   let contextText = '';
 
@@ -15,60 +13,60 @@ export function buildContext(context: string | string[]) {
 ${contextText}`;
 }
 
-export function buildPrompt(
-  context?: string | string[],
-  has_image?: boolean | number,
-): string {
-  let contextText = '';
+// export function buildPrompt(
+//   context?: string | string[],
+//   has_image?: boolean | number,
+// ): string {
+//   let contextText = '';
 
-  if (Array.isArray(context)) {
-    contextText = context
-      .map((ctx, i) => `\tContext #${i + 1}:\n\t${ctx}`)
-      .join('\n\n');
-  } else if (typeof context === 'string') {
-    contextText = context;
-  }
+//   if (Array.isArray(context)) {
+//     contextText = context
+//       .map((ctx, i) => `\tContext #${i + 1}:\n\t${ctx}`)
+//       .join('\n\n');
+//   } else if (typeof context === 'string') {
+//     contextText = context;
+//   }
 
-  if (has_image) {
-    if (contextText) {
-      return `
-    [INSTRUCTION]
-    ${prompts.INSTRUCTION}
+//   if (has_image) {
+//     if (contextText) {
+//       return `
+//     [INSTRUCTION]
+//     ${prompts.INSTRUCTION}
 
-    [CONTEXT]
-${contextText}
-      
-    [ANSWER_FORMAT]
-    ${prompts.ANSWER_FORMAT}`;
-    } else {
-      return `
-    [INSTRUCTION]
-    ${prompts.INSTRUCTION}
-      
-    [ANSWER_FORMAT]
-    ${prompts.ANSWER_FORMAT}`;
-    }
-  }
+//     [CONTEXT]
+// ${contextText}
 
-  if (contextText) {
-    return `
-    [INSTRUCTION]
-    ${prompts.INSTRUCTION}
+//     [ANSWER_FORMAT]
+//     ${prompts.ANSWER_FORMAT}`;
+//     } else {
+//       return `
+//     [INSTRUCTION]
+//     ${prompts.INSTRUCTION}
 
-    [CONTEXT]
-${contextText}
-      
-    [ANSWER_FORMAT]
-    ${prompts.ANSWER_FORMAT}`;
-  }
+//     [ANSWER_FORMAT]
+//     ${prompts.ANSWER_FORMAT}`;
+//     }
+//   }
 
-  return `
-    [INSTRUCTION]
-    ${prompts.INSTRUCTION}
-      
-    [ANSWER_FORMAT]
-    ${prompts.ANSWER_FORMAT}`;
-}
+//   if (contextText) {
+//     return `
+//     [INSTRUCTION]
+//     ${prompts.INSTRUCTION}
+
+//     [CONTEXT]
+// ${contextText}
+
+//     [ANSWER_FORMAT]
+//     ${prompts.ANSWER_FORMAT}`;
+//   }
+
+//   return `
+//     [INSTRUCTION]
+//     ${prompts.INSTRUCTION}
+
+//     [ANSWER_FORMAT]
+//     ${prompts.ANSWER_FORMAT}`;
+// }
 
 export function parseIsActive(val: any): boolean | undefined {
   if (val === undefined) return undefined;
@@ -351,4 +349,32 @@ export function generateInvoiceNumberCustom(
 ): string {
   const serial = String(last_number + 1).padStart(5, '0');
   return `${prefix}-${code}-${date_string}-${serial}`;
+}
+
+export function isUUID(str: string) {
+  const regex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return regex.test(str);
+}
+
+export function toE164(input: string, countryCode = '62'): string | null {
+  let normalized = input.replace(/[^\d+]/g, '');
+
+  if (normalized.startsWith('+')) {
+    const regex = new RegExp(`^\\+${countryCode}0+`);
+    if (regex.test(normalized)) {
+      normalized = normalized.replace(regex, `+${countryCode}`);
+    }
+    return normalized;
+  }
+
+  if (normalized.startsWith('0')) {
+    return `+${countryCode}${normalized.replace(/^0+/, '')}`;
+  }
+
+  if (normalized.startsWith(countryCode)) {
+    return `+${normalized}`;
+  }
+
+  return null;
 }
