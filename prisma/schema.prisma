@@ -1197,14 +1197,17 @@ model Transaction {
   external_id       String?          @unique
   raw_payload       String?          @db.Text
   paid_amount       Int              @db.UnsignedInt
+  webhook_id        String?          @unique
+  raw_response      String?          @db.Text
+  raw_webhook       String?          @db.Text
 
   gateway           String
   gateway_fee       Int?             @db.UnsignedInt
   gateway_ref       String? 
   channel_code      String?
   
-  payment_method    String
-  normalized_method NormalizedMethod
+  payment_method    String?
+  normalized_method NormalizedMethod?
   failure_reason    String?          @db.Text
   status            TransactionStatus
   
