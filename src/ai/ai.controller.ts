@@ -276,24 +276,24 @@ export class AiController {
     }
   }
 
-  @UseGuards(UserGuard)
-  @Post('/chat')
-  @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(userChatCompletionSchema))
-  async chatCompletion(
-    @Body() body: UserChatCompletionDto,
-    @Req() req: Request,
-  ): Promise<SuccessResponse> {
-    try {
-      return {
-        success: true,
-        status_code: HttpStatus.CREATED,
-        data: await this.aiService.chatCompletion(req.user.user_id, body),
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
+  // @UseGuards(UserGuard)
+  // @Post('/chat')
+  // @HttpCode(HttpStatus.CREATED)
+  // @UsePipes(new ZodValidationPipe(userChatCompletionSchema))
+  // async chatCompletion(
+  //   @Body() body: UserChatCompletionDto,
+  //   @Req() req: Request,
+  // ): Promise<SuccessResponse> {
+  //   try {
+  //     return {
+  //       success: true,
+  //       status_code: HttpStatus.CREATED,
+  //       data: await this.aiService.chatCompletion(req.user.user_id, body),
+  //     };
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
 
   @UseGuards(UserGuard)
   @Post('/chat/streaming')
@@ -732,7 +732,7 @@ export class AiController {
       const response = streamText({
         model: openrouter(provider.model),
         system:
-          'Ringkas percakapan ini menjadi 4 sampai 6 kata. Gunakan hanya huruf alfabet. Jangan gunakan tanda baca, emoji, karakter unik, atau simbol apapun.',
+          'Ringkas percakapan ini menjadi 4 sampai 6 kata. Gunakan hanya huruf alfabet. Jangan gunakan tanda baca, emoji, karakter unik, atau simbol apapun. Tulis kata pertama dengan huruf kapital. Pertahankan kapitalisasi asli pada istilah penting.',
         messages: body.messages.map((message) => {
           return {
             role: message.role,
@@ -753,6 +753,9 @@ export class AiController {
                 title: response.text,
               },
             });
+
+            res.end();
+            return;
           } catch (error) {
             console.error('error in onFinish callback: ', error);
             res.json({

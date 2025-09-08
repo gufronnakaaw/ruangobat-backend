@@ -8,18 +8,15 @@ import {
 } from '@nestjs/common';
 import { Prompt, PromptType } from '@prisma/client';
 import { ModelMessage } from 'ai';
-import { AxiosResponse } from 'axios';
 import { DateTime } from 'luxon';
-import { firstValueFrom } from 'rxjs';
 import { ind, removeStopwords } from 'stopword';
 import { fetch } from 'undici';
 import { decryptString, encryptString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
 import { StorageService } from '../utils/services/storage.service';
-import { buildContext, buildPrompt } from '../utils/string.util';
+import { buildContext } from '../utils/string.util';
 import {
   AiQuery,
-  AiResponse,
   CreateAiLimitDto,
   CreateContextDto,
   CreateProviderDto,
@@ -376,126 +373,126 @@ export class AiService {
     ]);
   }
 
-  async chatCompletion(user_id: string, body: UserChatCompletionDto) {
-    const { input } = body;
-    const [provider, user_chats] = await this.prisma.$transaction([
-      this.prisma.aiProvider.findFirst({
-        where: {
-          is_active: true,
-        },
-        select: {
-          api_key: true,
-          api_url: true,
-          model: true,
-        },
-      }),
-      this.prisma.aiChat.findMany({
-        where: {
-          user_id,
-        },
-        select: {
-          question: true,
-          answer: true,
-        },
-        orderBy: {
-          created_at: 'desc',
-        },
-        take: 4,
-      }),
-    ]);
+  // async chatCompletion(user_id: string, body: UserChatCompletionDto) {
+  //   const { input } = body;
+  //   const [provider, user_chats] = await this.prisma.$transaction([
+  //     this.prisma.aiProvider.findFirst({
+  //       where: {
+  //         is_active: true,
+  //       },
+  //       select: {
+  //         api_key: true,
+  //         api_url: true,
+  //         model: true,
+  //       },
+  //     }),
+  //     this.prisma.aiChat.findMany({
+  //       where: {
+  //         user_id,
+  //       },
+  //       select: {
+  //         question: true,
+  //         answer: true,
+  //       },
+  //       orderBy: {
+  //         created_at: 'desc',
+  //       },
+  //       take: 4,
+  //     }),
+  //   ]);
 
-    if (!provider) {
-      return {
-        role: 'assistant',
-        content: 'Maaf ya fitur chat untuk sementara tidak tersedia 😫',
-      };
-    }
+  //   if (!provider) {
+  //     return {
+  //       role: 'assistant',
+  //       content: 'Maaf ya fitur chat untuk sementara tidak tersedia 😫',
+  //     };
+  //   }
 
-    const prompt = buildPrompt();
+  //   const prompt = buildPrompt();
 
-    const messages = [
-      {
-        role: 'system',
-        content: prompt,
-      },
-    ];
+  //   const messages = [
+  //     {
+  //       role: 'system',
+  //       content: prompt,
+  //     },
+  //   ];
 
-    if (!user_chats.length) {
-      messages.push({
-        role: 'user',
-        content: input,
-      });
-    } else {
-      const reverse_chats = user_chats.reverse();
+  //   if (!user_chats.length) {
+  //     messages.push({
+  //       role: 'user',
+  //       content: input,
+  //     });
+  //   } else {
+  //     const reverse_chats = user_chats.reverse();
 
-      for (const chat of reverse_chats) {
-        messages.push(
-          {
-            role: 'user',
-            content: chat.question,
-          },
-          {
-            role: 'assistant',
-            content: chat.answer,
-          },
-        );
-      }
+  //     for (const chat of reverse_chats) {
+  //       messages.push(
+  //         {
+  //           role: 'user',
+  //           content: chat.question,
+  //         },
+  //         {
+  //           role: 'assistant',
+  //           content: chat.answer,
+  //         },
+  //       );
+  //     }
 
-      messages.push({
-        role: 'user',
-        content: input,
-      });
-    }
+  //     messages.push({
+  //       role: 'user',
+  //       content: input,
+  //     });
+  //   }
 
-    const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${decryptString(
-          provider.api_key,
-          process.env.ENCRYPT_KEY,
-        )}`,
-      },
-    };
+  //   const config = {
+  //     headers: {
+  //       'Content-Type': 'application/json',
+  //       Authorization: `Bearer ${decryptString(
+  //         provider.api_key,
+  //         process.env.ENCRYPT_KEY,
+  //       )}`,
+  //     },
+  //   };
 
-    const data = {
-      model: provider.model,
-      messages,
-      usage: {
-        include: true,
-      },
-    };
+  //   const data = {
+  //     model: provider.model,
+  //     messages,
+  //     usage: {
+  //       include: true,
+  //     },
+  //   };
 
-    try {
-      const response: AxiosResponse<AiResponse> = await firstValueFrom(
-        this.http.post(provider.api_url, { ...data }, { ...config }),
-      );
+  //   try {
+  //     const response: AxiosResponse<AiResponse> = await firstValueFrom(
+  //       this.http.post(provider.api_url, { ...data }, { ...config }),
+  //     );
 
-      const { role, content } = response.data.choices[0].message;
+  //     const { role, content } = response.data.choices[0].message;
 
-      await this.prisma.aiChat.create({
-        data: {
-          user_id,
-          question: input,
-          answer: content,
-          model: provider.model,
-          source: 'web',
-          prompt_tokens: response.data.usage.prompt_tokens,
-          completion_tokens: response.data.usage.completion_tokens,
-          total_tokens: response.data.usage.total_tokens,
-          total_cost: response.data.usage.cost,
-        },
-      });
+  //     await this.prisma.aiChat.create({
+  //       data: {
+  //         user_id,
+  //         question: input,
+  //         answer: content,
+  //         model: provider.model,
+  //         source: 'web',
+  //         prompt_tokens: response.data.usage.prompt_tokens,
+  //         completion_tokens: response.data.usage.completion_tokens,
+  //         total_tokens: response.data.usage.total_tokens,
+  //         total_cost: response.data.usage.cost,
+  //       },
+  //     });
 
-      return { role, content };
-    } catch (error) {
-      return {
-        role: 'assistant',
-        content:
-          'Ups sepertinya server kita ada masalah. Maaf ya atas ketidaknyamanannya 😫',
-        error,
-      };
-    }
-  }
+  //     return { role, content };
+  //   } catch (error) {
+  //     return {
+  //       role: 'assistant',
+  //       content:
+  //         'Ups sepertinya server kita ada masalah. Maaf ya atas ketidaknyamanannya 😫',
+  //       error,
+  //     };
+  //   }
+  // }
 
   async chatStreaming(
     provider: {
@@ -1320,32 +1317,38 @@ export class AiService {
   }
 
   async getChatByThreadId(user_id: string, thread_id: string) {
-    const chats = await this.prisma.aiChat.findMany({
-      where: {
-        user_id,
-        thread_id,
-      },
+    const thread = await this.prisma.aiThread.findFirst({
+      where: { thread_id, user_id },
       select: {
-        chat_id: true,
-        question: true,
-        answer: true,
-        image: { select: { image_id: true, img_url: true } },
+        thread_id: true,
+        title: true,
+        chats: {
+          select: {
+            chat_id: true,
+            question: true,
+            answer: true,
+            image: { select: { image_id: true, img_url: true } },
+          },
+        },
       },
     });
 
-    return chats.flatMap((chat) => [
-      {
-        role: 'user',
-        content: chat.question,
-        images: chat.image,
-        chat_id: `${chat.chat_id}-user`,
-      },
-      {
-        role: 'assistant',
-        content: chat.answer,
-        chat_id: `${chat.chat_id}-assistant`,
-      },
-    ]);
+    return {
+      ...thread,
+      chats: thread.chats.flatMap((chat) => [
+        {
+          role: 'user',
+          content: chat.question,
+          images: chat.image,
+          chat_id: `${chat.chat_id}-user`,
+        },
+        {
+          role: 'assistant',
+          content: chat.answer,
+          chat_id: `${chat.chat_id}-assistant`,
+        },
+      ]),
+    };
   }
 
   updateTitleThread(thread_id: string, title: string) {
