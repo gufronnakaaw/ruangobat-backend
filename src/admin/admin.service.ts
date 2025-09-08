@@ -1349,9 +1349,7 @@ export class AdminService {
         },
         skip,
         take,
-        orderBy: {
-          score: 'desc',
-        },
+        orderBy: [{ score: 'desc' }, { created_at: 'asc' }],
       }),
       this.prisma.test.findUnique({
         where: { test_id },
