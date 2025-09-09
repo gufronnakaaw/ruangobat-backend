@@ -1183,6 +1183,40 @@ export class AiService {
           gte: today.toJSDate(),
           lt: until.toJSDate(),
         },
+        thread_id: null,
+      },
+      select: {
+        question: true,
+        answer: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+      take: 10,
+    });
+
+    return histories.reverse().flatMap((item) => [
+      { role: 'user', content: item.question },
+      { role: 'assistant', content: item.answer },
+    ]);
+  }
+
+  async getChatHistoriesByThread(
+    user_id: string,
+    timezone = 'Asia/Jakarta',
+    thread_id: string,
+  ): Promise<ModelMessage[]> {
+    const today = DateTime.now().setZone(timezone).startOf('day');
+    const until = today.plus({ days: 1 });
+
+    const histories = await this.prisma.aiChat.findMany({
+      where: {
+        user_id,
+        created_at: {
+          gte: today.toJSDate(),
+          lt: until.toJSDate(),
+        },
+        thread_id,
       },
       select: {
         question: true,

@@ -573,7 +573,7 @@ export class AiController {
         });
 
         const result = streamText({
-          model: openrouter(`${provider.model}${process.env.AI_PRESET}`),
+          model: openrouter(`${provider.model}${body.presets}`),
           messages: body.messages.map((message) => {
             return {
               role: message.role,
@@ -616,9 +616,10 @@ export class AiController {
         return;
       }
 
-      const chat_histories = await this.aiService.getChatHistories(
+      const chat_histories = await this.aiService.getChatHistoriesByThread(
         req.user.user_id,
         body.timezone,
+        body.thread_id,
       );
 
       const messages: ModelMessage[] = [...chat_histories];
@@ -649,9 +650,7 @@ export class AiController {
       });
 
       const result = streamText({
-        model: openrouter(`${provider.model}${process.env.AI_PRESET}`, {
-          usage: { include: true },
-        }),
+        model: openrouter(`${provider.model}${body.presets}`),
         messages,
         onError: (error) => {
           console.log('error in onError callback: ', error);

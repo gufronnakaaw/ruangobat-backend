@@ -139,6 +139,10 @@ export const userChatCompletionSchema = z.object({
       }),
     )
     .optional(),
+  presets: z
+    .enum(['@preset/rosa-beta'])
+    .default('@preset/rosa-beta')
+    .optional(),
 });
 
 export type UserChatCompletionDto = z.infer<typeof userChatCompletionSchema>;
