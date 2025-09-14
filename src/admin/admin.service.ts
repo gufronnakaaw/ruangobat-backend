@@ -2,6 +2,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { HttpService } from '@nestjs/axios';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -2707,6 +2708,76 @@ export class AdminService {
       select: {
         class_mentor_id: true,
       },
+    });
+  }
+
+  async safeDeleteUser(user_id: string, access_key: string) {
+    if (access_key !== process.env.ACCESS_KEY) {
+      throw new ForbiddenException();
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { user_id },
+        select: { user_id: true, fullname: true },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User tidak ditemukan');
+      }
+
+      const user_results = await tx.result.findMany({
+        where: { user_id },
+        select: { result_id: true },
+      });
+
+      for (const result of user_results) {
+        await tx.resultDetail.deleteMany({
+          where: { result_id: result.result_id },
+        });
+        await tx.result.delete({
+          where: { result_id: result.result_id },
+        });
+      }
+
+      await tx.participant.deleteMany({
+        where: { user_id },
+      });
+
+      await tx.start.deleteMany({
+        where: { user_id },
+      });
+
+      await tx.socialMediaImage.deleteMany({
+        where: { user_id },
+      });
+
+      const active_orders = await tx.order.findMany({
+        where: {
+          user_id,
+          status: { in: ['pending', 'paid'] },
+        },
+      });
+
+      if (active_orders.length > 0) {
+        throw new BadRequestException(
+          `Cannot delete user. Has ${active_orders.length} active orders. Cancel orders first.`,
+        );
+      }
+
+      await tx.order.deleteMany({
+        where: { user_id },
+      });
+
+      await tx.user.delete({
+        where: { user_id },
+      });
+
+      return {
+        message: 'User deleted successfully',
+        user_id,
+        fullname: user.fullname,
+      };
     });
   }
 }
