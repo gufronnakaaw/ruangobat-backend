@@ -1,6 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { random } from 'lodash';
-import { removeKeys } from '../utils/array.util';
 import { hashPassword } from '../utils/bcrypt.util';
 import { encryptString, hashString } from '../utils/crypto.util';
 import { PrismaService } from '../utils/services/prisma.service';
@@ -25,19 +24,7 @@ export class BatchesService {
       throw new ForbiddenException();
     }
 
-    const users_data: {
-      user_id: string;
-      password: string;
-      fullname: string;
-      email: string;
-      phone_number: string;
-      university: string;
-      email_hash: string;
-      phone_hash: string;
-      entry_year: string;
-      gender: 'M' | 'F';
-      is_verified: boolean;
-    }[] = [];
+    const users_data = [];
 
     for (const user of body.users) {
       users_data.push({
@@ -57,12 +44,55 @@ export class BatchesService {
       });
     }
 
-    await this.prisma.user.createMany({
-      data: users_data,
-    });
+    return await this.prisma.$transaction(async (tx) => {
+      const email_hashes = users_data.map((user) => user.email_hash);
 
-    return users_data.map((user) => {
-      return removeKeys(user, ['password']);
+      const existing_users = await tx.user.findMany({
+        where: {
+          email_hash: {
+            in: email_hashes,
+          },
+        },
+        select: {
+          email_hash: true,
+          user_id: true,
+        },
+      });
+
+      const existing_email_hashes = new Set(
+        existing_users.map((user) => user.email_hash),
+      );
+
+      const results = [];
+
+      for (const user_data of users_data) {
+        if (existing_email_hashes.has(user_data.email_hash)) {
+          await tx.user.updateMany({
+            where: {
+              email_hash: user_data.email_hash,
+            },
+            data: {
+              email: user_data.email,
+              phone_number: user_data.phone_number,
+              fullname: user_data.fullname,
+              gender: user_data.gender,
+              password: user_data.password,
+              phone_hash: user_data.phone_hash,
+              entry_year: user_data.entry_year,
+              university: user_data.university,
+              is_verified: user_data.is_verified,
+            },
+          });
+          results.push({ action: 'updated', email_hash: user_data.email_hash });
+        } else {
+          const result = await tx.user.create({
+            data: user_data,
+          });
+          results.push({ action: 'created', user_id: result.user_id });
+        }
+      }
+
+      return results;
     });
   }
 
@@ -83,6 +113,7 @@ export class BatchesService {
 
     await this.prisma.category.createMany({
       data: categories,
+      skipDuplicates: true,
     });
 
     return categories;
@@ -106,6 +137,7 @@ export class BatchesService {
 
     await this.prisma.subCategory.createMany({
       data: subcategories,
+      skipDuplicates: true,
     });
 
     return subcategories;
@@ -119,6 +151,7 @@ export class BatchesService {
           type: body.type,
         };
       }),
+      skipDuplicates: true,
     });
   }
 }

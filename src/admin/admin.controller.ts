@@ -531,6 +531,23 @@ export class AdminController {
     }
   }
 
+  @Delete('/users/:access_key/:user_id')
+  @HttpCode(HttpStatus.OK)
+  async deleteUser(
+    @Param('access_key') access_key: string,
+    @Param('user_id') user_id: string,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.adminService.safeDeleteUser(user_id, access_key),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Get('/exports/users')
   @HttpCode(HttpStatus.OK)
   async exportUsers(@Req() req: Request): Promise<SuccessResponse> {
