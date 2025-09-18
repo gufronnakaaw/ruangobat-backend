@@ -702,6 +702,133 @@ export class AiController {
   }
 
   @UseGuards(UserGuard)
+  @Post('/chat/streaming/v4')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(userChatCompletionSchema))
+  async chatStreamingV4(
+    @Body() body: UserChatCompletionDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const sendError = (message: string) => {
+      res.write(
+        `event: error\ndata: ${JSON.stringify({ content: message })}\n\n`,
+      );
+      res.end();
+    };
+
+    try {
+      if (
+        !(await this.aiService.checkLimitUser(req.user.user_id, body.timezone))
+          .remaining
+      ) {
+        sendError(
+          'Kamu rajin banget sampe kuotanya kepake semua 🙌, coba lagi besok ya!',
+        );
+        return;
+      }
+
+      const provider = await this.aiService.getActiveProvider('paid');
+
+      if (typeof provider === 'string') {
+        sendError(provider);
+        return;
+      }
+
+      const [prompt, chat_histories] = await Promise.all([
+        this.aiService.getSystemPrompt(body.input),
+        this.aiService.getChatHistoriesByThread(
+          req.user.user_id,
+          body.timezone,
+          body.thread_id,
+        ),
+      ]);
+
+      const messages: ModelMessage[] = [...prompt, ...chat_histories];
+
+      if (body.img_url?.length) {
+        const images = body.img_url.map((img) => ({
+          type: 'image' as const,
+          image: img,
+        }));
+
+        messages.push({
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: body.input,
+            },
+            ...images,
+          ],
+        });
+      } else {
+        messages.push({
+          role: 'user',
+          content: [{ text: body.input, type: 'text' }],
+        });
+      }
+
+      const openrouter = createOpenRouter({
+        apiKey: provider.api_key,
+      });
+
+      const result = streamText({
+        model: openrouter(provider.model, { usage: { include: true } }),
+        messages,
+        onError: (error) => {
+          console.log('error in onError callback: ', error);
+          sendError(
+            'Server-nya lagi putus sama aku, sebentar ya aku ajak balikan dulu 😫',
+          );
+        },
+        onFinish: (response) => {
+          try {
+            const usage = response.providerMetadata.openrouter
+              .usage as OpenRouterUsageAccounting;
+
+            this.aiService
+              .saveChat({
+                user_id: req.user.user_id,
+                input: body.input,
+                answer: response.text,
+                model: provider.model,
+                completion_tokens: usage.completionTokens,
+                total_tokens: usage.totalTokens,
+                cost: usage.cost,
+                prompt_tokens: usage.promptTokens,
+                img_url: body.img_url,
+                thread_id: body.thread_id,
+              })
+              .catch((error) => {
+                console.error('failed to save chat: ', error);
+              });
+
+            res.write('data: [DONE]\n\n');
+            res.end();
+          } catch (error) {
+            console.error('error in onFinish callback: ', error);
+            res.end();
+          }
+        },
+      });
+
+      for await (const text of result.textStream) {
+        res.write(`data: ${JSON.stringify({ content: text })}\n\n`);
+      }
+    } catch (error) {
+      console.error('error in main stream function: ', error);
+      sendError('Server aku lagi drama dulu guys, sabar sebentar ya! 😩');
+      res.end();
+    }
+  }
+
+  @UseGuards(UserGuard)
   @Post('/chat/summarize')
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ZodValidationPipe(userChatCompletionSchema))
