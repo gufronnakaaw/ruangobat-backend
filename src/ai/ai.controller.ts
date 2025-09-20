@@ -856,7 +856,7 @@ export class AiController {
       });
 
       const response = streamText({
-        model: openrouter(provider.model),
+        model: openrouter(process.env.SUMMARIZE_MODEL),
         system:
           'Ringkas percakapan ini menjadi 4 sampai 6 kata. Gunakan hanya huruf alfabet. Jangan gunakan tanda baca, emoji, karakter unik, atau simbol apapun. Tulis kata pertama dengan huruf kapital. Pertahankan kapitalisasi asli pada istilah penting.',
         messages: body.messages.map((message) => {
