@@ -6,6 +6,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { AiQuery } from '../ai/ai.dto';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
 import { StatisticsService } from './statistics.service';
@@ -59,6 +60,78 @@ export class StatisticsController {
         success: true,
         status_code: HttpStatus.OK,
         data: await this.statisticsService.getAiUsageStatistics(timezone),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/ai/limits/ever-reached')
+  @HttpCode(HttpStatus.OK)
+  async getAllUsersEverReachedLimit(
+    @Query() query: AiQuery,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.statisticsService.getAllUsersEverReachedLimit(query),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/ai/limits/today-reached')
+  @HttpCode(HttpStatus.OK)
+  async getUsersReachedLimitToday(
+    @Query('timezone') timezone: string,
+    @Query() query: AiQuery,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.statisticsService.getUsersReachedLimitToday(
+          query,
+          timezone,
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/ai/chats/today')
+  @HttpCode(HttpStatus.OK)
+  async getAllChatUsersToday(
+    @Query('timezone') timezone: string,
+    @Query() query: AiQuery,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.statisticsService.getAllChatUsersToday(
+          query,
+          timezone,
+        ),
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('/ai/users/costs')
+  @HttpCode(HttpStatus.OK)
+  async getAllUsersWithTotalCost(
+    @Query() query: AiQuery,
+  ): Promise<SuccessResponse> {
+    try {
+      return {
+        success: true,
+        status_code: HttpStatus.OK,
+        data: await this.statisticsService.getAllUsersWithTotalCost(query),
       };
     } catch (error) {
       throw error;
