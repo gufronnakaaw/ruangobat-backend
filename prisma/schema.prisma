@@ -1197,7 +1197,7 @@ model Transaction {
   external_id       String?          @unique
   raw_payload       String?          @db.Text
   paid_amount       Int              @db.UnsignedInt
-  webhook_id        String?          @unique
+  webhook_id        String?          
   raw_response      String?          @db.Text
   raw_webhook       String?          @db.Text
 
