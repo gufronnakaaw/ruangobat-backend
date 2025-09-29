@@ -225,6 +225,9 @@ export class StatisticsService {
   async getAiUsageStatistics(timezone = 'Asia/Jakarta') {
     const today = DateTime.now().setZone(timezone).startOf('day');
     const until = today.plus({ days: 1 });
+    const first_day_of_month = DateTime.now()
+      .setZone(timezone)
+      .startOf('month');
 
     const start_month = DateTime.fromObject(
       { year: 2024, month: 10 },
@@ -234,7 +237,7 @@ export class StatisticsService {
     const end_month = today.startOf('month').plus({ months: 1 });
     const seven_days_ago = today.minus({ days: 7 });
 
-    const [today_stats, week_stats, month_stats] =
+    const [today_stats, week_stats, month_stats, one_month_stats] =
       await this.prisma.$transaction([
         this.prisma.$queryRawUnsafe<
           {
@@ -298,10 +301,45 @@ export class StatisticsService {
           start_month.toJSDate(),
           end_month.toJSDate(),
         ),
+        this.prisma.$queryRawUnsafe<
+          {
+            day: string;
+            total_chat: number;
+            total_cost: number;
+            total_tokens: number;
+          }[]
+        >(
+          `
+        SELECT
+          DATE_FORMAT(created_at, '%Y-%m-%d') as day,
+          COUNT(*) as total_chat,
+          SUM(total_cost) as total_cost,
+          SUM(total_tokens) as total_tokens
+        FROM ai_chat
+        WHERE created_at >= ? AND created_at <= ?
+        GROUP BY day
+        ORDER BY day ASC
+      `,
+          first_day_of_month.toJSDate(),
+          today.toJSDate(),
+        ),
       ]);
 
     const week_stats_map = new Map(
       week_stats.map((row) => [
+        DateTime.fromJSDate(new Date(row.day))
+          .setLocale('id')
+          .toFormat('dd MMMM yyyy'),
+        {
+          total_chat: Number(row.total_chat),
+          total_cost: Number(row.total_cost),
+          total_tokens: Number(row.total_tokens),
+        },
+      ]),
+    );
+
+    const one_month_stats_map = new Map(
+      one_month_stats.map((row) => [
         DateTime.fromJSDate(new Date(row.day))
           .setLocale('id')
           .toFormat('dd MMMM yyyy'),
@@ -341,6 +379,21 @@ export class StatisticsService {
       cursor_week = cursor_week.plus({ days: 1 });
     }
 
+    const one_month = [];
+    let cursor_one_month = first_day_of_month;
+    while (cursor_one_month <= today) {
+      const label = cursor_one_month.setLocale('id').toFormat('dd MMMM yyyy');
+      one_month.push({
+        day: label,
+        ...(one_month_stats_map.get(label) ?? {
+          total_chat: 0,
+          total_cost: 0,
+          total_tokens: 0,
+        }),
+      });
+      cursor_one_month = cursor_one_month.plus({ days: 1 });
+    }
+
     const months = [];
     let cursor_month = start_month;
     while (cursor_month < end_month) {
@@ -378,7 +431,24 @@ export class StatisticsService {
         total_tokens: Number(today_stats[0].total_tokens),
       },
       last_seven_days: week,
+      one_month,
       months,
+      summary: {
+        one_month: {
+          average_cost:
+            one_month.reduce((sum, day) => sum + day.total_cost, 0) /
+            one_month.length,
+          average_tokens: Math.round(
+            one_month.reduce((sum, day) => sum + day.total_tokens, 0) /
+              one_month.length,
+          ),
+          average_chat: Math.round(
+            one_month.reduce((sum, day) => sum + day.total_chat, 0) /
+              one_month.length,
+          ),
+          total_days: one_month.length,
+        },
+      },
     };
   }
 
@@ -506,7 +576,6 @@ export class StatisticsService {
       (a, b) => b.days_reached_limit - a.days_reached_limit,
     );
 
-    // Pagination
     const total_users = users_ever_reached_limit.length;
     const paginated_users = users_ever_reached_limit.slice(skip, skip + take);
 
