@@ -1330,49 +1330,58 @@ export class AdminService {
             },
           },
         },
+        {
+          user: {
+            university: {
+              contains: query.q,
+            },
+          },
+        },
       ];
     }
 
-    const [total_results, results, test] = await this.prisma.$transaction([
-      this.prisma.result.count({ where }),
-      this.prisma.result.findMany({
-        where,
-        select: {
-          result_id: true,
-          user: {
-            select: {
-              user_id: true,
-              fullname: true,
-              university: true,
+    const [total_results, results, program_details] =
+      await this.prisma.$transaction([
+        this.prisma.result.count({ where }),
+        this.prisma.result.findMany({
+          where,
+          select: {
+            result_id: true,
+            user: {
+              select: {
+                user_id: true,
+                fullname: true,
+                university: true,
+              },
+            },
+            score: true,
+            created_at: true,
+          },
+          skip,
+          take,
+          orderBy: [{ score: 'desc' }, { created_at: 'desc' }],
+        }),
+        this.prisma.programDetail.findFirst({
+          where: { test_id },
+          select: {
+            test: {
+              select: {
+                test_id: true,
+                title: true,
+              },
+            },
+            program: {
+              select: {
+                program_id: true,
+              },
             },
           },
-          score: true,
-        },
-        skip,
-        take,
-        orderBy: [{ score: 'desc' }, { created_at: 'asc' }],
-      }),
-      this.prisma.test.findUnique({
-        where: { test_id },
-        select: {
-          test_id: true,
-          title: true,
-        },
-      }),
-    ]);
-
-    const program_detail = await this.prisma.programDetail.findMany({
-      where: { test_id },
-      orderBy: {
-        program: {
-          created_at: 'desc',
-        },
-      },
-    });
+        }),
+      ]);
 
     const total_participants = await this.prisma.participant.count({
       where: {
-        program_id: program_detail[0].program_id,
+        program_id: program_details.program.program_id,
         joined_at: {
           not: null,
         },
@@ -1381,11 +1390,11 @@ export class AdminService {
     });
 
     return {
-      ...test,
+      ...program_details.test,
       results: results.map((result) => {
-        const { score, user, result_id } = result;
+        const { score, user, ...rest } = result;
         return {
-          result_id,
+          ...rest,
           ...user,
           score,
           score_category: scoreCategory(score),
