@@ -534,11 +534,11 @@ export class StatisticsService {
         chat_by_date.set(date, (chat_by_date.get(date) || 0) + 1);
       }
 
-      const days_reached_limit = Array.from(chat_by_date.values()).filter(
+      const limit_hit_count = Array.from(chat_by_date.values()).filter(
         (count) => count >= effective_limit,
       ).length;
 
-      if (days_reached_limit > 0) {
+      if (limit_hit_count > 0) {
         const dates_reached = Array.from(chat_by_date.entries())
           .filter(([_, count]) => count >= effective_limit)
           .map(([date]) => new Date(date));
@@ -555,25 +555,15 @@ export class StatisticsService {
           total_chat: user._count.chats,
           total_cost: Number(total_cost),
           effective_limit,
-          has_access,
-          custom_limit: user.userlimit?.total || null,
-          limit_expired: user.userlimit?.expired_at || null,
-          days_reached_limit,
+          limit_hit_count,
           first_reached_date: dates_reached[0],
           last_reached_date: dates_reached[dates_reached.length - 1],
-          days_since_first_limit: Math.floor(
-            (new Date().getTime() - dates_reached[0].getTime()) /
-              (1000 * 60 * 60 * 24),
-          ),
-          limit_frequency: Math.round(
-            (days_reached_limit / chat_by_date.size) * 100,
-          ),
         });
       }
     }
 
     users_ever_reached_limit.sort(
-      (a, b) => b.days_reached_limit - a.days_reached_limit,
+      (a, b) => b.limit_hit_count - a.limit_hit_count,
     );
 
     const total_users = users_ever_reached_limit.length;
@@ -586,24 +576,9 @@ export class StatisticsService {
       total_pages: Math.ceil(total_users / take),
       summary: {
         total_users_ever_reached_limit: total_users,
-        total_days_reached_across_all_users: users_ever_reached_limit.reduce(
-          (sum, user) => sum + user.days_reached_limit,
-          0,
-        ),
-        average_days_reached_per_user:
-          total_users > 0
-            ? Number(
-                (
-                  users_ever_reached_limit.reduce(
-                    (sum, user) => sum + user.days_reached_limit,
-                    0,
-                  ) / total_users
-                ).toFixed(2),
-              )
-            : 0,
-        most_frequent_limit_reacher: paginated_users[0] || null,
-        chronic_limit_users: users_ever_reached_limit.filter(
-          (user) => user.days_reached_limit >= 5,
+        most_frequent_limit_reacher: users_ever_reached_limit[0] || null,
+        frequent_limit_users: users_ever_reached_limit.filter(
+          (user) => user.days_reached_limit >= 3,
         ).length,
         recent_limit_users: users_ever_reached_limit.filter(
           (user) => user.days_since_first_limit <= 30,
@@ -629,29 +604,6 @@ export class StatisticsService {
     const free_limit =
       global_limits.find((limit) => limit.type === 'free')?.total ?? 0;
 
-    const calculateEffectiveLimit = (
-      user: {
-        access: { access_id: string }[];
-        userlimit?: {
-          total: number;
-          expired_at: Date;
-        };
-      },
-      paid_limit: number,
-      free_limit: number,
-    ): number => {
-      const has_access = user.access.length > 0;
-      if (user.userlimit) {
-        const now = new Date();
-        const expired = new Date(user.userlimit.expired_at);
-        if (now > expired) {
-          return has_access ? paid_limit : free_limit;
-        }
-        return user.userlimit.total;
-      }
-      return has_access ? paid_limit : free_limit;
-    };
-
     const all_users_with_chat = await this.prisma.user.findMany({
       where: {
         chats: {
@@ -666,6 +618,7 @@ export class StatisticsService {
           OR: [
             { fullname: { contains: query.q } },
             { user_id: { contains: query.q } },
+            { university: { contains: query.q } },
           ],
         }),
       },
@@ -707,7 +660,11 @@ export class StatisticsService {
 
     const users_reached_limit = all_users_with_chat.filter((user) => {
       const chat_count = user._count.chats;
-      const user_limit = calculateEffectiveLimit(user, paid_limit, free_limit);
+      const user_limit = this.calculateEffectiveLimit(
+        user,
+        paid_limit,
+        free_limit,
+      );
       return chat_count >= user_limit;
     });
 
@@ -720,12 +677,11 @@ export class StatisticsService {
         fullname: user.fullname,
         university: user.university,
         chat_count_today: user._count.chats,
-        has_access: user.access.length > 0,
-        custom_limit: user.userlimit?.total,
-        limit_expired: user.userlimit
-          ? new Date() > new Date(user.userlimit.expired_at)
-          : null,
-        effective_limit: calculateEffectiveLimit(user, paid_limit, free_limit),
+        effective_limit: this.calculateEffectiveLimit(
+          user,
+          paid_limit,
+          free_limit,
+        ),
       })),
       page,
       total_users,
@@ -749,29 +705,6 @@ export class StatisticsService {
       global_limits.find((limit) => limit.type === 'paid')?.total ?? 0;
     const free_limit =
       global_limits.find((limit) => limit.type === 'free')?.total ?? 0;
-
-    const calculateEffectiveLimit = (
-      user: {
-        access: { access_id: string }[];
-        userlimit?: {
-          total: number;
-          expired_at: Date;
-        };
-      },
-      paid_limit: number,
-      free_limit: number,
-    ): number => {
-      const has_access = user.access.length > 0;
-      if (user.userlimit) {
-        const now = new Date();
-        const expired = new Date(user.userlimit.expired_at);
-        if (now > expired) {
-          return has_access ? paid_limit : free_limit;
-        }
-        return user.userlimit.total;
-      }
-      return has_access ? paid_limit : free_limit;
-    };
 
     const base_where = {
       chats: {
@@ -856,13 +789,12 @@ export class StatisticsService {
           return sum + (Number(chat.total_cost) || 0);
         }, 0);
 
-        const effective_limit = calculateEffectiveLimit(
+        const effective_limit = this.calculateEffectiveLimit(
           user,
           paid_limit,
           free_limit,
         );
         const chat_count = user._count.chats;
-        const has_access = user.access.length > 0;
 
         return {
           user_id: user.user_id,
@@ -871,10 +803,6 @@ export class StatisticsService {
           total_chat_today: chat_count,
           total_cost_today: Number(total_cost),
           effective_limit,
-          has_access,
-          custom_limit: user.userlimit?.total,
-          limit_expired: user.userlimit ? user.userlimit.expired_at : null,
-          usage_percentage: Math.round((chat_count / effective_limit) * 100),
           is_limit_reached: chat_count >= effective_limit,
         };
       }),
@@ -882,6 +810,29 @@ export class StatisticsService {
       total_users: total_count,
       total_pages: Math.ceil(total_count / take),
     };
+  }
+
+  calculateEffectiveLimit(
+    user: {
+      access: { access_id: string }[];
+      userlimit?: {
+        total: number;
+        expired_at: Date;
+      };
+    },
+    paid_limit: number,
+    free_limit: number,
+  ): number {
+    const has_access = user.access.length > 0;
+    if (user.userlimit) {
+      const now = new Date();
+      const expired = new Date(user.userlimit.expired_at);
+      if (now > expired) {
+        return has_access ? paid_limit : free_limit;
+      }
+      return user.userlimit.total;
+    }
+    return has_access ? paid_limit : free_limit;
   }
 
   async getAllUsersWithTotalCost(query: AiQuery) {
@@ -960,6 +911,88 @@ export class StatisticsService {
     `,
     );
 
+    const highest_cost_user_data = await this.prisma.$queryRawUnsafe<
+      {
+        user_id: string;
+        fullname: string;
+        university: string;
+        total_chat: bigint;
+        total_cost: string;
+      }[]
+    >(
+      `
+      SELECT 
+        u.user_id,
+        u.fullname,
+        u.university,
+        COALESCE(chat_stats.total_chat, 0) as total_chat,
+        COALESCE(chat_stats.total_cost, 0) as total_cost
+      FROM user u
+      LEFT JOIN (
+        SELECT 
+          user_id,
+          COUNT(*) as total_chat,
+          SUM(total_cost) as total_cost
+        FROM ai_chat
+        GROUP BY user_id
+      ) chat_stats ON u.user_id = chat_stats.user_id
+      WHERE chat_stats.total_cost IS NOT NULL
+      ORDER BY chat_stats.total_cost DESC
+      LIMIT 1
+      `,
+    );
+
+    const most_active_user_data = await this.prisma.$queryRawUnsafe<
+      {
+        user_id: string;
+        fullname: string;
+        university: string;
+        total_chat: bigint;
+        total_cost: string;
+      }[]
+    >(
+      `
+      SELECT 
+        u.user_id,
+        u.fullname,
+        u.university,
+        COALESCE(chat_stats.total_chat, 0) as total_chat,
+        COALESCE(chat_stats.total_cost, 0) as total_cost
+      FROM user u
+      LEFT JOIN (
+        SELECT 
+          user_id,
+          COUNT(*) as total_chat,
+          SUM(total_cost) as total_cost
+        FROM ai_chat
+        GROUP BY user_id
+      ) chat_stats ON u.user_id = chat_stats.user_id
+      WHERE chat_stats.total_chat IS NOT NULL
+      ORDER BY chat_stats.total_chat DESC
+      LIMIT 1
+      `,
+    );
+
+    const highest_cost_user = highest_cost_user_data[0]
+      ? {
+          user_id: highest_cost_user_data[0].user_id,
+          fullname: highest_cost_user_data[0].fullname,
+          university: highest_cost_user_data[0].university,
+          total_chat: Number(highest_cost_user_data[0].total_chat),
+          total_cost: Number(Number(highest_cost_user_data[0].total_cost)),
+        }
+      : null;
+
+    const most_active_user = most_active_user_data[0]
+      ? {
+          user_id: most_active_user_data[0].user_id,
+          fullname: most_active_user_data[0].fullname,
+          university: most_active_user_data[0].university,
+          total_chat: Number(most_active_user_data[0].total_chat),
+          total_cost: Number(Number(most_active_user_data[0].total_cost)),
+        }
+      : null;
+
     const processed_users = users_data.map((user) => ({
       user_id: user.user_id,
       fullname: user.fullname,
@@ -993,11 +1026,8 @@ export class StatisticsService {
                 Number(summary.total_chats) / Number(summary.total_users),
               )
             : 0,
-        highest_cost_user: processed_users[0] || null,
-        most_active_user: processed_users.reduce(
-          (max, user) => (user.total_chat > max.total_chat ? user : max),
-          processed_users[0] || null,
-        ),
+        highest_cost_user: highest_cost_user || null,
+        most_active_user: most_active_user || null,
       },
     };
   }
