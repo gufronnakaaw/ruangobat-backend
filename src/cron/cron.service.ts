@@ -2,7 +2,8 @@ import { HttpService } from '@nestjs/axios';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { firstValueFrom } from 'rxjs';
+import { AxiosResponse } from 'axios';
+import { firstValueFrom, Observable } from 'rxjs';
 import { PrismaService } from '../utils/services/prisma.service';
 
 @Injectable()
@@ -67,10 +68,14 @@ export class CronService {
         },
       });
 
-      const formatted_json = JSON.stringify({
-        message: 'cron job subscription executed successfully ✅',
-        env: process.env.MODE.toUpperCase(),
-      });
+      const formatted_json = JSON.stringify(
+        {
+          message: 'cron job subscription executed successfully ✅',
+          env: process.env.MODE.toUpperCase(),
+        },
+        null,
+        2,
+      );
 
       await firstValueFrom(
         this.http.post(process.env.TELEGRAM_URL, {
@@ -80,11 +85,15 @@ export class CronService {
         }),
       );
     } catch (error) {
-      const formatted_json = JSON.stringify({
-        message: 'cron job subscription failed to execute ❌',
-        error: error.message,
-        env: process.env.MODE.toUpperCase(),
-      });
+      const formatted_json = JSON.stringify(
+        {
+          message: 'cron job subscription failed to execute ❌',
+          error: error.message,
+          env: process.env.MODE.toUpperCase(),
+        },
+        null,
+        2,
+      );
 
       await firstValueFrom(
         this.http.post(process.env.TELEGRAM_URL, {
@@ -141,6 +150,97 @@ export class CronService {
       }
     } catch (error) {
       console.error('Article views cron job failed:', error);
+    }
+  }
+
+  @Cron(CronExpression.EVERY_HOUR, {
+    timeZone: 'Asia/Jakarta',
+  })
+  async handleCheckBalance() {
+    if (process.env.MODE === 'prod') {
+      try {
+        const [rates, credits] = await Promise.all([
+          firstValueFrom(
+            this.http.get(
+              'https://open.er-api.com/v6/latest/usd',
+            ) as Observable<AxiosResponse<{ rates: { IDR: number } }>>,
+          ),
+          firstValueFrom(
+            this.http.get(`${process.env.PROVIDER_URL}/api/v1/credits`, {
+              headers: {
+                Authorization: `Bearer ${process.env.PROVIDER_CREDIT_KEY}`,
+              },
+            }) as Observable<
+              AxiosResponse<{
+                data: { total_credits: number; total_usage: number };
+              }>
+            >,
+          ),
+        ]);
+
+        const data = {
+          remaining_credits:
+            credits.data.data.total_credits - credits.data.data.total_usage,
+          usd_to_idr_rate: new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+          }).format(Math.round(rates.data.rates.IDR)),
+          total_balance_idr: new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+          }).format(
+            Math.round(
+              (credits.data.data.total_credits -
+                credits.data.data.total_usage) *
+                rates.data.rates.IDR,
+            ),
+          ),
+          checked_at: new Date().toLocaleDateString('id-ID', {
+            timeZone: 'Asia/Jakarta',
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        };
+
+        const formatted_json = JSON.stringify(
+          {
+            message: 'cron job check balance executed successfully ✅',
+            env: process.env.MODE.toUpperCase(),
+            ...data,
+          },
+          null,
+          2,
+        );
+
+        await firstValueFrom(
+          this.http.post(process.env.TELEGRAM_URL, {
+            chat_id: process.env.TELEGRAM_CHAT_ID,
+            text: `\`\`\`json\n${formatted_json}\n\`\`\``,
+            parse_mode: 'Markdown',
+          }),
+        );
+      } catch (error) {
+        const formatted_json = JSON.stringify(
+          {
+            message: 'cron job check balance failed to execute ❌',
+            error: error.message,
+            env: process.env.MODE.toUpperCase(),
+          },
+          null,
+          2,
+        );
+
+        await firstValueFrom(
+          this.http.post(process.env.TELEGRAM_URL, {
+            chat_id: process.env.TELEGRAM_CHAT_ID,
+            text: `\`\`\`json\n${formatted_json}\n\`\`\``,
+            parse_mode: 'Markdown',
+          }),
+        );
+      }
     }
   }
 }
