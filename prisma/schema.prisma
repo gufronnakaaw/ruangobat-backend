@@ -1347,3 +1347,25 @@ model AiThread {
 
   @@map("ai_thread")
 }
+
+model UniversityEvent {
+  id                 Int             @id            @default(autoincrement())
+  event_id           String          @unique        @default(uuid())
+  slug               String          @unique
+  title              String
+  university_name    String
+  registration_date  String
+  content            String          @db.Text
+  img_url            String          @db.Text
+  img_key            String          @db.Text
+
+  created_at         DateTime        @default(now())
+  updated_at         DateTime        @updatedAt
+
+  created_by         String         
+  updated_by         String
+
+  @@index([event_id])
+  @@unique([slug, event_id])
+  @@map("university_event")
+}
