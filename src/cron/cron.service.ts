@@ -178,50 +178,51 @@ export class CronService {
           ),
         ]);
 
-        const data = {
-          remaining_credits:
-            credits.data.data.total_credits - credits.data.data.total_usage,
-          usd_to_idr_rate: new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-          }).format(Math.round(rates.data.rates.IDR)),
-          total_balance_idr: new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-          }).format(
-            Math.round(
-              (credits.data.data.total_credits -
-                credits.data.data.total_usage) *
-                rates.data.rates.IDR,
-            ),
-          ),
-          checked_at: new Date().toLocaleDateString('id-ID', {
-            timeZone: 'Asia/Jakarta',
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
-        };
-
-        const formatted_json = JSON.stringify(
-          {
-            message: 'cron job check balance executed successfully ✅',
-            env: process.env.MODE.toUpperCase(),
-            ...data,
-          },
-          null,
-          2,
+        const idr = Math.round(
+          (credits.data.data.total_credits - credits.data.data.total_usage) *
+            rates.data.rates.IDR,
         );
 
-        await firstValueFrom(
-          this.http.post(process.env.TELEGRAM_URL, {
-            chat_id: process.env.TELEGRAM_CHAT_ID,
-            text: `\`\`\`json\n${formatted_json}\n\`\`\``,
-            parse_mode: 'Markdown',
-          }),
-        );
+        if (idr <= 20_000) {
+          const data = {
+            remaining_credits:
+              credits.data.data.total_credits - credits.data.data.total_usage,
+            usd_to_idr_rate: new Intl.NumberFormat('id-ID', {
+              style: 'currency',
+              currency: 'IDR',
+            }).format(Math.round(rates.data.rates.IDR)),
+            total_balance_idr: new Intl.NumberFormat('id-ID', {
+              style: 'currency',
+              currency: 'IDR',
+            }).format(idr),
+            checked_at: new Date().toLocaleDateString('id-ID', {
+              timeZone: 'Asia/Jakarta',
+              day: '2-digit',
+              month: 'long',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+          };
+
+          const formatted_json = JSON.stringify(
+            {
+              message: 'cron job check balance executed successfully ✅',
+              env: process.env.MODE.toUpperCase(),
+              ...data,
+            },
+            null,
+            2,
+          );
+
+          await firstValueFrom(
+            this.http.post(process.env.TELEGRAM_URL, {
+              chat_id: process.env.TELEGRAM_CHAT_ID,
+              text: `\`\`\`json\n${formatted_json}\n\`\`\``,
+              parse_mode: 'Markdown',
+            }),
+          );
+        }
       } catch (error) {
         const formatted_json = JSON.stringify(
           {
