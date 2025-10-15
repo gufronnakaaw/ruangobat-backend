@@ -12,6 +12,7 @@ export const createEventSchema = z.object({
   university_name: z.string(),
   registration_date: z.string(),
   content: z.string(),
+  province: z.string(),
 });
 
 export type CreateEventDto = z.infer<typeof createEventSchema>;
@@ -22,6 +23,7 @@ export const updateEventSchema = z.object({
   university_name: z.string().optional(),
   registration_date: z.string().optional(),
   content: z.string().optional(),
+  province: z.string().optional(),
 });
 
 export type UpdateEventDto = z.infer<typeof updateEventSchema>;

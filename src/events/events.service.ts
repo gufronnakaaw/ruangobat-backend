@@ -19,6 +19,10 @@ export class EventsService {
 
     const where: any = {};
 
+    if (query.filter) {
+      where.province = query.filter;
+    }
+
     if (query.q) {
       where.OR = [
         { title: { contains: query.q } },
@@ -42,6 +46,8 @@ export class EventsService {
           event_id: true,
           title: true,
           slug: true,
+          province: true,
+          content: true,
           img_url: true,
           registration_date: true,
           university_name: true,
@@ -72,6 +78,7 @@ export class EventsService {
         content: true,
         registration_date: true,
         university_name: true,
+        province: true,
         created_at: true,
         created_by: true,
       },
@@ -102,6 +109,7 @@ export class EventsService {
         img_url: url,
         created_by: by,
         updated_by: by,
+        province: body.province,
       },
       select: {
         event_id: true,
@@ -153,6 +161,7 @@ export class EventsService {
         img_key: key ? key : undefined,
         img_url: url ? url : undefined,
         updated_by: by,
+        province: body.province,
       },
       select: {
         event_id: true,
