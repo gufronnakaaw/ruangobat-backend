@@ -13,7 +13,7 @@ export class EventsService {
 
   async getEvents(query: EventsQuery) {
     const default_page = 1;
-    const take = 9;
+    const take = 8;
     const page = Number(query.page) || default_page;
     const skip = (page - 1) * take;
 
