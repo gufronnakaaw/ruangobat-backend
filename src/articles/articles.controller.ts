@@ -22,7 +22,7 @@ import { Request } from 'express';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
 import { PublicGuard } from '../utils/guards/public.guard';
-import { ZodInterceptor } from '../utils/interceptors/zod.interceptor';
+import { InputInterceptor } from '../utils/interceptors/input.interceptor';
 import { StorageService } from '../utils/services/storage.service';
 import {
   ArticlesQuery,
@@ -146,7 +146,7 @@ export class ArticlesController {
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(
     FileInterceptor('articles'),
-    new ZodInterceptor(createArticleSchema),
+    new InputInterceptor(createArticleSchema),
   )
   async createArticle(
     @Body() body: CreateArticleDto,
@@ -186,7 +186,7 @@ export class ArticlesController {
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
     FileInterceptor('articles'),
-    new ZodInterceptor(updateArticleSchema),
+    new InputInterceptor(updateArticleSchema),
   )
   async updateArticle(
     @Body() body: UpdateArticleDto,

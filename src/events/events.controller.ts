@@ -21,7 +21,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { SuccessResponse } from '../utils/global/global.response';
 import { AdminGuard } from '../utils/guards/admin.guard';
-import { ZodInterceptor } from '../utils/interceptors/zod.interceptor';
+import { InputInterceptor } from '../utils/interceptors/input.interceptor';
 import {
   CreateEventDto,
   createEventSchema,
@@ -70,7 +70,7 @@ export class EventsController {
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(
     FileInterceptor('events'),
-    new ZodInterceptor(createEventSchema),
+    new InputInterceptor(createEventSchema),
   )
   async createEvent(
     @Body() body: CreateEventDto,
@@ -110,7 +110,7 @@ export class EventsController {
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
     FileInterceptor('events'),
-    new ZodInterceptor(updateEventSchema),
+    new InputInterceptor(updateEventSchema),
   )
   async updateEvent(
     @Body() body: UpdateEventDto,
