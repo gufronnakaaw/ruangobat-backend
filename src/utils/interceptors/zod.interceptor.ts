@@ -18,15 +18,14 @@ export class ZodInterceptor implements NestInterceptor {
     next: CallHandler,
   ): Promise<Observable<any>> {
     const request = context.switchToHttp().getRequest();
-    const body = request.body;
-    const file = request.file;
 
     try {
-      this.schema.parse(body);
+      this.schema.parse(request.body);
+      return next.handle();
     } catch (error) {
-      if (file) {
+      if (request.file) {
         try {
-          await unlink(file.path);
+          await unlink(request.file.path);
         } catch (error) {
           throw new InternalServerErrorException(
             'Server error saat menghapus file',
@@ -36,7 +35,5 @@ export class ZodInterceptor implements NestInterceptor {
 
       throw error;
     }
-
-    return next.handle();
   }
 }

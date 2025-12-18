@@ -16,14 +16,7 @@ export class InputInterceptor implements NestInterceptor {
     next: CallHandler,
   ): Promise<Observable<any>> {
     const request = context.switchToHttp().getRequest();
-    const body = request.body;
-
-    try {
-      this.schema.parse(body);
-    } catch (error) {
-      throw error;
-    }
-
+    this.schema.parse(request.body);
     return next.handle();
   }
 }
