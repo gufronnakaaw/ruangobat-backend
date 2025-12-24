@@ -36,13 +36,23 @@ export class CronService {
   async handleDeleteOtp() {
     try {
       const date = new Date();
-      await this.prisma.otp.deleteMany({
-        where: {
-          expired_at: {
-            lte: date,
+
+      await Promise.all([
+        this.prisma.otp.deleteMany({
+          where: {
+            expired_at: {
+              lte: date,
+            },
           },
-        },
-      });
+        }),
+        this.prisma.start.deleteMany({
+          where: {
+            end_time: {
+              lte: date,
+            },
+          },
+        }),
+      ]);
     } catch (error) {
       console.log(error);
     }
