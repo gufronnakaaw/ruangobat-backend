@@ -125,6 +125,7 @@ export class TestsService {
         questions: shuffles,
         total_questions: questions.length,
         end_time: start.end_time,
+        server_time: new Date().toISOString(),
       };
     }
 
@@ -144,6 +145,7 @@ export class TestsService {
       questions: shuffles,
       total_questions: questions.length,
       end_time,
+      server_time: new Date().toISOString(),
     };
   }
 
