@@ -5,24 +5,15 @@ import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './utils/global/global.exception';
 
 async function bootstrap() {
-  const options: NestApplicationOptions = {};
+  const is_prod = process.env.MODE === 'prod';
 
-  if (process.env.MODE === 'prod') {
-    Object.assign(options, {
-      cors: {
-        origin: [
-          'http://ruangobat.id',
-          'https://ruangobat.id',
-          'http://admin.ruangobat.id',
-          'https://admin.ruangobat.id',
-          'http://files.ruangobat.id',
-          'https://files.ruangobat.id',
-        ],
-      },
-    });
-  } else {
-    Object.assign(options, { cors: true });
-  }
+  const options: NestApplicationOptions = {
+    cors: is_prod
+      ? {
+          origin: /^https?:\/\/(admin\.|files\.)?ruangobat\.id$/,
+        }
+      : true,
+  };
 
   const app = await NestFactory.create(AppModule, options);
 
@@ -33,6 +24,7 @@ async function bootstrap() {
   app.use(json({ limit: '5mb' }));
   app.use(urlencoded({ extended: true, limit: '5mb' }));
   app.useGlobalFilters(new GlobalExceptionFilter(app.get(HttpAdapterHost)));
-  await app.listen(process.env.MODE === 'prod' ? 3002 : 3003);
+
+  await app.listen(is_prod ? 3002 : 3003);
 }
 bootstrap();
